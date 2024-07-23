@@ -1,0 +1,23 @@
+ktor:
+    application:
+        modules:
+            - fi.lipp.blog.ApplicationKt.module
+    deployment:
+        port: 80
+jwt:
+    issuer: "blog application"
+    audience: "jwt-audience"
+    realm: "ktor sample app"
+    secret: "pupa"
+mail:
+    host: "host"
+    port: ""
+    email: ""
+    password: ""
+    from: ""
+directory:
+    images: "images"
+    videos: "videos"
+    audios: "audios"
+    styles: "styles"
+    other: "other"
