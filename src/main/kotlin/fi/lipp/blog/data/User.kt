@@ -12,5 +12,5 @@ data class User(
     @Transient
     val password: String = "",
     val nickname: String,
-    val registrationTime: LocalDateTime
+    val registrationTime: LocalDateTime?,
 )

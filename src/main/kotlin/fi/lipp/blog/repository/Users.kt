@@ -6,7 +6,7 @@ import org.jetbrains.exposed.sql.kotlin.datetime.datetime
 import java.time.LocalDateTime
 
 object Users : LongIdTable() {
-    val login = varchar("login", 20).uniqueIndex("idx_user_login")
+    val login = varchar("login", 50).uniqueIndex("idx_user_login")
     val email = varchar("email", 50).uniqueIndex("idx_user_email")
     val password = varchar("password", 200)
     val nickname = varchar("nickname", 50).uniqueIndex("idx_user_nickname")

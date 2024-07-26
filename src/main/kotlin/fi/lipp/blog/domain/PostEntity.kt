@@ -1,14 +1,17 @@
 package fi.lipp.blog.domain
 
-import fi.lipp.blog.data.Post
-import fi.lipp.blog.domain.CommentEntity.Companion.referrersOn
+import fi.lipp.blog.data.AccessGroupType
+import fi.lipp.blog.data.PostFull
+import fi.lipp.blog.data.PostView
 import fi.lipp.blog.model.exceptions.InternalServerError
+import fi.lipp.blog.repository.CustomGroupUsers
 import fi.lipp.blog.repository.PostTags
 import fi.lipp.blog.repository.Posts
-import fi.lipp.blog.repository.Users
 import org.jetbrains.exposed.dao.UUIDEntity
 import org.jetbrains.exposed.dao.UUIDEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.select
 import java.util.*
 
 class PostEntity(id: EntityID<UUID>) : UUIDEntity(id) {
@@ -27,16 +30,33 @@ class PostEntity(id: EntityID<UUID>) : UUIDEntity(id) {
 
     var isEncrypted by Posts.isEncrypted
     val isPreface by Posts.isPreface
-    var isPrivate by Posts.isPrivate
 
     var isArchived by Posts.isArchived
 
     var classes by Posts.classes
     var tags by TagEntity via PostTags
 
-    fun toPost(): Post {
+    var readGroupId by Posts.readGroup
+    var commentGroupId by Posts.commentGroup
+
+    // TODO part info for users (e.g. canComment: Boolean)
+    // TODO more info for author (e.g. group)
+    // TODO or create other method e.g. toEditablePost
+    fun toPostView(userId: Long?): PostView {
         val author = UserEntity.findById(authorId) ?: throw InternalServerError()
-        return Post(
+        val commentGroup = AccessGroupEntity.findById(commentGroupId) ?: throw InternalServerError()
+        val isCommentable = when (commentGroup.type) {
+            AccessGroupType.PRIVATE -> userId == authorId.value
+            AccessGroupType.EVERYONE -> true
+            AccessGroupType.REGISTERED_USERS -> userId != null
+            AccessGroupType.CUSTOM -> {
+                CustomGroupUsers
+                    .select { (CustomGroupUsers.accessGroup eq commentGroupId) and (CustomGroupUsers.member eq userId) }
+                    .count() > 0
+            }
+        }
+
+        return PostView(
             id = id.value,
             uri = uri,
             authorLogin = author.login,
@@ -47,9 +67,29 @@ class PostEntity(id: EntityID<UUID>) : UUIDEntity(id) {
             creationTime = creationTime,
             isEncrypted = isEncrypted,
             isPreface = isPreface,
-            isPrivate = isPrivate,
             classes = classes,
             tags = tags.map { it.name }.toSet(),
+            isCommentable = isCommentable,
+        )
+    }
+
+    fun toPostFull(): PostFull {
+        val author = UserEntity.findById(authorId) ?: throw InternalServerError()
+        return PostFull(
+            id = id.value,
+            uri = uri,
+            authorLogin = author.login,
+            authorNickname = author.nickname,
+            avatar = avatar,
+            title = title,
+            text = text,
+            creationTime = creationTime,
+            isEncrypted = isEncrypted,
+            isPreface = isPreface,
+            classes = classes,
+            tags = tags.map { it.name }.toSet(),
+            readGroupId = readGroupId.value,
+            commentGroupId = commentGroupId.value,
         )
     }
 }

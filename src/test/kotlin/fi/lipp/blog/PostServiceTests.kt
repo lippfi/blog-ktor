@@ -1,6 +1,7 @@
 package fi.lipp.blog
 
-import fi.lipp.blog.data.Post
+import fi.lipp.blog.data.PostFull
+import fi.lipp.blog.data.PostView
 import fi.lipp.blog.data.User
 import fi.lipp.blog.domain.DiaryEntity
 import fi.lipp.blog.model.Page
@@ -8,7 +9,10 @@ import fi.lipp.blog.model.Pageable
 import fi.lipp.blog.model.TagPolicy
 import fi.lipp.blog.model.exceptions.WrongUserException
 import fi.lipp.blog.repository.*
+import fi.lipp.blog.service.AccessGroupService
 import fi.lipp.blog.service.MailService
+import fi.lipp.blog.service.PostService
+import fi.lipp.blog.service.implementations.AccessGroupServiceImpl
 import fi.lipp.blog.service.implementations.PostServiceImpl
 import fi.lipp.blog.service.implementations.StorageServiceImpl
 import fi.lipp.blog.service.implementations.UserServiceImpl
@@ -26,6 +30,7 @@ import org.junit.Assert.assertThrows
 import org.junit.BeforeClass
 import org.junit.Test
 import org.mockito.Mockito.mock
+import java.util.Locale
 import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -38,8 +43,10 @@ class PostServiceTests : UnitTestBase() {
         fun setUp() {
             Database.connect("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;", driver = "org.h2.Driver")
             transaction {
-                SchemaUtils.create(Users, Diaries, InviteCodes, PasswordResets, Files, UserAvatars, Tags, Posts, PostTags)
+                SchemaUtils.create(Users, Diaries, InviteCodes, PasswordResets, Files, UserAvatars, Tags, Posts, PostTags, AccessGroups, CustomGroupUsers)
             }
+            groupService = AccessGroupServiceImpl()
+            postService = PostServiceImpl(groupService)
         }
 
         @JvmStatic
@@ -52,7 +59,8 @@ class PostServiceTests : UnitTestBase() {
         private val mailService = mock<MailService>()
         private val storageService = StorageServiceImpl(properties)
         private val userService = UserServiceImpl(encoder, mailService, storageService)
-        private val postService = PostServiceImpl()
+        private lateinit var groupService: AccessGroupService
+        private lateinit var postService: PostService
 
         private val testUser = User(
             id = 2412412L,
@@ -68,6 +76,14 @@ class PostServiceTests : UnitTestBase() {
             email = "piecelovingkebab@proton.com",
             password = "secure_password",
             nickname = "cat_hater44",
+            registrationTime = LocalDateTime(2019, 4, 17, 1, 2)
+        )
+        private val testUser3 = User(
+            id = 493484489L,
+            login = "spammer",
+            email = "google@gmail.com",
+            password = "12345",
+            nickname = "free cheeseburgers",
             registrationTime = LocalDateTime(2019, 4, 17, 1, 2)
         )
     }
@@ -94,7 +110,7 @@ class PostServiceTests : UnitTestBase() {
             assertEquals(post1.classes, addedPost.classes)
             assertEquals(post1.avatar, addedPost.avatar)
             assertEquals(post1.isPreface, addedPost.isPreface)
-            assertEquals(post1.isPrivate, addedPost.isPrivate)
+            assertEquals(true, addedPost.isCommentable)
             assertEquals(post1.isEncrypted, addedPost.isEncrypted)
             assertEquals(post1.authorLogin, user1.login)
             assertEquals(post1.authorNickname, user1.nickname)
@@ -117,7 +133,7 @@ class PostServiceTests : UnitTestBase() {
             page = getPosts(user = user1, pageable = pageable)
             val addedPost = page.content.first()
 
-            val newPost = createPost(user1, id = addedPost.id, avatar = "new url", title = "new title", text = "new text", isPreface = !post1.isPreface, isPrivate = !post1.isPrivate, isEncrypted = !post1.isEncrypted, classes = "small", tags = setOf("cat", "dog"))
+            val newPost = createPost(user1, id = addedPost.id, avatar = "new url", title = "new title", text = "new text", isPreface = !post1.isPreface, readGroup = groupService.privateGroupUUID, commentGroup = groupService.privateGroupUUID, isEncrypted = !post1.isEncrypted, classes = "small", tags = setOf("cat", "dog"))
             postService.updatePost(user1.id, newPost)
             page = getPosts(user = user1, pageable = pageable)
             assertEquals(1, page.currentPage)
@@ -131,7 +147,7 @@ class PostServiceTests : UnitTestBase() {
             assertEquals(newPost.classes, updatedPost.classes)
             assertEquals(newPost.avatar, updatedPost.avatar)
             assertEquals(addedPost.isPreface, updatedPost.isPreface)
-            assertEquals(newPost.isPrivate, updatedPost.isPrivate)
+            assertEquals(true, updatedPost.isCommentable)
             assertEquals(newPost.isEncrypted, updatedPost.isEncrypted)
             assertEquals(newPost.authorLogin, user1.login)
             assertEquals(newPost.authorNickname, user1.nickname)
@@ -154,7 +170,7 @@ class PostServiceTests : UnitTestBase() {
             page = getPosts(user = user1, pageable = pageable)
             val addedPost = page.content.first()
 
-            val newPost = createPost(user1, id = addedPost.id, avatar = "new url", uri = "new-uri", title = "new title", text = "new text", isPreface = !post1.isPreface, isPrivate = !post1.isPrivate, isEncrypted = !post1.isEncrypted, classes = "small", tags = setOf("cat", "dog"))
+            val newPost = createPost(user1, id = addedPost.id, avatar = "new url", uri = "new-uri", title = "new title", text = "new text", isPreface = !post1.isPreface, readGroup = groupService.privateGroupUUID, commentGroup = groupService.privateGroupUUID, isEncrypted = !post1.isEncrypted, classes = "small", tags = setOf("cat", "dog"))
             postService.updatePost(user1.id, newPost)
             page = getPosts(user = user1, pageable = pageable)
             assertEquals(1, page.currentPage)
@@ -168,7 +184,7 @@ class PostServiceTests : UnitTestBase() {
             assertEquals(newPost.classes, updatedPost.classes)
             assertEquals(newPost.avatar, updatedPost.avatar)
             assertEquals(addedPost.isPreface, updatedPost.isPreface)
-            assertEquals(newPost.isPrivate, updatedPost.isPrivate)
+            assertEquals(true, updatedPost.isCommentable)
             assertEquals(newPost.isEncrypted, updatedPost.isEncrypted)
             assertEquals(newPost.authorLogin, user1.login)
             assertEquals(newPost.authorNickname, user1.nickname)
@@ -191,7 +207,7 @@ class PostServiceTests : UnitTestBase() {
             page = getPosts(user = user1, pageable = pageable)
             val addedPost = page.content.first()
 
-            val newPost = createPost(user1, id = addedPost.id, avatar = "new url", title = "new title", text = "new text", isPreface = !post1.isPreface, isPrivate = !post1.isPrivate, isEncrypted = !post1.isEncrypted, classes = "small", tags = setOf("cat", "dog"))
+            val newPost = createPost(user1, id = addedPost.id, avatar = "new url", title = "new title", text = "new text", isPreface = !post1.isPreface, readGroup = groupService.privateGroupUUID, commentGroup = groupService.privateGroupUUID, isEncrypted = !post1.isEncrypted, classes = "small", tags = setOf("cat", "dog"))
             assertThrows(WrongUserException::class.java) {
                 postService.updatePost(user2.id, newPost)
             }
@@ -233,7 +249,7 @@ class PostServiceTests : UnitTestBase() {
             assertEquals(preface.classes, foundPreface1.classes)
             assertEquals(preface.avatar, foundPreface1.avatar)
             assertEquals(preface.isPreface, foundPreface1.isPreface)
-            assertEquals(preface.isPrivate, foundPreface1.isPrivate)
+            assertEquals(true, foundPreface1.isCommentable)
             assertEquals(preface.isEncrypted, foundPreface1.isEncrypted)
             assertEquals(user1.login, foundPreface1.authorLogin)
             assertEquals(user1.nickname, foundPreface1.authorNickname)
@@ -265,7 +281,7 @@ class PostServiceTests : UnitTestBase() {
             assertEquals(preface2.classes, foundPreface2.classes)
             assertEquals(preface2.avatar, foundPreface2.avatar)
             assertEquals(preface2.isPreface, foundPreface2.isPreface)
-            assertEquals(preface2.isPrivate, foundPreface2.isPrivate)
+            assertEquals(true, foundPreface2.isCommentable)
             assertEquals(preface2.isEncrypted, foundPreface2.isEncrypted)
             assertEquals(preface2.authorLogin, user1.login)
             assertEquals(preface2.authorNickname, user1.nickname)
@@ -298,7 +314,7 @@ class PostServiceTests : UnitTestBase() {
             assertEquals(prefaceUpdate.classes, updatedPreface.classes)
             assertEquals(prefaceUpdate.avatar, updatedPreface.avatar)
             assertEquals(prefaceUpdate.isPreface, updatedPreface.isPreface)
-            assertEquals(prefaceUpdate.isPrivate, updatedPreface.isPrivate)
+            assertEquals(true, updatedPreface.isCommentable)
             assertEquals(prefaceUpdate.isEncrypted, updatedPreface.isEncrypted)
             assertEquals(prefaceUpdate.authorLogin, user1.login)
             assertEquals(prefaceUpdate.authorNickname, user1.nickname)
@@ -336,7 +352,7 @@ class PostServiceTests : UnitTestBase() {
             assertEquals(foundPreface1.classes, updatedPreface.classes)
             assertEquals(foundPreface1.avatar, updatedPreface.avatar)
             assertEquals(foundPreface1.isPreface, updatedPreface.isPreface)
-            assertEquals(foundPreface1.isPrivate, updatedPreface.isPrivate)
+            assertEquals(true, updatedPreface.isCommentable)
             assertEquals(foundPreface1.isEncrypted, updatedPreface.isEncrypted)
             assertEquals(foundPreface1.authorLogin, user1.login)
             assertEquals(foundPreface1.authorNickname, user1.nickname)
@@ -370,15 +386,14 @@ class PostServiceTests : UnitTestBase() {
         transaction {
             val (user1, user2) = signUsersUp()
 
-            val post1 = createPost(user1, title = "Hello World", isPrivate = false)
+            val post1 = createPost(user1, title = "Hello World", readGroup = groupService.privateGroupUUID)
             postService.addPost(user1.id, post1)
             val foundPost1 = postService.getPost(user1.id, user1.login, "hello-world")
             val foundPost2 = postService.getPost(user2.id, user1.login, "hello-world")
             assertNotNull(foundPost1)
-            assertEquals(foundPost1, foundPost2)
+            assertNull(foundPost2)
 
             rollback()
-
         }
     }
 
@@ -390,7 +405,7 @@ class PostServiceTests : UnitTestBase() {
             var page = getPosts(user = user1, pageable = pageable)
             assertEquals(Page(emptyList(), 1, 0), page)
 
-            val preface = createPost(user1, title = "Welcome to my blog", text = "preface text", isPreface = true, isPrivate = true, classes = "rounded", tags = setOf("info", "photos"))
+            val preface = createPost(user1, title = "Welcome to my blog", text = "preface text", isPreface = true, readGroup = groupService.privateGroupUUID, commentGroup = groupService.privateGroupUUID, classes = "rounded", tags = setOf("info", "photos"))
             postService.addPost(user1.id, preface)
             page = getPosts(user = user1, pageable = pageable)
             assertEquals(0, page.totalPages)
@@ -678,6 +693,58 @@ class PostServiceTests : UnitTestBase() {
         }
     }
 
+    @Test
+    fun `test custom access groups`() {
+        transaction {
+            val pageable = Pageable(1, 4, SortOrder.DESC)
+
+            val users = signUsersUp(10)
+            val user1 = users[0]
+            val diaryId1 = DiaryEntity.find { Diaries.owner eq user1.id }.first().id.value
+
+            groupService.createAccessGroup(user1.id, diaryId1, "empty group")
+            val emptyGroupUUID = groupService.getAccessGroups(user1.id, diaryId1).find { it.first == "empty group" }!!.second
+
+            groupService.createAccessGroup(user1.id, diaryId1, "friends")
+            val friendsGroupUUID = groupService.getAccessGroups(user1.id, diaryId1).find { it.first == "friends" }!!.second
+            groupService.addUserToGroup(user1.id, users[2].id, friendsGroupUUID)
+            groupService.addUserToGroup(user1.id, users[4].id, friendsGroupUUID)
+            groupService.addUserToGroup(user1.id, users[6].id, friendsGroupUUID)
+            groupService.addUserToGroup(user1.id, users[8].id, friendsGroupUUID)
+
+            val hiddenPost = createPost(user1, title = "post1", readGroup = emptyGroupUUID)
+            postService.addPost(user1.id, hiddenPost)
+            assertEquals(1, getPosts(user = user1, pageable = pageable).content.size)
+            assertEquals(0, getPosts(user = users[1], pageable = pageable).content.size)
+            assertEquals(0, getPosts(user = users[2], pageable = pageable).content.size)
+            assertEquals(0, getPosts(user = users[3], pageable = pageable).content.size)
+            assertEquals(0, getPosts(user = users[4], pageable = pageable).content.size)
+            assertEquals(0, getPosts(user = users[5], pageable = pageable).content.size)
+            assertEquals(0, getPosts(user = users[6], pageable = pageable).content.size)
+            assertEquals(0, getPosts(user = users[7], pageable = pageable).content.size)
+            assertEquals(0, getPosts(user = users[8], pageable = pageable).content.size)
+            assertEquals(0, getPosts(user = users[9], pageable = pageable).content.size)
+
+            val friendPost = createPost(user1, title = "post2", readGroup = friendsGroupUUID)
+            postService.addPost(user1.id, friendPost)
+            assertEquals(2, getPosts(user = users[0], pageable = pageable).content.size)
+            assertEquals(0, getPosts(user = users[1], pageable = pageable).content.size)
+            assertEquals(1, getPosts(user = users[2], pageable = pageable).content.size)
+            assertEquals(0, getPosts(user = users[3], pageable = pageable).content.size)
+            assertEquals(1, getPosts(user = users[4], pageable = pageable).content.size)
+            assertEquals(0, getPosts(user = users[5], pageable = pageable).content.size)
+            assertEquals(1, getPosts(user = users[6], pageable = pageable).content.size)
+            assertEquals(0, getPosts(user = users[7], pageable = pageable).content.size)
+            assertEquals(1, getPosts(user = users[8], pageable = pageable).content.size)
+            assertEquals(0, getPosts(user = users[9], pageable = pageable).content.size)
+
+            rollback()
+        }
+    }
+
+
+    // todo access groups
+    // todo commenting
     // todo generating url when busy
     // todo generating url when russian
 
@@ -691,7 +758,25 @@ class PostServiceTests : UnitTestBase() {
         return user1.toUser() to user2.toUser()
     }
 
-    private fun getPosts(user: User, author: User? = null, diaryId: Long? = null, pattern: String? = null, tags: Pair<TagPolicy, Set<String>>? = null, pageable: Pageable): Page<Post> {
+    private fun signUsersUp(count: Int): List<User> {
+        val users = mutableListOf<User>()
+        userService.signUp(testUser, "")
+        var userEntity = findUserByLogin(testUser.login)!!
+        users.add(userEntity.toUser())
+
+        var i = count - 1
+        while (i > 0) {
+            val inviteCode = userService.generateInviteCode(userEntity.id.value)
+            val randomUser = User(id = 0L, login = UUID.randomUUID().toString(), email = "${UUID.randomUUID()}@mail.com", password = "123", nickname = UUID.randomUUID().toString(), registrationTime = null)
+            userService.signUp(randomUser, inviteCode)
+            userEntity = findUserByLogin(randomUser.login)!!
+            users.add(userEntity.toUser())
+            --i
+        }
+        return users
+    }
+
+    private fun getPosts(user: User, author: User? = null, diaryId: Long? = null, pattern: String? = null, tags: Pair<TagPolicy, Set<String>>? = null, pageable: Pageable): Page<PostView> {
         return postService.getPosts(user.id, author?.id, diaryId, pattern, tags, null, null, pageable)
     }
 
@@ -704,12 +789,13 @@ class PostServiceTests : UnitTestBase() {
         text : String = "sample text",
         creationTime : LocalDateTime = java.time.LocalDateTime.now().toKotlinLocalDateTime(),
         isPreface : Boolean = false,
-        isPrivate : Boolean = false,
         isEncrypted: Boolean = false,
         classes : String = "bold",
         tags : Set<String> = emptySet(),
-    ): Post {
-        return Post(
+        readGroup: UUID = groupService.everyoneGroupUUID,
+        commentGroup: UUID = groupService.everyoneGroupUUID,
+    ): PostFull {
+        return PostFull(
             id = id,
             uri  = uri,
 
@@ -722,11 +808,13 @@ class PostServiceTests : UnitTestBase() {
             creationTime  = creationTime,
 
             isPreface  = isPreface,
-            isPrivate  = isPrivate,
             isEncrypted = isEncrypted,
 
             classes  = classes,
             tags = tags,
+
+            readGroupId = readGroup,
+            commentGroupId = commentGroup,
         )
     }
 }

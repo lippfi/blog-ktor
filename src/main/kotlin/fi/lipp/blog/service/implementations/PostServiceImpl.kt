@@ -1,16 +1,16 @@
 package fi.lipp.blog.service.implementations
 
+import fi.lipp.blog.data.AccessGroupType
 import fi.lipp.blog.data.Comment
 import fi.lipp.blog.model.Page
-import fi.lipp.blog.data.Post
-import fi.lipp.blog.domain.DiaryEntity
-import fi.lipp.blog.domain.PostEntity
-import fi.lipp.blog.domain.TagEntity
-import fi.lipp.blog.domain.UserEntity
+import fi.lipp.blog.data.PostFull
+import fi.lipp.blog.data.PostView
+import fi.lipp.blog.domain.*
 import fi.lipp.blog.model.Pageable
 import fi.lipp.blog.model.TagPolicy
 import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.repository.*
+import fi.lipp.blog.service.AccessGroupService
 import fi.lipp.blog.service.PostService
 import kotlinx.datetime.LocalDateTime
 import org.jetbrains.exposed.dao.id.EntityID
@@ -22,24 +22,32 @@ import java.util.*
 import kotlin.math.ceil
 import kotlin.random.Random
 
-class PostServiceImpl : PostService {
-    override fun getPreface(userId: Long, diaryId: Long): Post? {
+class PostServiceImpl(private val accessGroupService: AccessGroupService) : PostService {
+    override fun getPostForEdit(userId: Long, postId: UUID): PostFull {
+        return transaction {
+            val postEntity = PostEntity.findById(postId) ?: throw PostNotFoundException()
+            if (postEntity.authorId.value != userId) throw WrongUserException()
+            return@transaction postEntity.toPostFull()
+        }
+    }
+
+    override fun getPreface(userId: Long?, diaryId: Long): PostView? {
         return transaction {
             val preface = PostEntity.find { (Posts.diary eq diaryId) and (Posts.isPreface eq true) and (Posts.isArchived eq false) }.firstOrNull() ?: return@transaction null
-            if (!preface.isPrivate || (preface.isPrivate && preface.authorId.value == userId)) {
-                preface.toPost()
+            return@transaction if (userId == preface.authorId.value || accessGroupService.inGroup(userId, preface.readGroupId.value)) {
+                preface.toPostView(userId)
             } else {
                 null
             }
         }
     }
 
-    override fun getPost(userId: Long, authorLogin: String, uri: String): Post? {
+    override fun getPost(userId: Long?, authorLogin: String, uri: String): PostView? {
         return transaction {
             val userEntity = UserEntity.find { Users.login eq authorLogin }.firstOrNull() ?: throw UserNotFoundException()
             val postEntity = PostEntity.find { (Posts.author eq userEntity.id) and (Posts.uri eq uri) and (Posts.isArchived eq false) }.firstOrNull() ?: return@transaction null
-            if ((postEntity.authorId.value == userId) || !postEntity.isPrivate) {
-                postEntity.toPost()
+            return@transaction if (userId == postEntity.authorId.value || accessGroupService.inGroup(userId, postEntity.readGroupId.value)) {
+                postEntity.toPostView(userId)
             } else {
                 null
             }
@@ -47,24 +55,42 @@ class PostServiceImpl : PostService {
     }
 
     override fun getPosts(
-        userId: Long,
+        userId: Long?,
         authorId: Long?,
         diaryId: Long?,
         text: String?,
         tags: Pair<TagPolicy, Set<String>>?,
         from: LocalDateTime?,
         to: LocalDateTime?,
-        pageable: Pageable
-    ): Page<Post> {
+        pageable: Pageable,
+    ): Page<PostView> {
         return transaction {
             val query = Posts
+                // TODO use it in case code below does not work
                 .innerJoin(Diaries)
                 .innerJoin(Users, { Posts.author }, { Users.id })
+                .innerJoin(AccessGroups, { Posts.readGroup }, { AccessGroups.id })
                 .leftJoin(PostTags)
                 .leftJoin(Tags)
-                .slice(Posts.columns + Users.nickname + Users.login)
+                .slice(Posts.columns + Users.id + Users.nickname + Users.login + AccessGroups.type)
                 .select {
-                    (Posts.isArchived eq false) and (Posts.isPreface eq false) and ((Posts.author eq userId) or (Posts.isPrivate eq false))
+                    val baseCondition = (Posts.isArchived eq false) and (Posts.isPreface eq false)
+
+                    val accessCondition = when {
+                        userId != null -> {
+                            val customAccessSubquery = CustomGroupUsers
+                                .slice(CustomGroupUsers.accessGroup)
+                                .select { CustomGroupUsers.member eq userId }
+
+                            (Posts.author eq userId) or
+                            (AccessGroups.type eq AccessGroupType.EVERYONE) or
+                            (AccessGroups.type eq AccessGroupType.REGISTERED_USERS) or
+                            (AccessGroups.type eq AccessGroupType.CUSTOM and Posts.readGroup.inSubQuery(customAccessSubquery))
+                        }
+                        else -> (AccessGroups.type eq AccessGroupType.EVERYONE)
+                    }
+
+                    baseCondition and accessCondition
                 }
                 .apply {
                     text?.let { andWhere { Posts.text.regexp(stringParam(text), false) or Posts.title.regexp(stringParam(text), false) } }
@@ -102,7 +128,7 @@ class PostServiceImpl : PostService {
             val results = query
                 .limit(pageable.pageSize, offset.toLong())
                 .map { row ->
-                    Post(
+                    PostView(
                         id = row[Posts.id].value,
                         uri = row[Posts.uri],
 
@@ -115,12 +141,12 @@ class PostServiceImpl : PostService {
                         creationTime = row[Posts.creationTime],
 
                         isPreface = row[Posts.isPreface],
-                        isPrivate = row[Posts.isPrivate],
                         isEncrypted = row[Posts.isEncrypted],
 
                         tags = getTagsForPost(row[Posts.id].value),
 
                         classes = row[Posts.classes],
+                        isCommentable = (userId == row[Users.id].value) || (accessGroupService.inGroup(userId, row[Posts.commentGroup].value))
                     )
                 }
 
@@ -138,7 +164,7 @@ class PostServiceImpl : PostService {
     }
 
 
-    override fun addPost(userId: Long, post: Post) {
+    override fun addPost(userId: Long, post: PostFull) {
         transaction {
             if (post.isPreface) {
                 addPreface(userId, post)
@@ -148,7 +174,7 @@ class PostServiceImpl : PostService {
         }
     }
 
-    private fun addPreface(userId: Long, post: Post) {
+    private fun addPreface(userId: Long, post: PostFull) {
         val preface = PostEntity.find { (Posts.author eq userId) and (Posts.isPreface eq true) }.firstOrNull()
         if (preface != null) {
             deletePost(preface)
@@ -157,7 +183,7 @@ class PostServiceImpl : PostService {
         addPostToDb(userId, post)
     }
 
-    override fun updatePost(userId: Long, post: Post) {
+    override fun updatePost(userId: Long, post: PostFull) {
         transaction {
             val postEntity = post.id?.let { PostEntity.findById(it) } ?: throw PostNotFoundException()
             if (postEntity.authorId.value != userId) throw WrongUserException()
@@ -168,6 +194,8 @@ class PostServiceImpl : PostService {
                 post.uri
             }
 
+            val (readGroup, commentGroup) = getReadAndCommentGroups(postEntity.diaryId.value, post)
+
             postEntity.apply {
                 uri = newUri
 
@@ -177,11 +205,27 @@ class PostServiceImpl : PostService {
 
                 classes = post.classes
 
-                isPrivate = post.isPrivate
                 isEncrypted = post.isEncrypted
+                readGroupId = readGroup.id
+                commentGroupId = commentGroup.id
             }
             updatePostTags(postEntity, post.tags)
         }
+    }
+
+    private fun getReadAndCommentGroups(diaryId: Long, post: PostFull): Pair<AccessGroupEntity, AccessGroupEntity> {
+        val readGroupEntity = AccessGroupEntity.findById(post.readGroupId) ?: throw InvalidAccessGroupException()
+        val readGroupDiaryId = readGroupEntity.diaryId?.value
+        if (readGroupDiaryId != null && readGroupDiaryId != diaryId) {
+            throw InvalidAccessGroupException()
+        }
+
+        val commentGroupEntity = AccessGroupEntity.findById(post.commentGroupId) ?: throw InvalidAccessGroupException()
+        val commentGroupDiaryId = commentGroupEntity.diaryId?.value
+        if (commentGroupDiaryId != null && commentGroupDiaryId != diaryId) {
+            throw InvalidAccessGroupException()
+        }
+        return readGroupEntity to commentGroupEntity
     }
 
     private fun updatePostTags(postEntity: PostEntity, newTags: Set<String>) {
@@ -211,7 +255,6 @@ class PostServiceImpl : PostService {
     }
 
     override fun addComment(userId: Long, comment: Comment) {
-
         TODO("Not yet implemented")
     }
 
@@ -230,10 +273,12 @@ class PostServiceImpl : PostService {
         }
     }
 
-    private fun addPostToDb(userId: Long, post: Post) {
+    private fun addPostToDb(userId: Long, post: PostFull) {
         transaction {
             val postUri = checkOrCreateUri(userId, post)
             val diaryId = DiaryEntity.find { Diaries.owner eq userId }.first().id
+
+            val (readGroupEntity, commentGroupEntity) = getReadAndCommentGroups(userId, post)
 
             val postId = Posts.insertAndGetId {
                 it[uri] = postUri
@@ -246,12 +291,14 @@ class PostServiceImpl : PostService {
                 it[text] = post.text
 
                 it[isPreface] = post.isPreface
-                it[isPrivate] = post.isPrivate
                 it[isEncrypted] = post.isEncrypted
 
                 it[classes] = post.classes
 
                 it[isArchived] = false
+
+                it[readGroup] = readGroupEntity.id
+                it[commentGroup] = commentGroupEntity.id
             }
 
             for (tag in post.tags) {
@@ -278,7 +325,7 @@ class PostServiceImpl : PostService {
         return uri.matches(Regex("[a-zA-Z0-9-]+"))
     }
 
-    private fun checkOrCreateUri(authorId: Long, post: Post): String {
+    private fun checkOrCreateUri(authorId: Long, post: PostFull): String {
         return if (post.uri.isBlank()) {
             createUri(authorId, post)
         } else {
@@ -288,7 +335,7 @@ class PostServiceImpl : PostService {
         }
     }
 
-    private fun createUri(authorId: Long, post: Post): String {
+    private fun createUri(authorId: Long, post: PostFull): String {
         val wordsPart = post.title
             .replace(Regex("[^a-zA-Z0-9 ]"), "")
             .lowercase(Locale.getDefault())
