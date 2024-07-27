@@ -6,28 +6,19 @@ import fi.lipp.blog.domain.PasswordResetCodeEntity
 import fi.lipp.blog.domain.UserEntity
 import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.repository.*
-import fi.lipp.blog.service.MailService
-import fi.lipp.blog.service.implementations.StorageServiceImpl
-import fi.lipp.blog.service.implementations.UserServiceImpl
-import fi.lipp.blog.stubs.ApplicationPropertiesStub
-import fi.lipp.blog.stubs.PasswordEncoderStub
 import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.toJavaLocalDateTime
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.junit.AfterClass
 import org.junit.Assert.assertThrows
 import org.junit.BeforeClass
-import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import java.io.File
 import java.util.*
-import kotlin.io.path.Path
 import kotlin.test.*
-import kotlin.test.Test
 
 class UserServiceTests : UnitTestBase() {
     companion object {

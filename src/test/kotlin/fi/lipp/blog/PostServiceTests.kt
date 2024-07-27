@@ -2,6 +2,8 @@ package fi.lipp.blog
 
 import fi.lipp.blog.data.*
 import fi.lipp.blog.domain.DiaryEntity
+import fi.lipp.blog.mapper.PostMapper
+import fi.lipp.blog.mapper.PostMapperImpl
 import fi.lipp.blog.model.Page
 import fi.lipp.blog.model.Pageable
 import fi.lipp.blog.model.TagPolicy
@@ -44,7 +46,8 @@ class PostServiceTests : UnitTestBase() {
                 SchemaUtils.create(Users, Diaries, InviteCodes, PasswordResets, Files, UserAvatars, Tags, Posts, PostTags, AccessGroups, CustomGroupUsers, Comments)
             }
             groupService = AccessGroupServiceImpl()
-            postService = PostServiceImpl(groupService)
+            postMapper = PostMapperImpl(groupService)
+            postService = PostServiceImpl(postMapper, groupService)
         }
 
         @JvmStatic
@@ -59,6 +62,7 @@ class PostServiceTests : UnitTestBase() {
         private val userService = UserServiceImpl(encoder, mailService, storageService)
         private lateinit var groupService: AccessGroupService
         private lateinit var postService: PostService
+        private lateinit var postMapper: PostMapper
 
         private val testUser = User(
             id = 2412412L,
@@ -76,14 +80,6 @@ class PostServiceTests : UnitTestBase() {
             nickname = "cat_hater44",
             registrationTime = LocalDateTime(2019, 4, 17, 1, 2)
         )
-        private val testUser3 = User(
-            id = 493484489L,
-            login = "spammer",
-            email = "google@gmail.com",
-            password = "12345",
-            nickname = "free cheeseburgers",
-            registrationTime = LocalDateTime(2019, 4, 17, 1, 2)
-        )
     }
 
     @Test
@@ -94,7 +90,7 @@ class PostServiceTests : UnitTestBase() {
             var page = getPosts(user = user1, pageable = pageable)
             assertEquals(Page(emptyList(), 1, 0), page)
 
-            val post1 = createPost(user1, title = "Hello World")
+            val post1 = createPostPostData(title = "Hello World")
             postService.addPost(user1.id, post1)
             page = getPosts(user = user1, pageable = pageable)
             assertEquals(1, page.currentPage)
@@ -110,8 +106,8 @@ class PostServiceTests : UnitTestBase() {
             assertEquals(post1.isPreface, addedPost.isPreface)
             assertEquals(true, addedPost.isCommentable)
             assertEquals(post1.isEncrypted, addedPost.isEncrypted)
-            assertEquals(post1.authorLogin, user1.login)
-            assertEquals(post1.authorNickname, user1.nickname)
+            assertEquals(user1.login, addedPost.authorLogin)
+            assertEquals(user1.nickname, addedPost.authorNickname)
             assertNow(addedPost.creationTime)
 
             rollback()
@@ -126,12 +122,12 @@ class PostServiceTests : UnitTestBase() {
             var page = getPosts(user = user1, pageable = pageable)
             assertEquals(Page(emptyList(), 1, 0), page)
 
-            val post1 = createPost(user1, title = "Hello World")
+            val post1 = createPostPostData(title = "Hello World")
             postService.addPost(user1.id, post1)
             page = getPosts(user = user1, pageable = pageable)
             val addedPost = page.content.first()
 
-            val newPost = createPost(user1, id = addedPost.id, avatar = "new url", title = "new title", text = "new text", isPreface = !post1.isPreface, readGroup = groupService.privateGroupUUID, commentGroup = groupService.privateGroupUUID, isEncrypted = !post1.isEncrypted, classes = "small", tags = setOf("cat", "dog"))
+            val newPost = createPostUpdateData(id = addedPost.id, avatar = "new url", title = "new title", text = "new text", readGroup = groupService.privateGroupUUID, commentGroup = groupService.privateGroupUUID, isEncrypted = !post1.isEncrypted, classes = "small", tags = setOf("cat", "dog"))
             postService.updatePost(user1.id, newPost)
             page = getPosts(user = user1, pageable = pageable)
             assertEquals(1, page.currentPage)
@@ -147,8 +143,8 @@ class PostServiceTests : UnitTestBase() {
             assertEquals(addedPost.isPreface, updatedPost.isPreface)
             assertEquals(true, updatedPost.isCommentable)
             assertEquals(newPost.isEncrypted, updatedPost.isEncrypted)
-            assertEquals(newPost.authorLogin, user1.login)
-            assertEquals(newPost.authorNickname, user1.nickname)
+            assertEquals(user1.login, updatedPost.authorLogin)
+            assertEquals(user1.nickname, updatedPost.authorNickname)
             assertEquals(addedPost.creationTime, updatedPost.creationTime)
 
             rollback()
@@ -163,12 +159,12 @@ class PostServiceTests : UnitTestBase() {
             var page = getPosts(user = user1, pageable = pageable)
             assertEquals(Page(emptyList(), 1, 0), page)
 
-            val post1 = createPost(user1, title = "Hello World")
+            val post1 = createPostPostData(title = "Hello World")
             postService.addPost(user1.id, post1)
             page = getPosts(user = user1, pageable = pageable)
             val addedPost = page.content.first()
 
-            val newPost = createPost(user1, id = addedPost.id, avatar = "new url", uri = "new-uri", title = "new title", text = "new text", isPreface = !post1.isPreface, readGroup = groupService.privateGroupUUID, commentGroup = groupService.privateGroupUUID, isEncrypted = !post1.isEncrypted, classes = "small", tags = setOf("cat", "dog"))
+            val newPost = createPostUpdateData(id = addedPost.id, avatar = "new url", uri = "new-uri", title = "new title", text = "new text", readGroup = groupService.privateGroupUUID, commentGroup = groupService.privateGroupUUID, isEncrypted = !post1.isEncrypted, classes = "small", tags = setOf("cat", "dog"))
             postService.updatePost(user1.id, newPost)
             page = getPosts(user = user1, pageable = pageable)
             assertEquals(1, page.currentPage)
@@ -184,8 +180,8 @@ class PostServiceTests : UnitTestBase() {
             assertEquals(addedPost.isPreface, updatedPost.isPreface)
             assertEquals(true, updatedPost.isCommentable)
             assertEquals(newPost.isEncrypted, updatedPost.isEncrypted)
-            assertEquals(newPost.authorLogin, user1.login)
-            assertEquals(newPost.authorNickname, user1.nickname)
+            assertEquals(user1.login, updatedPost.authorLogin)
+            assertEquals(user1.nickname, updatedPost.authorNickname)
             assertEquals(addedPost.creationTime, updatedPost.creationTime)
 
             rollback()
@@ -200,12 +196,12 @@ class PostServiceTests : UnitTestBase() {
             var page = getPosts(user = user1, pageable = pageable)
             assertEquals(Page(emptyList(), 1, 0), page)
 
-            val post1 = createPost(user1, title = "Hello World")
+            val post1 = createPostPostData(title = "Hello World")
             postService.addPost(user1.id, post1)
             page = getPosts(user = user1, pageable = pageable)
             val addedPost = page.content.first()
 
-            val newPost = createPost(user1, id = addedPost.id, avatar = "new url", title = "new title", text = "new text", isPreface = !post1.isPreface, readGroup = groupService.privateGroupUUID, commentGroup = groupService.privateGroupUUID, isEncrypted = !post1.isEncrypted, classes = "small", tags = setOf("cat", "dog"))
+            val newPost = createPostUpdateData(id = addedPost.id, avatar = "new url", title = "new title", text = "new text", readGroup = groupService.privateGroupUUID, commentGroup = groupService.privateGroupUUID, isEncrypted = !post1.isEncrypted, classes = "small", tags = setOf("cat", "dog"))
             assertThrows(WrongUserException::class.java) {
                 postService.updatePost(user2.id, newPost)
             }
@@ -229,7 +225,7 @@ class PostServiceTests : UnitTestBase() {
             var page = getPosts(user = user1, pageable = pageable)
             assertEquals(Page(emptyList(), 1, 0), page)
 
-            val preface = createPost(user1, title = "Welcome to my blog", text = "preface text", isPreface = true, classes = "rounded", tags = setOf("info", "photos"))
+            val preface = createPostPostData(title = "Welcome to my blog", text = "preface text", isPreface = true, classes = "rounded", tags = setOf("info", "photos"))
             postService.addPost(user1.id, preface)
             page = getPosts(user = user1, pageable = pageable)
             assertEquals(0, page.totalPages)
@@ -263,11 +259,11 @@ class PostServiceTests : UnitTestBase() {
             val (user1, _) = signUsersUp()
             val diaryId = DiaryEntity.find { Diaries.owner eq user1.id }.first().id.value
 
-            val preface1 = createPost(user1, title = "Welcome to my blog", text = "preface text", isPreface = true, classes = "rounded", tags = setOf("info", "photos"))
+            val preface1 = createPostPostData(title = "Welcome to my blog", text = "preface text", isPreface = true, classes = "rounded", tags = setOf("info", "photos"))
             postService.addPost(user1.id, preface1)
             val foundPreface1 = postService.getPreface(user1.id, diaryId)!!
 
-            val preface2 = createPost(user1, title = "Welcome to my blog2", text = "preface text2", isPreface = true, classes = "rounded2", tags = setOf("info2", "photos2"))
+            val preface2 = createPostPostData(title = "Welcome to my blog2", text = "preface text2", isPreface = true, classes = "rounded2", tags = setOf("info2", "photos2"))
             postService.addPost(user1.id, preface2)
             val foundPreface2 = postService.getPreface(user1.id, diaryId)!!
             assertNotEquals(foundPreface1.id, foundPreface2.id)
@@ -281,8 +277,8 @@ class PostServiceTests : UnitTestBase() {
             assertEquals(preface2.isPreface, foundPreface2.isPreface)
             assertEquals(true, foundPreface2.isCommentable)
             assertEquals(preface2.isEncrypted, foundPreface2.isEncrypted)
-            assertEquals(preface2.authorLogin, user1.login)
-            assertEquals(preface2.authorNickname, user1.nickname)
+            assertEquals(user1.login, foundPreface2.authorLogin)
+            assertEquals(user1.nickname, foundPreface2.authorNickname)
             assertNow(foundPreface2.creationTime)
 
             rollback()
@@ -296,11 +292,11 @@ class PostServiceTests : UnitTestBase() {
             val (user1, _) = signUsersUp()
             val diaryId = DiaryEntity.find { Diaries.owner eq user1.id }.first().id.value
 
-            val preface = createPost(user1, title = "Welcome to my blog", text = "preface text", isPreface = true, classes = "rounded", tags = setOf("info", "photos"))
+            val preface = createPostPostData(title = "Welcome to my blog", text = "preface text", isPreface = true, classes = "rounded", tags = setOf("info", "photos"))
             postService.addPost(user1.id, preface)
             val foundPreface1 = postService.getPreface(user1.id, diaryId)!!
 
-            val prefaceUpdate = createPost(user1, id = foundPreface1.id, title = "Welcome to my blog2", text = "preface text2", isPreface = true, classes = "rounded2", tags = setOf("info2", "photos2"))
+            val prefaceUpdate = createPostUpdateData(id = foundPreface1.id, title = "Welcome to my blog2", text = "preface text2", classes = "rounded2", tags = setOf("info2", "photos2"))
             postService.updatePost(user1.id, prefaceUpdate)
             val updatedPreface = postService.getPreface(user1.id, diaryId)!!
 
@@ -311,11 +307,11 @@ class PostServiceTests : UnitTestBase() {
             assertEquals(prefaceUpdate.tags, updatedPreface.tags)
             assertEquals(prefaceUpdate.classes, updatedPreface.classes)
             assertEquals(prefaceUpdate.avatar, updatedPreface.avatar)
-            assertEquals(prefaceUpdate.isPreface, updatedPreface.isPreface)
+            assertEquals(true, updatedPreface.isPreface)
             assertEquals(true, updatedPreface.isCommentable)
             assertEquals(prefaceUpdate.isEncrypted, updatedPreface.isEncrypted)
-            assertEquals(prefaceUpdate.authorLogin, user1.login)
-            assertEquals(prefaceUpdate.authorNickname, user1.nickname)
+            assertEquals(user1.login, updatedPreface.authorLogin)
+            assertEquals(user1.nickname, updatedPreface.authorNickname)
             assertNow(updatedPreface.creationTime)
 
             val page = getPosts(user = user1, pageable = pageable)
@@ -332,11 +328,11 @@ class PostServiceTests : UnitTestBase() {
             val (user1, user2) = signUsersUp()
             val diaryId = DiaryEntity.find { Diaries.owner eq user1.id }.first().id.value
 
-            val preface = createPost(user1, title = "Welcome to my blog", text = "preface text", isPreface = true, classes = "rounded", tags = setOf("info", "photos"))
+            val preface = createPostPostData(title = "Welcome to my blog", text = "preface text", isPreface = true, classes = "rounded", tags = setOf("info", "photos"))
             postService.addPost(user1.id, preface)
             val foundPreface1 = postService.getPreface(user1.id, diaryId)!!
 
-            val prefaceUpdate = createPost(user1, id = foundPreface1.id, title = "Welcome to my blog2", text = "preface text2", isPreface = true, classes = "rounded2", tags = setOf("info2", "photos2"))
+            val prefaceUpdate = createPostUpdateData(id = foundPreface1.id, title = "Welcome to my blog2", text = "preface text2", classes = "rounded2", tags = setOf("info2", "photos2"))
             assertThrows(WrongUserException::class.java) {
                 postService.updatePost(user2.id, prefaceUpdate)
             }
@@ -368,7 +364,7 @@ class PostServiceTests : UnitTestBase() {
         transaction {
             val (user1, user2) = signUsersUp()
 
-            val post1 = createPost(user1, title = "Hello World")
+            val post1 = createPostPostData(title = "Hello World")
             postService.addPost(user1.id, post1)
             val foundPost1 = postService.getPost(user1.id, user1.login, "hello-world")
             val foundPost2 = postService.getPost(user2.id, user1.login, "hello-world")
@@ -384,7 +380,7 @@ class PostServiceTests : UnitTestBase() {
         transaction {
             val (user1, user2) = signUsersUp()
 
-            val post1 = createPost(user1, title = "Hello World", readGroup = groupService.privateGroupUUID)
+            val post1 = createPostPostData(title = "Hello World", readGroup = groupService.privateGroupUUID)
             postService.addPost(user1.id, post1)
             val foundPost1 = postService.getPost(user1.id, user1.login, "hello-world")
             assertThrows(PostNotFoundException::class.java) {
@@ -404,7 +400,7 @@ class PostServiceTests : UnitTestBase() {
             var page = getPosts(user = user1, pageable = pageable)
             assertEquals(Page(emptyList(), 1, 0), page)
 
-            val preface = createPost(user1, title = "Welcome to my blog", text = "preface text", isPreface = true, readGroup = groupService.privateGroupUUID, commentGroup = groupService.privateGroupUUID, classes = "rounded", tags = setOf("info", "photos"))
+            val preface = createPostPostData(title = "Welcome to my blog", text = "preface text", isPreface = true, readGroup = groupService.privateGroupUUID, commentGroup = groupService.privateGroupUUID, classes = "rounded", tags = setOf("info", "photos"))
             postService.addPost(user1.id, preface)
             page = getPosts(user = user1, pageable = pageable)
             assertEquals(0, page.totalPages)
@@ -425,19 +421,19 @@ class PostServiceTests : UnitTestBase() {
         transaction {
             val (user1, _) = signUsersUp()
 
-            val post1 = createPost(user1, title = "post1")
+            val post1 = createPostPostData(title = "post1")
             postService.addPost(user1.id, post1)
             Thread.sleep(10)
-            val post2 = createPost(user1, title = "post2")
+            val post2 = createPostPostData(title = "post2")
             postService.addPost(user1.id, post2)
             Thread.sleep(10)
-            val post3 = createPost(user1, title = "post3")
+            val post3 = createPostPostData(title = "post3")
             postService.addPost(user1.id, post3)
             Thread.sleep(10)
-            val post4 = createPost(user1, title = "post4")
+            val post4 = createPostPostData(title = "post4")
             postService.addPost(user1.id, post4)
             Thread.sleep(10)
-            val post5 = createPost(user1, title = "post5")
+            val post5 = createPostPostData(title = "post5")
             postService.addPost(user1.id, post5)
 
             var page = getPosts(user = user1, pageable = Pageable(1, 4, SortOrder.DESC))
@@ -460,19 +456,19 @@ class PostServiceTests : UnitTestBase() {
         transaction {
             val (user1, _) = signUsersUp()
 
-            val post1 = createPost(user1, title = "post1", tags = setOf("1", "2"))
+            val post1 = createPostPostData(title = "post1", tags = setOf("1", "2"))
             postService.addPost(user1.id, post1)
             Thread.sleep(10)
-            val post2 = createPost(user1, title = "post2", tags = setOf("2", "3"))
+            val post2 = createPostPostData(title = "post2", tags = setOf("2", "3"))
             postService.addPost(user1.id, post2)
             Thread.sleep(10)
-            val post3 = createPost(user1, title = "post3", tags = setOf("2", "3", "4"))
+            val post3 = createPostPostData(title = "post3", tags = setOf("2", "3", "4"))
             postService.addPost(user1.id, post3)
             Thread.sleep(10)
-            val post4 = createPost(user1, title = "post4", tags = setOf("3", "4"))
+            val post4 = createPostPostData(title = "post4", tags = setOf("3", "4"))
             postService.addPost(user1.id, post4)
             Thread.sleep(10)
-            val post5 = createPost(user1, title = "post5", tags = setOf("4", "5"))
+            val post5 = createPostPostData(title = "post5", tags = setOf("4", "5"))
             postService.addPost(user1.id, post5)
 
             val page = getPosts(user = user1, tags = TagPolicy.UNION to setOf("2", "3"), pageable = Pageable(1, 4, SortOrder.DESC))
@@ -489,19 +485,19 @@ class PostServiceTests : UnitTestBase() {
         transaction {
             val (user1, _) = signUsersUp()
 
-            val post1 = createPost(user1, title = "post1", tags = setOf("1", "2"))
+            val post1 = createPostPostData(title = "post1", tags = setOf("1", "2"))
             postService.addPost(user1.id, post1)
             Thread.sleep(10)
-            val post2 = createPost(user1, title = "post2", tags = setOf("2", "3"))
+            val post2 = createPostPostData(title = "post2", tags = setOf("2", "3"))
             postService.addPost(user1.id, post2)
             Thread.sleep(10)
-            val post3 = createPost(user1, title = "post3", tags = setOf("2", "3", "4"))
+            val post3 = createPostPostData(title = "post3", tags = setOf("2", "3", "4"))
             postService.addPost(user1.id, post3)
             Thread.sleep(10)
-            val post4 = createPost(user1, title = "post4", tags = setOf("3", "4"))
+            val post4 = createPostPostData(title = "post4", tags = setOf("3", "4"))
             postService.addPost(user1.id, post4)
             Thread.sleep(10)
-            val post5 = createPost(user1, title = "post5", tags = setOf("4", "5"))
+            val post5 = createPostPostData(title = "post5", tags = setOf("4", "5"))
             postService.addPost(user1.id, post5)
 
             val page = getPosts(user = user1, tags = TagPolicy.INTERSECTION to setOf("2", "3"), pageable = Pageable(1, 4, SortOrder.DESC))
@@ -518,19 +514,19 @@ class PostServiceTests : UnitTestBase() {
         transaction {
             val (user1, _) = signUsersUp()
 
-            val post1 = createPost(user1, title = "post1", text = "some text")
+            val post1 = createPostPostData(title = "post1", text = "some text")
             postService.addPost(user1.id, post1)
             Thread.sleep(10)
-            val post2 = createPost(user1, title = "post2", text = "some text")
+            val post2 = createPostPostData(title = "post2", text = "some text")
             postService.addPost(user1.id, post2)
             Thread.sleep(10)
-            val post3 = createPost(user1, title = "post3", text = "dog")
+            val post3 = createPostPostData(title = "post3", text = "dog")
             postService.addPost(user1.id, post3)
             Thread.sleep(10)
-            val post4 = createPost(user1, title = "post4", text = "funny dog")
+            val post4 = createPostPostData(title = "post4", text = "funny dog")
             postService.addPost(user1.id, post4)
             Thread.sleep(10)
-            val post5 = createPost(user1, title = "post5", text = "some text")
+            val post5 = createPostPostData(title = "post5", text = "some text")
             postService.addPost(user1.id, post5)
 
             val page = getPosts(user = user1, pattern = "dog", pageable = Pageable(1, 4, SortOrder.DESC))
@@ -547,19 +543,19 @@ class PostServiceTests : UnitTestBase() {
         transaction {
             val (user1, user2) = signUsersUp()
 
-            val post1 = createPost(user1, title = "post1")
+            val post1 = createPostPostData(title = "post1")
             postService.addPost(user1.id, post1)
             Thread.sleep(10)
-            val post2 = createPost(user1, title = "post2")
+            val post2 = createPostPostData(title = "post2")
             postService.addPost(user1.id, post2)
             Thread.sleep(10)
-            val post3 = createPost(user1, title = "post3")
+            val post3 = createPostPostData(title = "post3")
             postService.addPost(user1.id, post3)
             Thread.sleep(10)
-            val post4 = createPost(user1, title = "post4")
+            val post4 = createPostPostData(title = "post4")
             postService.addPost(user1.id, post4)
             Thread.sleep(10)
-            val post5 = createPost(user1, title = "post5")
+            val post5 = createPostPostData(title = "post5")
             postService.addPost(user1.id, post5)
 
             var page = getPosts(user = user1, author = user1, pageable = Pageable(1, 10, SortOrder.DESC))
@@ -588,19 +584,19 @@ class PostServiceTests : UnitTestBase() {
             val diaryId1 = DiaryEntity.find { Diaries.owner eq user1.id }.first().id.value
             val diaryId2 = DiaryEntity.find { Diaries.owner eq user2.id }.first().id.value
 
-            val post1 = createPost(user1, title = "post1")
+            val post1 = createPostPostData(title = "post1")
             postService.addPost(user1.id, post1)
             Thread.sleep(10)
-            val post2 = createPost(user1, title = "post2")
+            val post2 = createPostPostData(title = "post2")
             postService.addPost(user1.id, post2)
             Thread.sleep(10)
-            val post3 = createPost(user1, title = "post3")
+            val post3 = createPostPostData(title = "post3")
             postService.addPost(user1.id, post3)
             Thread.sleep(10)
-            val post4 = createPost(user1, title = "post4")
+            val post4 = createPostPostData(title = "post4")
             postService.addPost(user1.id, post4)
             Thread.sleep(10)
-            val post5 = createPost(user1, title = "post5")
+            val post5 = createPostPostData(title = "post5")
             postService.addPost(user1.id, post5)
 
             var page = getPosts(user = user1, diaryId = diaryId1, pageable = Pageable(1, 10, SortOrder.DESC))
@@ -627,26 +623,26 @@ class PostServiceTests : UnitTestBase() {
         transaction {
             val (user1, _) = signUsersUp()
 
-            val post1 = createPost(user1, title = "post1")
+            val post1 = createPostPostData(title = "post1")
             postService.addPost(user1.id, post1)
             Thread.sleep(10)
-            val post2 = createPost(user1, title = "post2")
+            val post2 = createPostPostData(title = "post2")
             postService.addPost(user1.id, post2)
             Thread.sleep(10)
-            val post3 = createPost(user1, title = "post3")
+            val post3 = createPostPostData(title = "post3")
             postService.addPost(user1.id, post3)
             Thread.sleep(10)
-            val post4 = createPost(user1, title = "post4")
+            val post4 = createPostPostData(title = "post4")
             postService.addPost(user1.id, post4)
             Thread.sleep(10)
-            val post5 = createPost(user1, title = "post5")
+            val post5 = createPostPostData(title = "post5")
             postService.addPost(user1.id, post5)
 
             val foundPost3Page = getPosts(user = user1, pattern = "post3", pageable = Pageable(1, 4, SortOrder.DESC))
             assertEquals(1, foundPost3Page.content.size)
             val foundPost3 = foundPost3Page.content.first()
 
-            postService.deletePost(user1.id, foundPost3.id!!)
+            postService.deletePost(user1.id, foundPost3.id)
             val page = getPosts(user = user1, pageable = Pageable(1, 10, SortOrder.DESC))
             assertEquals(1, page.currentPage)
             assertEquals(1, page.totalPages)
@@ -661,19 +657,19 @@ class PostServiceTests : UnitTestBase() {
         transaction {
             val (user1, user2) = signUsersUp()
 
-            val post1 = createPost(user1, title = "post1")
+            val post1 = createPostPostData(title = "post1")
             postService.addPost(user1.id, post1)
             Thread.sleep(10)
-            val post2 = createPost(user1, title = "post2")
+            val post2 = createPostPostData(title = "post2")
             postService.addPost(user1.id, post2)
             Thread.sleep(10)
-            val post3 = createPost(user1, title = "post3")
+            val post3 = createPostPostData(title = "post3")
             postService.addPost(user1.id, post3)
             Thread.sleep(10)
-            val post4 = createPost(user1, title = "post4")
+            val post4 = createPostPostData(title = "post4")
             postService.addPost(user1.id, post4)
             Thread.sleep(10)
-            val post5 = createPost(user1, title = "post5")
+            val post5 = createPostPostData(title = "post5")
             postService.addPost(user1.id, post5)
 
             val foundPost3Page = getPosts(user = user1, pattern = "post3", pageable = Pageable(1, 4, SortOrder.DESC))
@@ -681,7 +677,7 @@ class PostServiceTests : UnitTestBase() {
             val foundPost3 = foundPost3Page.content.first()
 
             assertThrows(WrongUserException::class.java) {
-                postService.deletePost(user2.id, foundPost3.id!!)
+                postService.deletePost(user2.id, foundPost3.id)
             }
             val page = getPosts(user = user1, pageable = Pageable(1, 10, SortOrder.DESC))
             assertEquals(1, page.currentPage)
@@ -711,7 +707,7 @@ class PostServiceTests : UnitTestBase() {
             groupService.addUserToGroup(user1.id, users[6].id, friendsGroupUUID)
             groupService.addUserToGroup(user1.id, users[8].id, friendsGroupUUID)
 
-            val hiddenPost = createPost(user1, title = "post1", readGroup = emptyGroupUUID)
+            val hiddenPost = createPostPostData(title = "post1", readGroup = emptyGroupUUID)
             postService.addPost(user1.id, hiddenPost)
             assertEquals(1, getPosts(user = user1, pageable = pageable).content.size)
             assertEquals(0, getPosts(user = users[1], pageable = pageable).content.size)
@@ -724,7 +720,7 @@ class PostServiceTests : UnitTestBase() {
             assertEquals(0, getPosts(user = users[8], pageable = pageable).content.size)
             assertEquals(0, getPosts(user = users[9], pageable = pageable).content.size)
 
-            val friendPost = createPost(user1, title = "post2", readGroup = friendsGroupUUID)
+            val friendPost = createPostPostData(title = "post2", readGroup = friendsGroupUUID)
             postService.addPost(user1.id, friendPost)
             assertEquals(2, getPosts(user = users[0], pageable = pageable).content.size)
             assertEquals(0, getPosts(user = users[1], pageable = pageable).content.size)
@@ -746,16 +742,16 @@ class PostServiceTests : UnitTestBase() {
         transaction {
             val (user1, user2) = signUsersUp()
 
-            val post = createPost(user1, title = "post1")
+            val post = createPostPostData(title = "post1")
             postService.addPost(user1.id, post)
-            val postId = postService.getPost(user1.id, user1.login, "post1").id!!
+            val postId = postService.getPost(user1.id, user1.login, "post1").id
 
             val comment1 = CommentPostData(postId = postId, avatar = "my avatar", text = "oh, hi Mark")
             val comment2 = CommentPostData(postId = postId, avatar = "my avatar", text = "hi")
             postService.addComment(user1.id, comment1)
             postService.addComment(user2.id, comment2)
 
-            val comments = postService.getPost(user1.id, user1.login, "post1")!!.comments
+            val comments = postService.getPost(user1.id, user1.login, "post1").comments
             assertEquals(2, comments.size)
             assertEquals(comment1.text, comments[0].text)
             assertEquals(comment1.avatar, comments[0].avatar)
@@ -772,7 +768,6 @@ class PostServiceTests : UnitTestBase() {
             rollback()
         }
     }
-
 
     // todo access groups
     // todo commenting
@@ -811,39 +806,53 @@ class PostServiceTests : UnitTestBase() {
         return postService.getPosts(user.id, author?.id, diaryId, pattern, tags, null, null, pageable)
     }
 
-    private fun createPost(
-        user: User,
-        id: UUID? = null,
-        uri : String = "",
+    private fun createPostPostData(
+        uri: String = "",
         avatar : String = "avatar url",
         title : String = "sample title",
         text : String = "sample text",
-        creationTime : LocalDateTime = java.time.LocalDateTime.now().toKotlinLocalDateTime(),
         isPreface : Boolean = false,
         isEncrypted: Boolean = false,
         classes : String = "bold",
         tags : Set<String> = emptySet(),
         readGroup: UUID = groupService.everyoneGroupUUID,
         commentGroup: UUID = groupService.everyoneGroupUUID,
-    ): PostFull {
-        return PostFull(
-            id = id,
+    ): PostPostData {
+        return PostPostData(
             uri  = uri,
-
             avatar  = avatar,
-            authorNickname  = user.nickname,
-            authorLogin = user.login,
-
             title  = title,
             text  = text,
-            creationTime  = creationTime,
-
             isPreface  = isPreface,
             isEncrypted = isEncrypted,
-
             classes  = classes,
             tags = tags,
+            readGroupId = readGroup,
+            commentGroupId = commentGroup,
+        )
+    }
 
+    private fun createPostUpdateData(
+        id: UUID,
+        uri: String = "",
+        avatar : String = "avatar url",
+        title : String = "sample title",
+        text : String = "sample text",
+        isEncrypted: Boolean = false,
+        classes : String = "bold",
+        tags : Set<String> = emptySet(),
+        readGroup: UUID = groupService.everyoneGroupUUID,
+        commentGroup: UUID = groupService.everyoneGroupUUID,
+    ): PostUpdateData {
+        return PostUpdateData(
+            id = id,
+            uri  = uri,
+            avatar  = avatar,
+            title  = title,
+            text  = text,
+            isEncrypted = isEncrypted,
+            classes  = classes,
+            tags = tags,
             readGroupId = readGroup,
             commentGroupId = commentGroup,
         )

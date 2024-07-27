@@ -1,5 +1,7 @@
 package fi.lipp.blog
 
+import fi.lipp.blog.mapper.PostMapper
+import fi.lipp.blog.mapper.PostMapperImpl
 import fi.lipp.blog.plugins.*
 import fi.lipp.blog.service.*
 import fi.lipp.blog.service.implementations.*
@@ -49,7 +51,8 @@ fun KoinApplication.loadMyKoins(environment: ApplicationEnvironment): KoinApplic
         single<PasswordEncoder> { PasswordEncoderImpl() }
         single<UserService> { UserServiceImpl(get(), get(), get()) }
         single<AccessGroupService> { AccessGroupServiceImpl() }
-        single<PostService> { PostServiceImpl(get()) }
+        single<PostMapper> { PostMapperImpl(get()) }
+        single<PostService> { PostServiceImpl(get(), get()) }
     }
     return modules(appModules)
 }
