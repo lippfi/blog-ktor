@@ -1,10 +1,7 @@
 package fi.lipp.blog.service.implementations
 
-import fi.lipp.blog.data.AccessGroupType
-import fi.lipp.blog.data.Comment
+import fi.lipp.blog.data.*
 import fi.lipp.blog.model.Page
-import fi.lipp.blog.data.PostFull
-import fi.lipp.blog.data.PostView
 import fi.lipp.blog.domain.*
 import fi.lipp.blog.model.Pageable
 import fi.lipp.blog.model.TagPolicy
@@ -42,14 +39,14 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         }
     }
 
-    override fun getPost(userId: Long?, authorLogin: String, uri: String): PostView? {
+    override fun getPost(userId: Long?, authorLogin: String, uri: String): PostView {
         return transaction {
             val userEntity = UserEntity.find { Users.login eq authorLogin }.firstOrNull() ?: throw UserNotFoundException()
-            val postEntity = PostEntity.find { (Posts.author eq userEntity.id) and (Posts.uri eq uri) and (Posts.isArchived eq false) }.firstOrNull() ?: return@transaction null
+            val postEntity = PostEntity.find { (Posts.author eq userEntity.id) and (Posts.uri eq uri) and (Posts.isArchived eq false) }.firstOrNull() ?: throw PostNotFoundException()
             return@transaction if (userId == postEntity.authorId.value || accessGroupService.inGroup(userId, postEntity.readGroupId.value)) {
                 postEntity.toPostView(userId)
             } else {
-                null
+                throw PostNotFoundException()
             }
         }
     }
@@ -146,7 +143,8 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
                         tags = getTagsForPost(row[Posts.id].value),
 
                         classes = row[Posts.classes],
-                        isCommentable = (userId == row[Users.id].value) || (accessGroupService.inGroup(userId, row[Posts.commentGroup].value))
+                        isCommentable = (userId == row[Users.id].value) || (accessGroupService.inGroup(userId, row[Posts.commentGroup].value)),
+                        comments = getCommentsForPost(row[Posts.id].value)
                     )
                 }
 
@@ -163,6 +161,9 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
             .toSet()
     }
 
+    private fun getCommentsForPost(postId: UUID): List<CommentView> {
+        return CommentEntity.find { Comments.post eq postId }.orderBy(Comments.creationTime to SortOrder.ASC).map { it.toComment() }
+    }
 
     override fun addPost(userId: Long, post: PostFull) {
         transaction {
@@ -254,16 +255,38 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         }
     }
 
-    override fun addComment(userId: Long, comment: Comment) {
-        TODO("Not yet implemented")
+    override fun addComment(userId: Long, comment: CommentPostData) {
+        transaction {
+            val postEntity = PostEntity.findById(comment.postId) ?: throw PostNotFoundException()
+            if (userId != postEntity.authorId.value && (!accessGroupService.inGroup(userId, postEntity.readGroupId.value) || !accessGroupService.inGroup(userId, postEntity.commentGroupId.value))) {
+                throw WrongUserException()
+            }
+            Comments.insert {
+                it[post] = postEntity.id
+                it[author] = userId
+                it[avatar] = comment.avatar
+                it[text] = comment.text
+            }
+        }
     }
 
-    override fun updateComment(userId: Long, comment: Comment) {
-        TODO("Not yet implemented")
+    override fun updateComment(userId: Long, comment: CommentUpdateData) {
+        transaction {
+            val commentEntity = CommentEntity.findById(comment.id) ?: throw InvalidCommentException()
+            if (userId != commentEntity.authorId.value) throw WrongUserException()
+            commentEntity.apply {
+                avatar = comment.avatar
+                text = comment.text
+            }
+        }
     }
 
     override fun deleteComment(userId: Long, commentId: UUID) {
-        TODO("Not yet implemented")
+        transaction {
+            val commentEntity = CommentEntity.findById(commentId) ?: throw InvalidCommentException()
+            if (userId != commentEntity.authorId.value) throw WrongUserException()
+            commentEntity.delete()
+        }
     }
 
     private fun deletePost(postEntity: PostEntity) {
@@ -363,7 +386,6 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
     private fun isUriBusy(authorId: Long, uri: String): Boolean {
         return PostEntity.find { (Posts.author eq authorId) and (Posts.uri eq uri) }.firstOrNull() != null
     }
-
 
     private fun generateRandomAlphanumericString(length: Int): String {
         val charPool : List<Char> = ('a'..'z') + ('A'..'Z') + ('0'..'9')

@@ -1,6 +1,5 @@
 package fi.lipp.blog.service.implementations
 
-import fi.lipp.blog.data.AccessGroup
 import fi.lipp.blog.data.AccessGroupType
 import fi.lipp.blog.domain.AccessGroupEntity
 import fi.lipp.blog.domain.DiaryEntity

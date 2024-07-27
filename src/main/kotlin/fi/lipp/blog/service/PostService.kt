@@ -1,9 +1,7 @@
 package fi.lipp.blog.service
 
-import fi.lipp.blog.data.Comment
+import fi.lipp.blog.data.*
 import fi.lipp.blog.model.Page
-import fi.lipp.blog.data.PostFull
-import fi.lipp.blog.data.PostView
 import fi.lipp.blog.model.Pageable
 import fi.lipp.blog.model.TagPolicy
 import kotlinx.datetime.LocalDateTime
@@ -14,7 +12,7 @@ interface PostService {
 
     fun getPreface(userId: Long?, diaryId: Long): PostView?
 
-    fun getPost(userId: Long?, authorLogin: String, uri: String): PostView?
+    fun getPost(userId: Long?, authorLogin: String, uri: String): PostView
 
     fun getPosts(
         userId: Long?,
@@ -31,7 +29,7 @@ interface PostService {
     fun updatePost(userId: Long, post: PostFull)
     fun deletePost(userId: Long, postId: UUID)
 
-    fun addComment(userId: Long, comment: Comment)
-    fun updateComment(userId: Long, comment: Comment)
+    fun addComment(userId: Long, comment: CommentPostData)
+    fun updateComment(userId: Long, comment: CommentUpdateData)
     fun deleteComment(userId: Long, commentId: UUID)
 }

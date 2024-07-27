@@ -1,12 +1,11 @@
 package fi.lipp.blog
 
-import fi.lipp.blog.data.PostFull
-import fi.lipp.blog.data.PostView
-import fi.lipp.blog.data.User
+import fi.lipp.blog.data.*
 import fi.lipp.blog.domain.DiaryEntity
 import fi.lipp.blog.model.Page
 import fi.lipp.blog.model.Pageable
 import fi.lipp.blog.model.TagPolicy
+import fi.lipp.blog.model.exceptions.PostNotFoundException
 import fi.lipp.blog.model.exceptions.WrongUserException
 import fi.lipp.blog.repository.*
 import fi.lipp.blog.service.AccessGroupService
@@ -30,7 +29,6 @@ import org.junit.Assert.assertThrows
 import org.junit.BeforeClass
 import org.junit.Test
 import org.mockito.Mockito.mock
-import java.util.Locale
 import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -43,7 +41,7 @@ class PostServiceTests : UnitTestBase() {
         fun setUp() {
             Database.connect("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;", driver = "org.h2.Driver")
             transaction {
-                SchemaUtils.create(Users, Diaries, InviteCodes, PasswordResets, Files, UserAvatars, Tags, Posts, PostTags, AccessGroups, CustomGroupUsers)
+                SchemaUtils.create(Users, Diaries, InviteCodes, PasswordResets, Files, UserAvatars, Tags, Posts, PostTags, AccessGroups, CustomGroupUsers, Comments)
             }
             groupService = AccessGroupServiceImpl()
             postService = PostServiceImpl(groupService)
@@ -389,9 +387,10 @@ class PostServiceTests : UnitTestBase() {
             val post1 = createPost(user1, title = "Hello World", readGroup = groupService.privateGroupUUID)
             postService.addPost(user1.id, post1)
             val foundPost1 = postService.getPost(user1.id, user1.login, "hello-world")
-            val foundPost2 = postService.getPost(user2.id, user1.login, "hello-world")
+            assertThrows(PostNotFoundException::class.java) {
+                postService.getPost(user2.id, user1.login, "hello-world")
+            }
             assertNotNull(foundPost1)
-            assertNull(foundPost2)
 
             rollback()
         }
@@ -737,6 +736,38 @@ class PostServiceTests : UnitTestBase() {
             assertEquals(0, getPosts(user = users[7], pageable = pageable).content.size)
             assertEquals(1, getPosts(user = users[8], pageable = pageable).content.size)
             assertEquals(0, getPosts(user = users[9], pageable = pageable).content.size)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `test comment post`() {
+        transaction {
+            val (user1, user2) = signUsersUp()
+
+            val post = createPost(user1, title = "post1")
+            postService.addPost(user1.id, post)
+            val postId = postService.getPost(user1.id, user1.login, "post1").id!!
+
+            val comment1 = CommentPostData(postId = postId, avatar = "my avatar", text = "oh, hi Mark")
+            val comment2 = CommentPostData(postId = postId, avatar = "my avatar", text = "hi")
+            postService.addComment(user1.id, comment1)
+            postService.addComment(user2.id, comment2)
+
+            val comments = postService.getPost(user1.id, user1.login, "post1")!!.comments
+            assertEquals(2, comments.size)
+            assertEquals(comment1.text, comments[0].text)
+            assertEquals(comment1.avatar, comments[0].avatar)
+            assertEquals(user1.login, comments[0].authorLogin)
+            assertEquals(user1.nickname, comments[0].authorNickname)
+            assertNow(comments[0].creationTime)
+
+            assertEquals(comment2.text, comments[1].text)
+            assertEquals(comment2.avatar, comments[1].avatar)
+            assertEquals(user2.login, comments[1].authorLogin)
+            assertEquals(user2.nickname, comments[1].authorNickname)
+            assertNow(comments[1].creationTime)
 
             rollback()
         }

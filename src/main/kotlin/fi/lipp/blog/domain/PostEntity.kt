@@ -4,12 +4,14 @@ import fi.lipp.blog.data.AccessGroupType
 import fi.lipp.blog.data.PostFull
 import fi.lipp.blog.data.PostView
 import fi.lipp.blog.model.exceptions.InternalServerError
+import fi.lipp.blog.repository.Comments
 import fi.lipp.blog.repository.CustomGroupUsers
 import fi.lipp.blog.repository.PostTags
 import fi.lipp.blog.repository.Posts
 import org.jetbrains.exposed.dao.UUIDEntity
 import org.jetbrains.exposed.dao.UUIDEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
+import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.select
 import java.util.*
@@ -39,9 +41,7 @@ class PostEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var readGroupId by Posts.readGroup
     var commentGroupId by Posts.commentGroup
 
-    // TODO part info for users (e.g. canComment: Boolean)
-    // TODO more info for author (e.g. group)
-    // TODO or create other method e.g. toEditablePost
+    // TODO avoid duplicating code (getting tags and comments)
     fun toPostView(userId: Long?): PostView {
         val author = UserEntity.findById(authorId) ?: throw InternalServerError()
         val commentGroup = AccessGroupEntity.findById(commentGroupId) ?: throw InternalServerError()
@@ -70,6 +70,7 @@ class PostEntity(id: EntityID<UUID>) : UUIDEntity(id) {
             classes = classes,
             tags = tags.map { it.name }.toSet(),
             isCommentable = isCommentable,
+            comments = CommentEntity.find { Comments.post eq id }.orderBy(Comments.creationTime to SortOrder.ASC).map { it.toComment() },
         )
     }
 

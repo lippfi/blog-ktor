@@ -20,7 +20,9 @@ data class PostView(
 
     val classes : String,
     var tags : Set<String>,
+
     val isCommentable: Boolean,
+    val comments: List<CommentView>,
 )
 
 class PostFull(
