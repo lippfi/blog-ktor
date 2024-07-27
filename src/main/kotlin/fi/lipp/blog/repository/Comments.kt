@@ -3,14 +3,14 @@ package fi.lipp.blog.repository
 import kotlinx.datetime.toKotlinLocalDateTime
 import org.jetbrains.exposed.dao.id.LongIdTable
 import org.jetbrains.exposed.dao.id.UUIDTable
+import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.kotlin.datetime.datetime
 import java.time.LocalDateTime
 import java.util.UUID
 
 object Comments : UUIDTable() {
-    // TODO can it be a reference to URI and not ID? URI does not change while ID keeps changing
-    val post = reference("post", Posts)
-    val author = reference("author", Users)
+    val post = reference("post", Posts, onDelete = ReferenceOption.CASCADE)
+    val author = reference("author", Users, onDelete = ReferenceOption.CASCADE)
 
     val avatar = varchar("avatar", 1024)
     val text = text("text")

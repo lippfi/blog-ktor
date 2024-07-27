@@ -2,14 +2,15 @@ package fi.lipp.blog.repository
 
 import kotlinx.datetime.toKotlinLocalDateTime
 import org.jetbrains.exposed.dao.id.UUIDTable
+import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.kotlin.datetime.datetime
 import java.time.LocalDateTime
 
 object Posts : UUIDTable() {
     val uri = varchar("uri", 100).index("idx_post_uri")
 
-    val diary = reference("diary", Diaries).index("idx_post_diary")
-    val author = reference("author", Users).index("idx_post_author")
+    val diary = reference("diary", Diaries, onDelete = ReferenceOption.CASCADE).index("idx_post_diary")
+    val author = reference("author", Users, onDelete = ReferenceOption.CASCADE).index("idx_post_author")
 
     val avatar = varchar("avatar", 1024)
     val title = text("title")
@@ -23,6 +24,6 @@ object Posts : UUIDTable() {
 
     val classes = varchar("classes", 1024)
 
-    val readGroup = reference("read_group", AccessGroups)
-    val commentGroup = reference("comment_group", AccessGroups)
+    val readGroup = reference("read_group", AccessGroups, onDelete = ReferenceOption.CASCADE)
+    val commentGroup = reference("comment_group", AccessGroups, onDelete = ReferenceOption.CASCADE)
 }
