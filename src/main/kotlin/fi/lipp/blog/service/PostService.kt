@@ -8,9 +8,10 @@ import kotlinx.datetime.LocalDateTime
 import java.util.UUID
 
 interface PostService {
+    //
     fun getPostForEdit(userId: Long, postId: UUID): PostDto.Update
 
-    fun getPreface(userId: Long?, diaryId: Long): PostDto.View?
+    fun getPreface(userId: Long?, diaryId: UUID): PostDto.View?
 
     fun getPost(userId: Long?, authorLogin: String, uri: String): PostDto.View
 
@@ -25,11 +26,17 @@ interface PostService {
         pageable: Pageable,
     ): Page<PostDto.View>
 
+    //
     fun addPost(userId: Long, post: PostDto.Create)
+    //
     fun updatePost(userId: Long, post: PostDto.Update)
+    //
     fun deletePost(userId: Long, postId: UUID)
 
+    //
     fun addComment(userId: Long, comment: CommentDto.Create)
+    //
     fun updateComment(userId: Long, comment: CommentDto.Update)
+    //
     fun deleteComment(userId: Long, commentId: UUID)
 }

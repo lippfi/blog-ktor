@@ -1,5 +1,6 @@
 package fi.lipp.blog.plugins
 
+import fi.lipp.blog.routes.postRoutes
 import fi.lipp.blog.routes.userRoutes
 import io.ktor.http.*
 import io.ktor.server.application.*
