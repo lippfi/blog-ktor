@@ -1,6 +1,7 @@
 package fi.lipp.blog.service.implementations
 
 import fi.lipp.blog.data.*
+import fi.lipp.blog.domain.FileEntity
 import fi.lipp.blog.domain.InviteCodeEntity
 import fi.lipp.blog.domain.PasswordResetCodeEntity
 import fi.lipp.blog.domain.UserEntity
@@ -22,7 +23,7 @@ import java.time.LocalDateTime
 import java.util.*
 
 class UserServiceImpl(private val encoder: PasswordEncoder, private val mailService: MailService, private val storageService: StorageService) : UserService {
-    override fun generateInviteCode(userId: Long): String {
+    override fun generateInviteCode(userId: UUID): String {
         val inviteCode = transaction {
             InviteCodes.insertAndGetId {
                 it[creator] = userId
@@ -73,7 +74,7 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
         return createJwtToken(userEntity.id.value)
     }
 
-    override fun getUserInfo(userId: Long): UserDto.ProfileInfo {
+    override fun getUserInfo(userId: UUID): UserDto.ProfileInfo {
         val userEntity = getUserById(userId)
         return UserDto.ProfileInfo(
             login = userEntity.login,
@@ -83,7 +84,7 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
         )
     }
 
-    override fun update(userId: Long, user: UserDto.Registration, oldPassword: String) {
+    override fun update(userId: UUID, user: UserDto.Registration, oldPassword: String) {
         val userEntity = getUserById(userId)
         if (!encoder.matches(oldPassword, userEntity.password)) throw WrongPasswordException()
 
@@ -161,16 +162,21 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
         return transaction { UserEntity.find { Users.nickname eq nickname }.firstOrNull() }
     }
 
-    override fun getAvatars(userId: Long): List<BlogFile> {
-        val userEntity = UserEntity.findById(userId) ?: throw UserNotFoundException()
-        return userEntity.avatars.map { it.toBlogFile() }
+    override fun getAvatars(userId: UUID): List<BlogFile> {
+        val avatars: List<FileEntity> = transaction {
+            val userEntity = UserEntity.findById(userId) ?: throw UserNotFoundException()
+            UserAvatars.select { UserAvatars.user eq userEntity.id }
+                .orderBy(UserAvatars.ordinal)
+                .mapNotNull { FileEntity.findById(it[UserAvatars.avatar].value) }
+        } 
+        return avatars.map { it.toBlogFile() }
     }
 
-    override fun getAvatarUrls(userId: Long): List<URL> {
+    override fun getAvatarUrls(userId: UUID): List<URL> {
         return getAvatars(userId).map { storageService.getFileURL(it) }
     }
 
-    override fun reorderAvatars(userId: Long, permutation: List<UUID>) {
+    override fun reorderAvatars(userId: UUID, permutation: List<UUID>) {
         transaction {
             val currentUUIDs = UserAvatars
                 .select { UserAvatars.user eq userId }
@@ -196,7 +202,7 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
         }
     }
 
-    override fun addAvatar(userId: Long, files: List<FileUploadData>) {
+    override fun addAvatar(userId: UUID, files: List<FileUploadData>) {
         val existingMaxOrdinal = UserAvatars.slice(UserAvatars.ordinal.max())
             .select { UserAvatars.user eq userId }
             .firstOrNull()
@@ -215,13 +221,13 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
         }
     }
 
-    override fun deleteAvatar(userId: Long, avatarId: UUID) {
+    override fun deleteAvatar(userId: UUID, avatarId: UUID) {
         transaction {
             UserAvatars.deleteWhere { (user eq userId) and (avatar eq avatarId) }
         }
     }
 
-    private fun getUserById(userId: Long): UserEntity {
+    private fun getUserById(userId: UUID): UserEntity {
         return transaction { UserEntity.findById(userId) ?: throw UserNotFoundException() }
     }
 }

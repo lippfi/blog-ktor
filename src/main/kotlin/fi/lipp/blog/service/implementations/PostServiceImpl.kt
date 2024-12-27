@@ -20,7 +20,7 @@ import kotlin.math.ceil
 import kotlin.random.Random
 
 class PostServiceImpl(private val accessGroupService: AccessGroupService) : PostService {
-    override fun getPostForEdit(userId: Long, postId: UUID): PostDto.Update {
+    override fun getPostForEdit(userId: UUID, postId: UUID): PostDto.Update {
         return transaction {
             val postEntity = PostEntity.findById(postId) ?: throw PostNotFoundException()
             if (postEntity.authorId.value != userId) throw WrongUserException()
@@ -28,7 +28,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         }
     }
 
-    override fun getPreface(userId: Long?, diaryId: Long): PostDto.View? {
+    override fun getPreface(userId: UUID?, diaryId: UUID): PostDto.View? {
         return transaction {
             val preface = PostEntity.find { (Posts.diary eq diaryId) and (Posts.isPreface eq true) and (Posts.isArchived eq false) }.firstOrNull() ?: return@transaction null
             return@transaction if (userId == preface.authorId.value || accessGroupService.inGroup(userId, preface.readGroupId.value)) {
@@ -39,7 +39,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         }
     }
 
-    override fun getPost(userId: Long?, authorLogin: String, uri: String): PostDto.View {
+    override fun getPost(userId: UUID?, authorLogin: String, uri: String): PostDto.View {
         return transaction {
             val userEntity = UserEntity.find { Users.login eq authorLogin }.firstOrNull() ?: throw UserNotFoundException()
             val postEntity = PostEntity.find { (Posts.author eq userEntity.id) and (Posts.uri eq uri) and (Posts.isArchived eq false) }.firstOrNull() ?: throw PostNotFoundException()
@@ -52,9 +52,9 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
     }
 
     override fun getPosts(
-        userId: Long?,
-        authorId: Long?,
-        diaryId: Long?,
+        userId: UUID?,
+        authorId: UUID?,
+        diaryId: UUID?,
         text: String?,
         tags: Pair<TagPolicy, Set<String>>?,
         from: LocalDateTime?,
@@ -118,17 +118,17 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
                 .groupBy(Posts.id)
 
             val totalCount = query.count()
-            val totalPages = ceil(totalCount / pageable.pageSize.toDouble()).toInt()
-            val offset = (pageable.page - 1) * pageable.pageSize
+            val totalPages = ceil(totalCount / pageable.size.toDouble()).toInt()
+            val offset = (pageable.page - 1) * pageable.size
 
             val results = query
-                .limit(pageable.pageSize, offset.toLong())
+                .limit(pageable.size, offset.toLong())
                 .map { row -> toPostView(userId, row) }
             Page(results, pageable.page, totalPages)
         }
     }
 
-    override fun addPost(userId: Long, post: PostDto.Create) {
+    override fun addPost(userId: UUID, post: PostDto.Create) {
         transaction {
             if (post.isPreface) {
                 addPreface(userId, post)
@@ -138,7 +138,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         }
     }
 
-    private fun addPreface(userId: Long, post: PostDto.Create) {
+    private fun addPreface(userId: UUID, post: PostDto.Create) {
         val preface = PostEntity.find { (Posts.author eq userId) and (Posts.isPreface eq true) }.firstOrNull()
         if (preface != null) {
             deletePost(preface)
@@ -147,7 +147,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         addPostToDb(userId, post)
     }
 
-    override fun updatePost(userId: Long, post: PostDto.Update) {
+    override fun updatePost(userId: UUID, post: PostDto.Update) {
         transaction {
             val postEntity = post.id.let { PostEntity.findById(it) } ?: throw PostNotFoundException()
             if (postEntity.authorId.value != userId) throw WrongUserException()
@@ -177,7 +177,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         }
     }
 
-    private fun getReadAndCommentGroups(diaryId: Long, readGroupId: UUID, commentGroupId: UUID): Pair<AccessGroupEntity, AccessGroupEntity> {
+    private fun getReadAndCommentGroups(diaryId: UUID, readGroupId: UUID, commentGroupId: UUID): Pair<AccessGroupEntity, AccessGroupEntity> {
         val readGroupEntity = AccessGroupEntity.findById(readGroupId) ?: throw InvalidAccessGroupException()
         val readGroupDiaryId = readGroupEntity.diaryId?.value
         if (readGroupDiaryId != null && readGroupDiaryId != diaryId) {
@@ -210,7 +210,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         }
     }
 
-    override fun deletePost(userId: Long, postId: UUID) {
+    override fun deletePost(userId: UUID, postId: UUID) {
         transaction {
             val postEntity = PostEntity.findById(postId) ?: return@transaction
             if (postEntity.authorId.value != userId) throw WrongUserException()
@@ -218,7 +218,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         }
     }
 
-    override fun addComment(userId: Long, comment: CommentDto.Create) {
+    override fun addComment(userId: UUID, comment: CommentDto.Create) {
         transaction {
             val postEntity = PostEntity.findById(comment.postId) ?: throw PostNotFoundException()
             if (userId != postEntity.authorId.value && (!accessGroupService.inGroup(userId, postEntity.readGroupId.value) || !accessGroupService.inGroup(userId, postEntity.commentGroupId.value))) {
@@ -233,7 +233,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         }
     }
 
-    override fun updateComment(userId: Long, comment: CommentDto.Update) {
+    override fun updateComment(userId: UUID, comment: CommentDto.Update) {
         transaction {
             val commentEntity = CommentEntity.findById(comment.id) ?: throw InvalidCommentException()
             if (userId != commentEntity.authorId.value) throw WrongUserException()
@@ -244,7 +244,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         }
     }
 
-    override fun deleteComment(userId: Long, commentId: UUID) {
+    override fun deleteComment(userId: UUID, commentId: UUID) {
         transaction {
             val commentEntity = CommentEntity.findById(commentId) ?: throw InvalidCommentException()
             if (userId != commentEntity.authorId.value) throw WrongUserException()
@@ -259,12 +259,12 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         }
     }
 
-    private fun addPostToDb(userId: Long, post: PostDto.Create) {
+    private fun addPostToDb(userId: UUID, post: PostDto.Create) {
         transaction {
             val postUri = checkOrCreateUri(userId, post.title, post.uri)
-            val diaryId = DiaryEntity.find { Diaries.owner eq userId }.first().id
+            val diaryId = DiaryEntity.find { Diaries.owner eq userId }.first().id.value
 
-            val (readGroupEntity, commentGroupEntity) = getReadAndCommentGroups(userId, post.readGroupId, post.commentGroupId)
+            val (readGroupEntity, commentGroupEntity) = getReadAndCommentGroups(diaryId, post.readGroupId, post.commentGroupId)
 
             val postId = Posts.insertAndGetId {
                 it[uri] = postUri
@@ -288,7 +288,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
             }
 
             for (tag in post.tags) {
-                val tagId = getOrCreateTag(diaryId.value, tag)
+                val tagId = getOrCreateTag(diaryId, tag)
                 PostTags.insert {
                     it[PostTags.tag] = tagId
                     it[PostTags.post] = postId
@@ -297,7 +297,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         }
     }
 
-    private fun getOrCreateTag(diaryId: Long, tag: String): EntityID<Long> {
+    private fun getOrCreateTag(diaryId: UUID, tag: String): EntityID<UUID> {
         val tagEntity = TagEntity.find { (Tags.name eq tag) and (Tags.diary eq diaryId)}.firstOrNull()
         if (tagEntity != null) return tagEntity.id
 
@@ -311,7 +311,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         return uri.matches(Regex("[a-zA-Z0-9-]+"))
     }
 
-    private fun checkOrCreateUri(authorId: Long, postTitle: String, postUri: String): String {
+    private fun checkOrCreateUri(authorId: UUID, postTitle: String, postUri: String): String {
         return if (postUri.isBlank()) {
             createUri(authorId, postTitle)
         } else {
@@ -321,7 +321,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         }
     }
 
-    private fun createUri(authorId: Long, postTitle: String): String {
+    private fun createUri(authorId: UUID, postTitle: String): String {
         val wordsPart = postTitle
             .replace(Regex("[^a-zA-Z0-9 ]"), "")
             .lowercase(Locale.getDefault())
@@ -346,7 +346,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         }
     }
 
-    private fun isUriBusy(authorId: Long, uri: String): Boolean {
+    private fun isUriBusy(authorId: UUID, uri: String): Boolean {
         return PostEntity.find { (Posts.author eq authorId) and (Posts.uri eq uri) }.firstOrNull() != null
     }
 
@@ -358,7 +358,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
             .joinToString("")
     }
 
-    private fun toPostView(userId: Long?, postEntity: PostEntity): PostDto.View {
+    private fun toPostView(userId: UUID?, postEntity: PostEntity): PostDto.View {
         val author = UserEntity.findById(postEntity.authorId) ?: throw InternalServerError()
         val isCommentable = (userId == postEntity.authorId.value) || (accessGroupService.inGroup(userId, postEntity.commentGroupId.value))
 
@@ -380,7 +380,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         )
     }
 
-    private fun toPostView(userId: Long?, row: ResultRow): PostDto.View {
+    private fun toPostView(userId: UUID?, row: ResultRow): PostDto.View {
         return PostDto.View(
             id = row[Posts.id].value,
             uri = row[Posts.uri],

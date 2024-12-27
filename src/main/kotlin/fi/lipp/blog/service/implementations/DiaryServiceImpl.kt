@@ -13,9 +13,10 @@ import fi.lipp.blog.service.StorageService
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.net.URL
+import java.util.UUID
 
 class DiaryServiceImpl(private val storageService: StorageService) : DiaryService {
-    override fun setDiaryStyle(userId: Long, styleContent: String) {
+    override fun setDiaryStyle(userId: UUID, styleContent: String) {
         transaction {
             val styleUploadData = FileUploadData("style.css", styleContent.byteInputStream())
             val blogFile = storageService.store(userId, listOf(styleUploadData))[0]
@@ -27,14 +28,14 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
         }
     }
 
-    override fun getDiaryStyle(diaryId: Long): URL? {
+    override fun getDiaryStyle(diaryId: UUID): URL? {
         return transaction {
             val blogFile = getStyleFile(diaryId)
             blogFile?.let { storageService.getFileURL(it) }
         }
     }
 
-    private fun getStyleFile(diaryId: Long): BlogFile? {
+    private fun getStyleFile(diaryId: UUID): BlogFile? {
         val diaryEntity = DiaryEntity.findById(diaryId) ?: throw DiaryNotFoundException()
         val styleUUID = diaryEntity.style ?: return null
         return FileEntity.findById(styleUUID)?.toBlogFile() ?: throw InternalServerError()

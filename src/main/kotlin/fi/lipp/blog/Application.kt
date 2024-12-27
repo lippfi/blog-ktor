@@ -10,6 +10,7 @@ import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 
 // POOL
+// TODO what about Pages? Are they ready? Should I have start page or some order on them? Should pages have visibility? Own links?
 // TODO diaries do not have login. What about communities?
 // TODO exception handling (Success, Error) wrap
 // TODO better avatar storing : 1

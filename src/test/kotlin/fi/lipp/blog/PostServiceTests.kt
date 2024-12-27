@@ -764,7 +764,7 @@ class PostServiceTests : UnitTestBase() {
     // todo generating url when busy
     // todo generating url when russian
 
-    private fun signUsersUp(): Pair<Long, Long> {
+    private fun signUsersUp(): Pair<UUID, UUID> {
         userService.signUp(testUser, "")
         val user1 = findUserByLogin(testUser.login)!!
         val inviteCode = userService.generateInviteCode(user1.id.value)
@@ -775,8 +775,8 @@ class PostServiceTests : UnitTestBase() {
     }
 
     @Suppress("SameParameterValue")
-    private fun signUsersUp(count: Int): List<Long> {
-        val users = mutableListOf<Long>()
+    private fun signUsersUp(count: Int): List<UUID> {
+        val users = mutableListOf<UUID>()
         userService.signUp(testUser, "")
         var userEntity = findUserByLogin(testUser.login)!!
         users.add(userEntity.id.value)
@@ -793,7 +793,7 @@ class PostServiceTests : UnitTestBase() {
         return users
     }
 
-    private fun getPosts(userId: Long, authorId: Long? = null, diaryId: Long? = null, pattern: String? = null, tags: Pair<TagPolicy, Set<String>>? = null, pageable: Pageable): Page<PostDto.View> {
+    private fun getPosts(userId: UUID, authorId: UUID? = null, diaryId: UUID? = null, pattern: String? = null, tags: Pair<TagPolicy, Set<String>>? = null, pageable: Pageable): Page<PostDto.View> {
         return postService.getPosts(userId, authorId, diaryId, pattern, tags, null, null, pageable)
     }
 

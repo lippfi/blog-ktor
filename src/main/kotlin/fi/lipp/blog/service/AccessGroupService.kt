@@ -7,12 +7,12 @@ interface AccessGroupService {
     val everyoneGroupUUID: UUID
     val registeredGroupUUID: UUID
 
-    fun getAccessGroups(userId: Long, diaryId: Long): List<Pair<String, UUID>>
-    fun createAccessGroup(userId: Long, diaryId: Long, groupName: String)
-    fun deleteAccessGroup(userId: Long, groupId: UUID)
+    fun getAccessGroups(userId: UUID, diaryId: UUID): List<Pair<String, UUID>>
+    fun createAccessGroup(userId: UUID, diaryId: UUID, groupName: String)
+    fun deleteAccessGroup(userId: UUID, groupId: UUID)
 
-    fun addUserToGroup(userId: Long, memberId: Long, groupId: UUID)
-    fun removeUserFromGroup(userId: Long, memberId: Long, groupId: UUID)
+    fun addUserToGroup(userId: UUID, memberId: UUID, groupId: UUID)
+    fun removeUserFromGroup(userId: UUID, memberId: UUID, groupId: UUID)
 
-    fun inGroup(memberId: Long?, groupId: UUID): Boolean
+    fun inGroup(memberId: UUID?, groupId: UUID): Boolean
 }

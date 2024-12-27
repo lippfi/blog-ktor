@@ -8,17 +8,16 @@ import kotlinx.datetime.LocalDateTime
 import java.util.UUID
 
 interface PostService {
-    //
-    fun getPostForEdit(userId: Long, postId: UUID): PostDto.Update
+    fun getPostForEdit(userId: UUID, postId: UUID): PostDto.Update
 
-    fun getPreface(userId: Long?, diaryId: UUID): PostDto.View?
+    fun getPreface(userId: UUID?, diaryId: UUID): PostDto.View?
 
-    fun getPost(userId: Long?, authorLogin: String, uri: String): PostDto.View
+    fun getPost(userId: UUID?, authorLogin: String, uri: String): PostDto.View
 
     fun getPosts(
-        userId: Long?,
-        authorId: Long?,
-        diaryId: Long?,
+        userId: UUID?,
+        authorId: UUID?,
+        diaryId: UUID?,
         text: String?,
         tags: Pair<TagPolicy, Set<String>>?,
         from: LocalDateTime?,
@@ -26,17 +25,11 @@ interface PostService {
         pageable: Pageable,
     ): Page<PostDto.View>
 
-    //
-    fun addPost(userId: Long, post: PostDto.Create)
-    //
-    fun updatePost(userId: Long, post: PostDto.Update)
-    //
-    fun deletePost(userId: Long, postId: UUID)
+    fun addPost(userId: UUID, post: PostDto.Create)
+    fun updatePost(userId: UUID, post: PostDto.Update)
+    fun deletePost(userId: UUID, postId: UUID)
 
-    //
-    fun addComment(userId: Long, comment: CommentDto.Create)
-    //
-    fun updateComment(userId: Long, comment: CommentDto.Update)
-    //
-    fun deleteComment(userId: Long, commentId: UUID)
+    fun addComment(userId: UUID, comment: CommentDto.Create)
+    fun updateComment(userId: UUID, comment: CommentDto.Update)
+    fun deleteComment(userId: UUID, commentId: UUID)
 }

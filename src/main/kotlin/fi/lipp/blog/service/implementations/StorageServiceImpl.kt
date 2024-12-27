@@ -4,7 +4,6 @@ import fi.lipp.blog.data.BlogFile
 import fi.lipp.blog.data.FileType
 import fi.lipp.blog.data.FileUploadData
 import fi.lipp.blog.model.exceptions.InvalidAvatarExtensionException
-import fi.lipp.blog.model.exceptions.InvalidFileExtension
 import fi.lipp.blog.repository.Files
 import fi.lipp.blog.service.ApplicationProperties
 import fi.lipp.blog.service.StorageService
@@ -19,17 +18,17 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
     // TODO safer avatar storing. Only the given extensions with size & dimensions limits
     private val allowedAvatarExtensions = setOf(".jpg", ".jpeg", ".png", ".gif")
 
-    override fun store(userId: Long, files: List<FileUploadData>): List<BlogFile> {
+    override fun store(userId: UUID, files: List<FileUploadData>): List<BlogFile> {
         return store(userId, files) {}
     }
 
-    override fun storeAvatars(userId: Long, files: List<FileUploadData>): List<BlogFile> {
+    override fun storeAvatars(userId: UUID, files: List<FileUploadData>): List<BlogFile> {
         return store(userId, files) { file ->
             if (!allowedAvatarExtensions.contains(file.extension)) throw InvalidAvatarExtensionException()
         }
     }
 
-    private fun store(userId: Long, files: List<FileUploadData>, performChecks: (FileUploadData) -> Unit): List<BlogFile> {
+    private fun store(userId: UUID, files: List<FileUploadData>, performChecks: (FileUploadData) -> Unit): List<BlogFile> {
         val blogFiles = mutableListOf<BlogFile>()
         files.forEach { file ->
             performChecks(file)
@@ -46,7 +45,7 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
         return blogFiles
     }
 
-    private fun createFile(userId: Long, uuid: UUID, fileUploadData: FileUploadData): BlogFile {
+    private fun createFile(userId: UUID, uuid: UUID, fileUploadData: FileUploadData): BlogFile {
         val path = getSavingPath(fileUploadData.type)
         val fileName = uuid.toString() + fileUploadData.extension
         val file = File("$path/$fileName")

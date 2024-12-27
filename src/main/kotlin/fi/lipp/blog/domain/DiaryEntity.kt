@@ -1,12 +1,13 @@
 package fi.lipp.blog.domain
 
 import fi.lipp.blog.repository.Diaries
-import org.jetbrains.exposed.dao.LongEntity
-import org.jetbrains.exposed.dao.LongEntityClass
+import org.jetbrains.exposed.dao.UUIDEntity
+import org.jetbrains.exposed.dao.UUIDEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
+import java.util.*
 
-class DiaryEntity(id: EntityID<Long>) : LongEntity(id) {
-    companion object : LongEntityClass<DiaryEntity>(Diaries)
+class DiaryEntity(id: EntityID<UUID>) : UUIDEntity(id) {
+    companion object : UUIDEntityClass<DiaryEntity>(Diaries)
 
     val name by Diaries.name
     val creationTime by Diaries.creationTime

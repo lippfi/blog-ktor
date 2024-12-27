@@ -2,11 +2,12 @@ package fi.lipp.blog.repository
 
 import kotlinx.datetime.toKotlinLocalDateTime
 import org.jetbrains.exposed.dao.id.LongIdTable
+import org.jetbrains.exposed.dao.id.UUIDTable
 import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.kotlin.datetime.datetime
 import java.time.LocalDateTime
 
-object Users : LongIdTable() {
+object Users : UUIDTable() {
     val login = varchar("login", 50).uniqueIndex("idx_user_login")
     val email = varchar("email", 50).uniqueIndex("idx_user_email")
     val password = varchar("password", 200)

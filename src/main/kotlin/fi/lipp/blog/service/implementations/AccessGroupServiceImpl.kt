@@ -40,7 +40,7 @@ class AccessGroupServiceImpl : AccessGroupService {
         }
     }
 
-    override fun getAccessGroups(userId: Long, diaryId: Long): List<Pair<String, UUID>> {
+    override fun getAccessGroups(userId: UUID, diaryId: UUID): List<Pair<String, UUID>> {
         return transaction {
             val diaryEntity = DiaryEntity.findById(diaryId)!!
             if (userId != diaryEntity.owner.value ) throw WrongUserException()
@@ -50,7 +50,7 @@ class AccessGroupServiceImpl : AccessGroupService {
         }
     }
 
-    override fun createAccessGroup(userId: Long, diaryId: Long, groupName: String) {
+    override fun createAccessGroup(userId: UUID, diaryId: UUID, groupName: String) {
         transaction {
             val diaryEntity = DiaryEntity.findById(diaryId) ?: throw DiaryNotFoundException()
             if (diaryEntity.owner.value != userId) throw WrongUserException()
@@ -67,7 +67,7 @@ class AccessGroupServiceImpl : AccessGroupService {
         }
     }
 
-    override fun deleteAccessGroup(userId: Long, groupId: UUID) {
+    override fun deleteAccessGroup(userId: UUID, groupId: UUID) {
         transaction {
             val accessGroupEntity = AccessGroupEntity.findById(groupId) ?: throw InvalidAccessGroupException()
             val diaryId = accessGroupEntity.diaryId?.value ?: throw InvalidAccessGroupException()
@@ -78,7 +78,7 @@ class AccessGroupServiceImpl : AccessGroupService {
         }
     }
 
-    override fun addUserToGroup(userId: Long, memberId: Long, groupId: UUID) {
+    override fun addUserToGroup(userId: UUID, memberId: UUID, groupId: UUID) {
         transaction {
             val accessGroupEntity = AccessGroupEntity.findById(groupId) ?: throw InvalidAccessGroupException()
             val diaryId = accessGroupEntity.diaryId?.value ?: throw InvalidAccessGroupException()
@@ -94,7 +94,7 @@ class AccessGroupServiceImpl : AccessGroupService {
         }
     }
 
-    override fun removeUserFromGroup(userId: Long, memberId: Long, groupId: UUID) {
+    override fun removeUserFromGroup(userId: UUID, memberId: UUID, groupId: UUID) {
         transaction {
             val accessGroupEntity = AccessGroupEntity.findById(groupId) ?: throw InvalidAccessGroupException()
             val diaryId = accessGroupEntity.diaryId?.value ?: throw InvalidAccessGroupException()
@@ -107,7 +107,7 @@ class AccessGroupServiceImpl : AccessGroupService {
         }
     }
 
-    override fun inGroup(memberId: Long?, groupId: UUID): Boolean {
+    override fun inGroup(memberId: UUID?, groupId: UUID): Boolean {
         return when (groupId) {
             everyoneGroupUUID -> true
             registeredGroupUUID -> memberId != null

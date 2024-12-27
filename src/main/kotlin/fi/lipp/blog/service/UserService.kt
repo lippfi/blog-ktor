@@ -5,7 +5,7 @@ import java.net.URL
 import java.util.UUID
 
 interface UserService {
-    fun generateInviteCode(userId: Long): String
+    fun generateInviteCode(userId: UUID): String
 
     fun signUp(user: UserDto.Registration, inviteCode: String)
 
@@ -14,9 +14,9 @@ interface UserService {
      */
     fun signIn(user: UserDto.Login): String
     
-    fun getUserInfo(userId: Long): UserDto.ProfileInfo
+    fun getUserInfo(userId: UUID): UserDto.ProfileInfo
     
-    fun update(userId: Long, user: UserDto.Registration, oldPassword: String)
+    fun update(userId: UUID, user: UserDto.Registration, oldPassword: String)
 
     /**
      * @param userIdentifier is either login, email or nickname (any unique user identifier)
@@ -28,9 +28,9 @@ interface UserService {
     fun isLoginBusy(login: String): Boolean
     fun isNicknameBusy(nickname: String): Boolean
 
-    fun getAvatars(userId: Long): List<BlogFile>
-    fun getAvatarUrls(userId: Long): List<URL>
-    fun reorderAvatars(userId: Long, permutation: List<UUID>)
-    fun addAvatar(userId: Long, files: List<FileUploadData>)
-    fun deleteAvatar(userId: Long, avatarId: UUID)
+    fun getAvatars(userId: UUID): List<BlogFile>
+    fun getAvatarUrls(userId: UUID): List<URL>
+    fun reorderAvatars(userId: UUID, permutation: List<UUID>)
+    fun addAvatar(userId: UUID, files: List<FileUploadData>)
+    fun deleteAvatar(userId: UUID, avatarId: UUID)
 }
