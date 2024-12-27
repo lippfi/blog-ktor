@@ -10,7 +10,11 @@ interface UserService {
     fun generateInviteCode(userId: Long): String
 
     fun signUp(user: User, inviteCode: String)
-    fun signIn(user: User)
+
+    /**
+     * @return JWT token
+     */
+    fun signIn(user: User): String
     fun update(userId: Long, user: User, oldPassword: String)
 
     /**

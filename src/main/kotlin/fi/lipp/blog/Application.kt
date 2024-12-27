@@ -12,6 +12,7 @@ import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 
 // POOL
+// TODO exception handling (Success, Error) wrap
 // TODO better avatar storing : 1
 // TODO repository level : 1
 // TODO more application properties (invite code valid time, time before regeneration codes etc) : 1
@@ -43,6 +44,7 @@ fun Application.module() {
 
 fun KoinApplication.loadMyKoins(environment: ApplicationEnvironment): KoinApplication {
     val appModules = module {
+        single<ApplicationEnvironment> { environment }
         single<ApplicationProperties> { ApplicationPropertiesImpl(environment) }
         single<MailService> { MailServiceImpl(get()) }
         single<StorageService> { StorageServiceImpl(get()) }

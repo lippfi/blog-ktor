@@ -7,6 +7,7 @@ import fi.lipp.blog.domain.InviteCodeEntity
 import fi.lipp.blog.domain.PasswordResetCodeEntity
 import fi.lipp.blog.domain.UserEntity
 import fi.lipp.blog.model.exceptions.*
+import fi.lipp.blog.plugins.createJwtToken
 import fi.lipp.blog.repository.*
 import fi.lipp.blog.service.MailService
 import fi.lipp.blog.service.PasswordEncoder
@@ -63,11 +64,14 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
         }
     }
 
-    override fun signIn(user: User) {
-        val userEntity: UserEntity = transaction { UserEntity.find { Users.login eq user.login }.firstOrNull() ?: throw UserNotFoundException() }
+    override fun signIn(user: User): String {
+        val userEntity: UserEntity = transaction {
+            UserEntity.find { Users.login eq user.login }.firstOrNull() ?: throw UserNotFoundException()
+        }
         if (!encoder.matches(user.password, userEntity.password)) {
             throw WrongPasswordException()
         }
+        return createJwtToken(userEntity.id.value)
     }
 
     override fun update(userId: Long, user: User, oldPassword: String) {
