@@ -1,6 +1,5 @@
 package fi.lipp.blog.domain
 
-import fi.lipp.blog.data.User
 import fi.lipp.blog.repository.UserAvatars
 import fi.lipp.blog.repository.Users
 import kotlinx.datetime.LocalDateTime
@@ -22,8 +21,4 @@ class UserEntity(id: EntityID<Long>) : LongEntity(id) {
             .select { UserAvatars.user eq id }
             .orderBy(UserAvatars.ordinal)
             .mapNotNull { FileEntity.findById(it[UserAvatars.avatar].value) }
-
-    fun toUser(): User {
-        return User(id.value, login, email, password, nickname, registrationTime)
-    }
 }

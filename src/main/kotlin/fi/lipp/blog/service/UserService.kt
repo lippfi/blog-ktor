@@ -1,21 +1,22 @@
 package fi.lipp.blog.service
 
-import fi.lipp.blog.data.BlogFile
-import fi.lipp.blog.data.FileUploadData
-import fi.lipp.blog.data.User
+import fi.lipp.blog.data.*
 import java.net.URL
 import java.util.UUID
 
 interface UserService {
     fun generateInviteCode(userId: Long): String
 
-    fun signUp(user: User, inviteCode: String)
+    fun signUp(user: UserDto.Registration, inviteCode: String)
 
     /**
      * @return JWT token
      */
-    fun signIn(user: User): String
-    fun update(userId: Long, user: User, oldPassword: String)
+    fun signIn(user: UserDto.Login): String
+    
+    fun getUserInfo(userId: Long): UserDto.ProfileInfo
+    
+    fun update(userId: Long, user: UserDto.Registration, oldPassword: String)
 
     /**
      * @param userIdentifier is either login, email or nickname (any unique user identifier)

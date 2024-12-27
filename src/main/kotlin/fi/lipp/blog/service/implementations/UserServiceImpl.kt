@@ -1,8 +1,6 @@
 package fi.lipp.blog.service.implementations
 
-import fi.lipp.blog.data.BlogFile
-import fi.lipp.blog.data.FileUploadData
-import fi.lipp.blog.data.User
+import fi.lipp.blog.data.*
 import fi.lipp.blog.domain.InviteCodeEntity
 import fi.lipp.blog.domain.PasswordResetCodeEntity
 import fi.lipp.blog.domain.UserEntity
@@ -13,7 +11,6 @@ import fi.lipp.blog.service.MailService
 import fi.lipp.blog.service.PasswordEncoder
 import fi.lipp.blog.service.StorageService
 import fi.lipp.blog.service.UserService
-import io.ktor.http.content.*
 import kotlinx.datetime.toKotlinLocalDateTime
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.*
@@ -35,15 +32,17 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
         return inviteCode.value.toString()
     }
 
-    override fun signUp(user: User, inviteCode: String) {
-        val inviteCodeEntity = if (inviteCode.isEmpty()) {
-            if (Users.selectAll().count() > 0) throw InviteCodeRequiredException()
-            null
-        } else {
-            val uuid = UUID.fromString(inviteCode)
-            val inviteCodeEntity = InviteCodeEntity.findById(uuid)
-            if (inviteCodeEntity == null || !inviteCodeEntity.isValid) throw InvalidInviteCodeException()
-            inviteCodeEntity
+    override fun signUp(user: UserDto.Registration, inviteCode: String) {
+        val inviteCodeEntity = transaction {
+            if (inviteCode.isEmpty()) {
+                if (Users.selectAll().count() > 0) throw InviteCodeRequiredException()
+                null
+            } else {
+                val uuid = UUID.fromString(inviteCode)
+                val inviteCodeEntity = InviteCodeEntity.findById(uuid)
+                if (inviteCodeEntity == null || !inviteCodeEntity.isValid) throw InvalidInviteCodeException()
+                inviteCodeEntity
+            }
         }
 
         if (isEmailBusy(user.email)) throw EmailIsBusyException()
@@ -64,7 +63,7 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
         }
     }
 
-    override fun signIn(user: User): String {
+    override fun signIn(user: UserDto.Login): String {
         val userEntity: UserEntity = transaction {
             UserEntity.find { Users.login eq user.login }.firstOrNull() ?: throw UserNotFoundException()
         }
@@ -74,7 +73,17 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
         return createJwtToken(userEntity.id.value)
     }
 
-    override fun update(userId: Long, user: User, oldPassword: String) {
+    override fun getUserInfo(userId: Long): UserDto.ProfileInfo {
+        val userEntity = getUserById(userId)
+        return UserDto.ProfileInfo(
+            login = userEntity.login,
+            email = userEntity.email,
+            nickname = userEntity.nickname,
+            registrationTime = userEntity.registrationTime
+        )
+    }
+
+    override fun update(userId: Long, user: UserDto.Registration, oldPassword: String) {
         val userEntity = getUserById(userId)
         if (!encoder.matches(oldPassword, userEntity.password)) throw WrongPasswordException()
 
@@ -213,6 +222,6 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
     }
 
     private fun getUserById(userId: Long): UserEntity {
-        return UserEntity.findById(userId) ?: throw UserNotFoundException()
+        return transaction { UserEntity.findById(userId) ?: throw UserNotFoundException() }
     }
 }

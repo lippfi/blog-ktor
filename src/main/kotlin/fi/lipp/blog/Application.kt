@@ -1,7 +1,5 @@
 package fi.lipp.blog
 
-import fi.lipp.blog.mapper.PostMapper
-import fi.lipp.blog.mapper.PostMapperImpl
 import fi.lipp.blog.plugins.*
 import fi.lipp.blog.service.*
 import fi.lipp.blog.service.implementations.*
@@ -18,6 +16,7 @@ import org.koin.logger.slf4jLogger
 // TODO more application properties (invite code valid time, time before regeneration codes etc) : 1
 // TODO post encryption : 1
 // TODO jwt : 2
+// TODO jwt token invalidation (e.g. logout or on password change)
 
 // LOWEST PRIORITY
 // TODO private messages : 5
@@ -52,8 +51,7 @@ fun KoinApplication.loadMyKoins(environment: ApplicationEnvironment): KoinApplic
         single<PasswordEncoder> { PasswordEncoderImpl() }
         single<UserService> { UserServiceImpl(get(), get(), get()) }
         single<AccessGroupService> { AccessGroupServiceImpl() }
-        single<PostMapper> { PostMapperImpl(get()) }
-        single<PostService> { PostServiceImpl(get(), get()) }
+        single<PostService> { PostServiceImpl(get()) }
     }
     return modules(appModules)
 }

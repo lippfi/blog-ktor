@@ -7,6 +7,7 @@ import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.auth.jwt.*
 import io.ktor.server.response.*
+import io.ktor.util.pipeline.*
 import org.koin.java.KoinJavaComponent.inject
 
 const val USER_ID = "user-id"
@@ -52,6 +53,8 @@ fun createJwtToken(userId: Long): String {
     return JWT.create()
         .withAudience(jwtAudience)
         .withIssuer(jwtIssuer)
-        .withClaim(USER_ID, userId.toString())
+        .withClaim(USER_ID, userId)
         .sign(Algorithm.HMAC256(jwtSecret))
 }
+
+inline val PipelineContext<*, ApplicationCall>.userId: Long get() = this.call.principal<JWTPrincipal>()!!.payload.getClaim(USER_ID).asLong()

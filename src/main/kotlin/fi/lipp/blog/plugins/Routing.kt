@@ -1,11 +1,12 @@
 package fi.lipp.blog.plugins
 
+import fi.lipp.blog.routes.userRoutes
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.plugins.statuspages.*
-import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import org.koin.ktor.ext.get
 
 fun Application.configureRouting() {
     install(StatusPages) {
@@ -14,6 +15,8 @@ fun Application.configureRouting() {
         }
     }
     routing {
+        userRoutes(get())
+        postRoutes(get())
         get("/") {
             call.respondText("Hello World!")
         }

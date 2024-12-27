@@ -1,6 +1,6 @@
 package fi.lipp.blog
 
-import fi.lipp.blog.data.User
+import fi.lipp.blog.data.UserDto
 import fi.lipp.blog.domain.UserEntity
 import fi.lipp.blog.repository.Users
 import fi.lipp.blog.service.MailService
@@ -10,7 +10,6 @@ import fi.lipp.blog.stubs.ApplicationPropertiesStub
 import fi.lipp.blog.stubs.PasswordEncoderStub
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.toJavaLocalDateTime
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.mockito.Mockito.mock
 import java.io.File
 import kotlin.io.path.Path
@@ -30,22 +29,18 @@ abstract class UnitTestBase {
         protected val userService = UserServiceImpl(encoder, mailService, storageService)
 
         @JvmStatic
-        protected val testUser = User(
-            id = 2412412L,
+        protected val testUser = UserDto.Registration(
             login = "barabaka",
             email = "barabaka@mail.com",
             password = "password123",
             nickname = "dog_lover37",
-            registrationTime = LocalDateTime(2024, 4, 17, 1, 2)
         )
         @JvmStatic
-        protected val testUser2 = User(
-            id = 1751348L,
+        protected val testUser2 = UserDto.Registration(
             login = "bigbabyboy",
             email = "piecelovingkebab@proton.com",
             password = "secure_password",
             nickname = "cat_hater44",
-            registrationTime = LocalDateTime(2019, 4, 17, 1, 2)
         )
 
         @JvmStatic
