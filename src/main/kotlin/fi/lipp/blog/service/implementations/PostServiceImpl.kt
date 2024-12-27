@@ -39,10 +39,10 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         }
     }
 
-    override fun getPost(userId: UUID?, authorLogin: String, uri: String): PostDto.View {
+    override fun getPost(userId: UUID?, diaryLogin: String, uri: String): PostDto.View {
         return transaction {
-            val userEntity = UserEntity.find { Users.login eq authorLogin }.firstOrNull() ?: throw UserNotFoundException()
-            val postEntity = PostEntity.find { (Posts.author eq userEntity.id) and (Posts.uri eq uri) and (Posts.isArchived eq false) }.firstOrNull() ?: throw PostNotFoundException()
+            val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.firstOrNull() ?: throw DiaryNotFoundException()
+            val postEntity = PostEntity.find { (Posts.diary eq diaryEntity.id) and (Posts.uri eq uri) and (Posts.isArchived eq false) }.firstOrNull() ?: throw PostNotFoundException()
             if (userId == postEntity.authorId.value || accessGroupService.inGroup(userId, postEntity.readGroupId.value)) {
                 toPostView(userId, postEntity)
             } else {
@@ -68,7 +68,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
                 .innerJoin(AccessGroups, { Posts.readGroup }, { AccessGroups.id })
                 .leftJoin(PostTags)
                 .leftJoin(Tags)
-                .slice(Posts.columns + Users.id + Users.nickname + Users.login + AccessGroups.type)
+                .slice(Posts.columns + Users.id + Users.nickname + Diaries.login + AccessGroups.type)
                 .select {
                     val baseCondition = (Posts.isArchived eq false) and (Posts.isPreface eq false)
 
@@ -360,12 +360,13 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
 
     private fun toPostView(userId: UUID?, postEntity: PostEntity): PostDto.View {
         val author = UserEntity.findById(postEntity.authorId) ?: throw InternalServerError()
+        val authorDiary = DiaryEntity.find { Diaries.owner eq author.id }.single()
         val isCommentable = (userId == postEntity.authorId.value) || (accessGroupService.inGroup(userId, postEntity.commentGroupId.value))
 
         return PostDto.View(
             id = postEntity.id.value,
             uri = postEntity.uri,
-            authorLogin = author.login,
+            authorLogin = authorDiary.login,
             authorNickname = author.nickname,
             avatar = postEntity.avatar,
             title = postEntity.title,
@@ -387,7 +388,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
 
             avatar = row[Posts.avatar],
             authorNickname = row[Users.nickname],
-            authorLogin = row[Users.login],
+            authorLogin = row[Diaries.login],
 
             title = row[Posts.title],
             text = row[Posts.text],
@@ -438,9 +439,10 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
 
     private fun CommentEntity.toComment(): CommentDto.View {
         val author = UserEntity.findById(authorId) ?: throw InternalServerError()
+        val authorDiary = DiaryEntity.find { Diaries.owner eq authorId }.single()
         return CommentDto.View(
             id = id.value,
-            authorLogin = author.login,
+            authorLogin = authorDiary.login,
             authorNickname = author.nickname,
             avatar = avatar,
             text = text,

@@ -10,6 +10,7 @@ class DiaryEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     companion object : UUIDEntityClass<DiaryEntity>(Diaries)
 
     val name by Diaries.name
+    var login: String by Diaries.login
     val creationTime by Diaries.creationTime
 
     val owner by Diaries.owner

@@ -767,11 +767,11 @@ class PostServiceTests : UnitTestBase() {
     private fun signUsersUp(): Pair<UUID, UUID> {
         userService.signUp(testUser, "")
         val user1 = findUserByLogin(testUser.login)!!
-        val inviteCode = userService.generateInviteCode(user1.id.value)
+        val inviteCode = userService.generateInviteCode(user1.id)
 
         userService.signUp(testUser2, inviteCode)
         val user2 = findUserByLogin(testUser2.login)!!
-        return user1.id.value to user2.id.value
+        return user1.id to user2.id
     }
 
     @Suppress("SameParameterValue")
@@ -779,15 +779,15 @@ class PostServiceTests : UnitTestBase() {
         val users = mutableListOf<UUID>()
         userService.signUp(testUser, "")
         var userEntity = findUserByLogin(testUser.login)!!
-        users.add(userEntity.id.value)
+        users.add(userEntity.id)
 
         var i = count - 1
         while (i > 0) {
-            val inviteCode = userService.generateInviteCode(userEntity.id.value)
+            val inviteCode = userService.generateInviteCode(userEntity.id)
             val randomUser = UserDto.Registration(login = UUID.randomUUID().toString(), email = "${UUID.randomUUID()}@mail.com", password = "123", nickname = UUID.randomUUID().toString())
             userService.signUp(randomUser, inviteCode)
             userEntity = findUserByLogin(randomUser.login)!!
-            users.add(userEntity.id.value)
+            users.add(userEntity.id)
             --i
         }
         return users

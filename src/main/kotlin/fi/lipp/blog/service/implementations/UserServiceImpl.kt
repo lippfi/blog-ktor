@@ -1,10 +1,7 @@
 package fi.lipp.blog.service.implementations
 
 import fi.lipp.blog.data.*
-import fi.lipp.blog.domain.FileEntity
-import fi.lipp.blog.domain.InviteCodeEntity
-import fi.lipp.blog.domain.PasswordResetCodeEntity
-import fi.lipp.blog.domain.UserEntity
+import fi.lipp.blog.domain.*
 import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.plugins.createJwtToken
 import fi.lipp.blog.repository.*
@@ -51,7 +48,6 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
         if (isNicknameBusy(user.nickname)) throw NicknameIsBusyException()
         transaction {
             val userId = Users.insertAndGetId {
-                it[login] = user.login
                 it[email] = user.email
                 it[password] = encoder.encode(user.password)
                 it[nickname] = user.nickname
@@ -59,15 +55,14 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
             }
             Diaries.insert {
                 it[name] = "Unnamed blog"
+                it[login] = user.login
                 it[owner] = userId
             }
         }
     }
 
     override fun signIn(user: UserDto.Login): String {
-        val userEntity: UserEntity = transaction {
-            UserEntity.find { Users.login eq user.login }.firstOrNull() ?: throw UserNotFoundException()
-        }
+        val userEntity = getUserByLogin(user.login) ?: throw UserNotFoundException()
         if (!encoder.matches(user.password, userEntity.password)) {
             throw WrongPasswordException()
         }
@@ -76,8 +71,9 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
 
     override fun getUserInfo(userId: UUID): UserDto.ProfileInfo {
         val userEntity = getUserById(userId)
+        val diaryEntity = DiaryEntity.find { Diaries.owner eq userId }.single()
         return UserDto.ProfileInfo(
-            login = userEntity.login,
+            login = diaryEntity.login,
             email = userEntity.email,
             nickname = userEntity.nickname,
             registrationTime = userEntity.registrationTime
@@ -89,15 +85,19 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
         if (!encoder.matches(oldPassword, userEntity.password)) throw WrongPasswordException()
 
         if (userEntity.email != user.email && isEmailBusy(user.email)) throw EmailIsBusyException()
-        if (userEntity.login != user.login && isLoginBusy(user.login)) throw LoginIsBusyException()
         if (userEntity.nickname != user.nickname && isNicknameBusy(user.nickname)) throw NicknameIsBusyException()
+
+        val diaryEntity = DiaryEntity.find { Diaries.owner eq userId }.single()
+        if (diaryEntity.login != user.login && isLoginBusy(user.login)) throw LoginIsBusyException()
 
         transaction {
             userEntity.apply {
-                login = user.login
                 email = user.email
                 password = encoder.encode(user.password)
                 nickname = user.nickname
+            }
+            diaryEntity.apply {
+                login = user.login
             }
         }
     }
@@ -149,14 +149,20 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
     }
 
     override fun isEmailBusy(email: String): Boolean = getUserByEmail(email) != null
-    override fun isLoginBusy(login: String): Boolean = getUserByLogin(login) != null
+    override fun isLoginBusy(login: String): Boolean = getDiaryByLogin(login) != null
     override fun isNicknameBusy(nickname: String): Boolean = getUserByNickname(nickname) != null
 
     private fun getUserByEmail(email: String): UserEntity? {
         return transaction { UserEntity.find { Users.email eq email }.firstOrNull() }
     }
     private fun getUserByLogin(login: String): UserEntity? {
-        return transaction { UserEntity.find { Users.login eq login }.firstOrNull() }
+        return transaction {
+            val diaryEntity = DiaryEntity.find { Diaries.login eq login }.firstOrNull()
+            diaryEntity?.owner?.value?.let { UserEntity.findById(it) }
+        }
+    }
+    private fun getDiaryByLogin(login: String): DiaryEntity? {
+        return transaction { DiaryEntity.find { Diaries.login eq login }.firstOrNull() }
     }
     private fun getUserByNickname(nickname: String): UserEntity? {
         return transaction { UserEntity.find { Users.nickname eq nickname }.firstOrNull() }

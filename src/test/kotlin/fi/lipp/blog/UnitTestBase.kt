@@ -1,7 +1,9 @@
 package fi.lipp.blog
 
 import fi.lipp.blog.data.UserDto
+import fi.lipp.blog.domain.DiaryEntity
 import fi.lipp.blog.domain.UserEntity
+import fi.lipp.blog.repository.Diaries
 import fi.lipp.blog.repository.Users
 import fi.lipp.blog.service.MailService
 import fi.lipp.blog.service.implementations.StorageServiceImpl
@@ -10,8 +12,10 @@ import fi.lipp.blog.stubs.ApplicationPropertiesStub
 import fi.lipp.blog.stubs.PasswordEncoderStub
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.toJavaLocalDateTime
+import org.jetbrains.exposed.sql.transactions.transaction
 import org.mockito.Mockito.mock
 import java.io.File
+import java.util.UUID
 import kotlin.io.path.Path
 import kotlin.test.assertTrue
 
@@ -55,10 +59,21 @@ abstract class UnitTestBase {
         protected val avatarFileTxt = File(testAvatarsDirectory.resolve("6.txt").toString())
     }
 
-    protected fun findUserByLogin(login: String): UserEntity? {
-        return UserEntity.find { Users.login eq login }.firstOrNull()
+    protected fun findUserByLogin(login: String): UserDto.FullProfileInfo? {
+        return transaction {
+            val diaryEntity = DiaryEntity.find { Diaries.login eq login }.firstOrNull() ?: return@transaction null
+            val userEntity = UserEntity.findById(diaryEntity.owner.value) ?: return@transaction null
+            UserDto.FullProfileInfo(
+                id = userEntity.id.value,
+                login = diaryEntity.login,
+                email = userEntity.email,
+                nickname = userEntity.nickname,
+                registrationTime = userEntity.registrationTime,
+                password = userEntity.password,
+            )
+        }
     }
-
+    
     protected fun assertNow(dateTime: LocalDateTime) {
         val javaDateTime = dateTime.toJavaLocalDateTime()
         assertTrue(javaDateTime.isAfter(java.time.LocalDateTime.now().minusSeconds(20)))

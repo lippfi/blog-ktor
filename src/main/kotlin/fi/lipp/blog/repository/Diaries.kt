@@ -8,6 +8,7 @@ import java.time.LocalDateTime
 
 object Diaries : UUIDTable() {
     val name = varchar("name", 20)
+    val login = varchar("login", 50).uniqueIndex("idx_diary_login")
     val creationTime = datetime("creation_time").clientDefault { LocalDateTime.now().toKotlinLocalDateTime() }
 
     val owner = reference("owner", Users, onDelete = ReferenceOption.CASCADE)

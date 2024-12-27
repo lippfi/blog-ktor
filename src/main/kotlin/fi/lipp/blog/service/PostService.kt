@@ -12,7 +12,7 @@ interface PostService {
 
     fun getPreface(userId: UUID?, diaryId: UUID): PostDto.View?
 
-    fun getPost(userId: UUID?, authorLogin: String, uri: String): PostDto.View
+    fun getPost(userId: UUID?, diaryLogin: String, uri: String): PostDto.View
 
     fun getPosts(
         userId: UUID?,

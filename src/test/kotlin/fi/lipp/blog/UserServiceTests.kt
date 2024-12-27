@@ -99,7 +99,7 @@ class UserServiceTests : UnitTestBase() {
             foundUser = findUserByLogin(testUser.login)
             assertNotNull(foundUser)
 
-            val inviteCode = userService.generateInviteCode(foundUser.id.value)
+            val inviteCode = userService.generateInviteCode(foundUser.id)
             assertThrows(LoginIsBusyException::class.java) {
                 userService.signUp(
                     UserDto.Registration(testUser.login, "new" + testUser.email, testUser.password, "new" + testUser.nickname),
@@ -121,7 +121,7 @@ class UserServiceTests : UnitTestBase() {
             foundUser = findUserByLogin(testUser.login)
             assertNotNull(foundUser)
 
-            val inviteCode = userService.generateInviteCode(foundUser.id.value)
+            val inviteCode = userService.generateInviteCode(foundUser.id)
             assertThrows(EmailIsBusyException::class.java) {
                 userService.signUp(
                     UserDto.Registration("new" + testUser.login, testUser.email, testUser.password, "new" + testUser.nickname),
@@ -143,7 +143,7 @@ class UserServiceTests : UnitTestBase() {
             foundUser = findUserByLogin(testUser.login)
             assertNotNull(foundUser)
 
-            val inviteCode = userService.generateInviteCode(foundUser.id.value)
+            val inviteCode = userService.generateInviteCode(foundUser.id)
             assertThrows(NicknameIsBusyException::class.java) {
                 userService.signUp(
                     UserDto.Registration("new" + testUser.login, "new" + testUser.email, testUser.password, testUser.nickname),
@@ -194,9 +194,9 @@ class UserServiceTests : UnitTestBase() {
             val userEntity = findUserByLogin(testUser.login)!!
             val registrationTime = userEntity.registrationTime
             val newUser = UserDto.Registration("new" + testUser.login, "new" + testUser.email, "new" + testUser.password, "new" + testUser.nickname)
-            userService.update(userEntity.id.value, newUser, testUser.password)
+            userService.update(userEntity.id, newUser, testUser.password)
 
-            val updatedUser = UserEntity.findById(userEntity.id)!!
+            val updatedUser = findUserByLogin(newUser.login)!!
             assertEquals(newUser.login, updatedUser.login)
             assertEquals(newUser.email, updatedUser.email)
             assertEquals(newUser.nickname, updatedUser.nickname)
@@ -215,9 +215,9 @@ class UserServiceTests : UnitTestBase() {
             val userEntity = findUserByLogin(testUser.login)!!
             val registrationTime = userEntity.registrationTime
             val newUser = UserDto.Registration("new" + testUser.login, testUser.email, testUser.password, testUser.nickname)
-            userService.update(userEntity.id.value, newUser, testUser.password)
+            userService.update(userEntity.id, newUser, testUser.password)
 
-            val updatedUser = UserEntity.findById(userEntity.id)!!
+            val updatedUser = findUserByLogin(newUser.login)!!
             assertEquals(newUser.login, updatedUser.login)
             assertEquals(newUser.email, updatedUser.email)
             assertEquals(newUser.nickname, updatedUser.nickname)
@@ -236,9 +236,9 @@ class UserServiceTests : UnitTestBase() {
             val userEntity = findUserByLogin(testUser.login)!!
             val registrationTime = userEntity.registrationTime
             val newUser = UserDto.Registration(testUser.login, "new" + testUser.email, testUser.password, testUser.nickname)
-            userService.update(userEntity.id.value, newUser, testUser.password)
+            userService.update(userEntity.id, newUser, testUser.password)
 
-            val updatedUser = UserEntity.findById(userEntity.id)!!
+            val updatedUser = findUserByLogin(newUser.login)!!
             assertEquals(newUser.login, updatedUser.login)
             assertEquals(newUser.email, updatedUser.email)
             assertEquals(newUser.nickname, updatedUser.nickname)
@@ -257,9 +257,9 @@ class UserServiceTests : UnitTestBase() {
             val userEntity = findUserByLogin(testUser.login)!!
             val registrationTime = userEntity.registrationTime
             val newUser = UserDto.Registration(testUser.login, testUser.email, testUser.password, "new" + testUser.nickname)
-            userService.update(userEntity.id.value, newUser, testUser.password)
+            userService.update(userEntity.id, newUser, testUser.password)
 
-            val updatedUser = UserEntity.findById(userEntity.id)!!
+            val updatedUser = findUserByLogin(newUser.login)!!
             assertEquals(newUser.login, updatedUser.login)
             assertEquals(newUser.email, updatedUser.email)
             assertEquals(newUser.nickname, updatedUser.nickname)
@@ -279,10 +279,10 @@ class UserServiceTests : UnitTestBase() {
             val registrationTime = userEntity.registrationTime
             val newUser = UserDto.Registration(testUser.login, testUser.email, testUser.password, "new" + testUser.nickname)
             assertThrows(WrongPasswordException::class.java) {
-                userService.update(userEntity.id.value, newUser, "wrong" + testUser.password)
+                userService.update(userEntity.id, newUser, "wrong" + testUser.password)
             }
 
-            val updatedUser = UserEntity.findById(userEntity.id)!!
+            val updatedUser = findUserByLogin(newUser.login)!!
             assertEquals(testUser.login, updatedUser.login)
             assertEquals(testUser.email, updatedUser.email)
             assertEquals(testUser.nickname, updatedUser.nickname)
@@ -298,14 +298,14 @@ class UserServiceTests : UnitTestBase() {
         transaction {
             userService.signUp(testUser, "")
             val foundUser = findUserByLogin(testUser.login)!!
-            val inviteCode = userService.generateInviteCode(foundUser.id.value)
+            val inviteCode = userService.generateInviteCode(foundUser.id)
 
             userService.signUp(testUser2, inviteCode)
 
             val userEntity = findUserByLogin(testUser.login)!!
             val updatedUser = UserDto.Registration(testUser2.login, testUser.email, testUser.password, testUser.nickname)
             assertThrows(LoginIsBusyException::class.java) {
-                userService.update(userEntity.id.value, updatedUser, testUser.password)
+                userService.update(userEntity.id, updatedUser, testUser.password)
             }
 
             rollback()
@@ -317,13 +317,13 @@ class UserServiceTests : UnitTestBase() {
         transaction {
             userService.signUp(testUser, "")
             val foundUser = findUserByLogin(testUser.login)!!
-            val inviteCode = userService.generateInviteCode(foundUser.id.value)
+            val inviteCode = userService.generateInviteCode(foundUser.id)
             userService.signUp(testUser2, inviteCode)
 
             val userEntity = findUserByLogin(testUser.login)!!
             val updatedUser = UserDto.Registration(testUser.login, testUser2.email, testUser.password, testUser.nickname)
             assertThrows(EmailIsBusyException::class.java) {
-                userService.update(userEntity.id.value, updatedUser, testUser.password)
+                userService.update(userEntity.id, updatedUser, testUser.password)
             }
 
             rollback()
@@ -335,13 +335,13 @@ class UserServiceTests : UnitTestBase() {
         transaction {
             userService.signUp(testUser, "")
             val foundUser = findUserByLogin(testUser.login)!!
-            val inviteCode = userService.generateInviteCode(foundUser.id.value)
+            val inviteCode = userService.generateInviteCode(foundUser.id)
             userService.signUp(testUser2, inviteCode)
 
             val userEntity = findUserByLogin(testUser.login)!!
             val updatedUser = UserDto.Registration(testUser.login, testUser.email, testUser.password, testUser2.nickname)
             assertThrows(NicknameIsBusyException::class.java) {
-                userService.update(userEntity.id.value, updatedUser, testUser.password)
+                userService.update(userEntity.id, updatedUser, testUser.password)
             }
 
             rollback()
@@ -363,7 +363,7 @@ class UserServiceTests : UnitTestBase() {
             val resetCode = pattern.find(stringCaptor.lastValue)?.groups?.get(1)?.value!!
 
             val passwordResetCodeEntity = PasswordResetCodeEntity.findById(UUID.fromString(resetCode))!!
-            assertEquals(foundUser.id.value, passwordResetCodeEntity.userId.value)
+            assertEquals(foundUser.id, passwordResetCodeEntity.userId.value)
             assertNow(passwordResetCodeEntity.resetIssuedAt)
 
             val newPassword  = "newPassword"
@@ -393,7 +393,7 @@ class UserServiceTests : UnitTestBase() {
 
             userService.signUp(testUser, "")
             val foundUser = findUserByLogin(testUser.login)!!
-            val userId = foundUser.id.value
+            val userId = foundUser.id
 
             userService.addAvatar(userId, listOf(avatarUpload1))
             var avatars = userService.getAvatars(userId)
@@ -434,7 +434,7 @@ class UserServiceTests : UnitTestBase() {
 
             userService.signUp(testUser, "")
             val foundUser = findUserByLogin(testUser.login)!!
-            val userId = foundUser.id.value
+            val userId = foundUser.id
 
             assertThrows(InvalidAvatarExtensionException::class.java) {
                 userService.addAvatar(userId, listOf(avatarUploadTxt))
@@ -455,7 +455,7 @@ class UserServiceTests : UnitTestBase() {
 
             userService.signUp(testUser, "")
             val foundUser = findUserByLogin(testUser.login)!!
-            val userId = foundUser.id.value
+            val userId = foundUser.id
 
             userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
             val avatars = userService.getAvatars(userId)
@@ -488,7 +488,7 @@ class UserServiceTests : UnitTestBase() {
 
             userService.signUp(testUser, "")
             val foundUser = findUserByLogin(testUser.login)!!
-            val userId = foundUser.id.value
+            val userId = foundUser.id
 
             userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
             val avatars = userService.getAvatars(userId)
@@ -512,7 +512,7 @@ class UserServiceTests : UnitTestBase() {
 
             userService.signUp(testUser, "")
             val foundUser = findUserByLogin(testUser.login)!!
-            val userId = foundUser.id.value
+            val userId = foundUser.id
 
             userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
             val avatars = userService.getAvatars(userId)
@@ -536,7 +536,7 @@ class UserServiceTests : UnitTestBase() {
 
             userService.signUp(testUser, "")
             val foundUser = findUserByLogin(testUser.login)!!
-            val userId = foundUser.id.value
+            val userId = foundUser.id
 
             userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
             val avatars = userService.getAvatars(userId)
@@ -560,7 +560,7 @@ class UserServiceTests : UnitTestBase() {
 
             userService.signUp(testUser, "")
             val foundUser = findUserByLogin(testUser.login)!!
-            val userId = foundUser.id.value
+            val userId = foundUser.id
 
             userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
             val avatars = userService.getAvatars(userId)
@@ -584,7 +584,7 @@ class UserServiceTests : UnitTestBase() {
 
             userService.signUp(testUser, "")
             val foundUser = findUserByLogin(testUser.login)!!
-            val userId = foundUser.id.value
+            val userId = foundUser.id
 
             userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
             val avatars = userService.getAvatars(userId)
@@ -607,7 +607,7 @@ class UserServiceTests : UnitTestBase() {
 
             userService.signUp(testUser, "")
             val foundUser = findUserByLogin(testUser.login)!!
-            val userId = foundUser.id.value
+            val userId = foundUser.id
 
             userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
             userService.deleteAvatar(userId, UUID.randomUUID())
@@ -625,10 +625,10 @@ class UserServiceTests : UnitTestBase() {
             val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
 
             userService.signUp(testUser, "")
-            val userId1 = findUserByLogin(testUser.login)!!.id.value
+            val userId1 = findUserByLogin(testUser.login)!!.id
             val inviteCode = userService.generateInviteCode(userId1)
             userService.signUp(testUser2, inviteCode)
-            val userId2 = findUserByLogin(testUser2.login)!!.id.value
+            val userId2 = findUserByLogin(testUser2.login)!!.id
 
             userService.addAvatar(userId1, listOf(avatarUpload1))
             var avatars1 = userService.getAvatars(userId1)
@@ -660,11 +660,11 @@ class UserServiceTests : UnitTestBase() {
             val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.inputStream())
 
             userService.signUp(testUser, "")
-            val userId1 = findUserByLogin(testUser.login)!!.id.value
+            val userId1 = findUserByLogin(testUser.login)!!.id
             val inviteCode = userService.generateInviteCode(userId1)
 
             userService.signUp(testUser2, inviteCode)
-            val userId2 = findUserByLogin(testUser2.login)!!.id.value
+            val userId2 = findUserByLogin(testUser2.login)!!.id
 
             userService.addAvatar(userId1, listOf(avatarUpload1, avatarUpload2))
             val avatars1 = userService.getAvatars(userId1)
@@ -690,7 +690,7 @@ class UserServiceTests : UnitTestBase() {
             val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.inputStream())
 
             userService.signUp(testUser, "")
-            val userId1 = findUserByLogin(testUser.login)!!.id.value
+            val userId1 = findUserByLogin(testUser.login)!!.id
 
             userService.addAvatar(userId1, listOf(avatarUpload1, avatarUpload2))
             val avatars = userService.getAvatars(userId1)
