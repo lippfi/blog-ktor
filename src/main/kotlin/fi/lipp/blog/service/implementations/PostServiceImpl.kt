@@ -64,7 +64,6 @@ class PostServiceImpl(private val postMapper: PostMapper, private val accessGrou
     ): Page<PostView> {
         return transaction {
             val query = Posts
-                // TODO use it in case code below does not work
                 .innerJoin(Diaries)
                 .innerJoin(Users, { Posts.author }, { Users.id })
                 .innerJoin(AccessGroups, { Posts.readGroup }, { AccessGroups.id })

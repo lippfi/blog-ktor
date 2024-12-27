@@ -9,10 +9,8 @@ import fi.lipp.blog.model.exceptions.WrongUserException
 import fi.lipp.blog.repository.AccessGroups
 import fi.lipp.blog.repository.CustomGroupUsers
 import fi.lipp.blog.service.AccessGroupService
-import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.insertAndGetId
-import org.jetbrains.exposed.sql.select
+import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.*
 
@@ -70,7 +68,14 @@ class AccessGroupServiceImpl : AccessGroupService {
     }
 
     override fun deleteAccessGroup(userId: Long, groupId: UUID) {
-        TODO("Not yet implemented")
+        transaction {
+            val accessGroupEntity = AccessGroupEntity.findById(groupId) ?: throw InvalidAccessGroupException()
+            val diaryId = accessGroupEntity.diaryId?.value ?: throw InvalidAccessGroupException()
+            val diaryEntity = DiaryEntity.findById(diaryId) ?: throw DiaryNotFoundException()
+            if (userId != diaryEntity.owner.value) throw WrongUserException()
+
+            accessGroupEntity.delete()
+        }
     }
 
     override fun addUserToGroup(userId: Long, memberId: Long, groupId: UUID) {
@@ -90,7 +95,16 @@ class AccessGroupServiceImpl : AccessGroupService {
     }
 
     override fun removeUserFromGroup(userId: Long, memberId: Long, groupId: UUID) {
-        TODO("Not yet implemented")
+        transaction {
+            val accessGroupEntity = AccessGroupEntity.findById(groupId) ?: throw InvalidAccessGroupException()
+            val diaryId = accessGroupEntity.diaryId?.value ?: throw InvalidAccessGroupException()
+            val diaryEntity = DiaryEntity.findById(diaryId) ?: throw DiaryNotFoundException()
+            if (userId != diaryEntity.owner.value) throw WrongUserException()
+
+            CustomGroupUsers.deleteWhere { 
+                (accessGroup eq groupId) and (member eq memberId) 
+            }
+        }
     }
 
     override fun inGroup(memberId: Long?, groupId: UUID): Boolean {

@@ -62,7 +62,22 @@ class PostMapperImpl(private val accessGroupService: AccessGroupService) : PostM
     }
 
     override fun toPostUpdateData(postEntity: PostEntity): PostUpdateData {
-        TODO("Not yet implemented")
+        return PostUpdateData(
+            id = postEntity.id.value,
+            uri = postEntity.uri,
+            avatar = postEntity.avatar,
+
+            title = postEntity.title,
+            text = postEntity.text,
+            
+            readGroupId = postEntity.readGroupId.value,
+            commentGroupId = postEntity.commentGroupId.value,
+
+            tags = postEntity.tags.map { it.name }.toSet(),
+            classes = postEntity.classes,
+
+            isEncrypted = postEntity.isEncrypted,
+        )
     }
 
     private fun getTagsForPost(postId: UUID): Set<String> {
