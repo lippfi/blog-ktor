@@ -57,6 +57,7 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
                 it[name] = "Unnamed blog"
                 it[login] = user.login
                 it[owner] = userId
+                it[type] = DiaryType.PERSONAL
             }
         }
     }

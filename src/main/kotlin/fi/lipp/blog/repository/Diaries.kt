@@ -13,4 +13,11 @@ object Diaries : UUIDTable() {
 
     val owner = reference("owner", Users, onDelete = ReferenceOption.CASCADE)
     val style = reference("style", Files, onDelete = ReferenceOption.CASCADE).nullable()
+    
+    val type = enumerationByName<DiaryType>("type", 50)
+}
+
+enum class DiaryType {
+    PERSONAL,
+    GROUP,
 }

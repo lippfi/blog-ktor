@@ -10,22 +10,22 @@ import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 
 // POOL
-// TODO what about Pages? Are they ready? Should I have start page or some order on them? Should pages have visibility? Own links?
-// TODO diaries do not have login. What about communities?
-// TODO exception handling (Success, Error) wrap
-// TODO better avatar storing : 1
-// TODO repository level : 1
+// TODO Integration tests
+// TODO setup Koin in test
+// TODO comment history (isEdited)
+// TODO exception handling (Success, Error) wrap or see fi.lipp.blog.plugins.RoutingKt#configureRouting
 // TODO more application properties (invite code valid time, time before regeneration codes etc) : 1
-// TODO post encryption : 1
-// TODO jwt : 2
 // TODO jwt token invalidation (e.g. logout or on password change)
 
 // LOWEST PRIORITY
+// TODO post encryption : 1 (what did I mean by that?...)
+// TODO repository level : 1
+// TODO better avatar storing : 1
 // TODO private messages : 5
 // TODO todo lists : 8
 // TODO post backups & drafts : 1
-// TODO comment history (isEdited)
 // TODO follow users : 3
+// TODO what about Pages? Are they ready? Should I have start page or some order on them? Should pages have visibility? Own links?
 fun main(args: Array<String>) {
     io.ktor.server.netty.EngineMain.main(args)
 }
