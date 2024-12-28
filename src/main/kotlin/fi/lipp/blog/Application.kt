@@ -10,7 +10,6 @@ import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 
 // POOL
-// TODO missing routes
 // TODO jwt token invalidation (e.g. logout or on password change)
 // TODO likes dislikes
 // TODO exception handling (Success, Error) wrap or see fi.lipp.blog.plugins.RoutingKt#configureRouting
