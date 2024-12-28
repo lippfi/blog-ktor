@@ -28,16 +28,21 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
         }
     }
 
-    override fun getDiaryStyle(diaryId: UUID): URL? {
-        return transaction {
-            val blogFile = getStyleFile(diaryId)
-            blogFile?.let { storageService.getFileURL(it) }
-        }
+    override fun getDiaryStyle(diaryLogin: String): String? {
+        val blogFile = getStyleFile(diaryLogin)
+        return blogFile?.let { storageService.getFile(it).readText() }
     }
 
-    private fun getStyleFile(diaryId: UUID): BlogFile? {
-        val diaryEntity = DiaryEntity.findById(diaryId) ?: throw DiaryNotFoundException()
-        val styleUUID = diaryEntity.style ?: return null
-        return FileEntity.findById(styleUUID)?.toBlogFile() ?: throw InternalServerError()
+    override fun getDiaryStyleFile(diaryLogin: String): URL? {
+        val blogFile = getStyleFile(diaryLogin)
+        return blogFile?.let { storageService.getFileURL(it) }
+    }
+
+    private fun getStyleFile(diaryLogin: String): BlogFile? {
+        return transaction {
+            val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
+            val styleUUID = diaryEntity.style ?: return@transaction null
+            FileEntity.findById(styleUUID)?.toBlogFile() ?: throw InternalServerError()
+        }
     }
 }

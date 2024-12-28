@@ -10,12 +10,13 @@ import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 
 // POOL
-// TODO Integration tests
-// TODO setup Koin in test
-// TODO comment history (isEdited)
+// TODO missing routes
+// TODO jwt token invalidation (e.g. logout or on password change)
+// TODO likes dislikes
 // TODO exception handling (Success, Error) wrap or see fi.lipp.blog.plugins.RoutingKt#configureRouting
 // TODO more application properties (invite code valid time, time before regeneration codes etc) : 1
-// TODO jwt token invalidation (e.g. logout or on password change)
+// TODO Integration tests
+// TODO setup Koin in test
 
 // LOWEST PRIORITY
 // TODO post encryption : 1 (what did I mean by that?...)

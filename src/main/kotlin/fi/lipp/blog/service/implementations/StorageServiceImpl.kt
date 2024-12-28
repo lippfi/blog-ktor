@@ -28,6 +28,11 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
         }
     }
 
+    override fun getFile(file: BlogFile): File {
+        val path = getSavingPath(file.type)
+        return File("$path/${file.name}")
+    }
+
     private fun store(userId: UUID, files: List<FileUploadData>, performChecks: (FileUploadData) -> Unit): List<BlogFile> {
         val blogFiles = mutableListOf<BlogFile>()
         files.forEach { file ->

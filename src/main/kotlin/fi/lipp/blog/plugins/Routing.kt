@@ -1,5 +1,6 @@
 package fi.lipp.blog.plugins
 
+import fi.lipp.blog.routes.diaryRoutes
 import fi.lipp.blog.routes.postRoutes
 import fi.lipp.blog.routes.userRoutes
 import io.ktor.http.*
@@ -18,6 +19,7 @@ fun Application.configureRouting() {
     routing {
         userRoutes(get())
         postRoutes(get())
+        diaryRoutes(get())
         get("/") {
             call.respondText("Hello World!")
         }

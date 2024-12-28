@@ -1,12 +1,10 @@
 package fi.lipp.blog.repository
 
 import kotlinx.datetime.toKotlinLocalDateTime
-import org.jetbrains.exposed.dao.id.LongIdTable
 import org.jetbrains.exposed.dao.id.UUIDTable
 import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.kotlin.datetime.datetime
 import java.time.LocalDateTime
-import java.util.UUID
 
 object Comments : UUIDTable() {
     val post = reference("post", Posts, onDelete = ReferenceOption.CASCADE)
