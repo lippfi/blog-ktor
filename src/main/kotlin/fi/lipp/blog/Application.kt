@@ -10,10 +10,8 @@ import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 
 // POOL
-// TODO jwt token invalidation (e.g. logout or on password change)
 // TODO likes dislikes
 // TODO exception handling (Success, Error) wrap or see fi.lipp.blog.plugins.RoutingKt#configureRouting
-// TODO more application properties (invite code valid time, time before regeneration codes etc) : 1
 // TODO Integration tests
 // TODO setup Koin in test
 
@@ -26,6 +24,7 @@ import org.koin.logger.slf4jLogger
 // TODO post backups & drafts : 1
 // TODO follow users : 3
 // TODO what about Pages? Are they ready? Should I have start page or some order on them? Should pages have visibility? Own links?
+// TODO more application properties (invite code valid time, time before regeneration codes etc) : 1
 fun main(args: Array<String>) {
     io.ktor.server.netty.EngineMain.main(args)
 }

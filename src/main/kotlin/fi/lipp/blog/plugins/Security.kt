@@ -12,6 +12,7 @@ import org.koin.java.KoinJavaComponent.inject
 import java.util.*
 
 const val USER_ID = "user-id"
+private const val TOKEN_LIFETIME = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
 
 fun Application.configureSecurity() {
     val jwtAudience = environment.config.property("jwt.audience").getString()
@@ -51,10 +52,14 @@ fun createJwtToken(userId: UUID): String {
     val jwtIssuer = environment.config.property("jwt.issuer").getString()
     val jwtSecret = environment.config.property("jwt.secret").getString()
 
+    val now = System.currentTimeMillis()
+    val expiration = Date(now + TOKEN_LIFETIME)
+
     return JWT.create()
         .withAudience(jwtAudience)
         .withIssuer(jwtIssuer)
         .withClaim(USER_ID, userId.toString())
+        .withExpiresAt(expiration)
         .sign(Algorithm.HMAC256(jwtSecret))
 }
 
