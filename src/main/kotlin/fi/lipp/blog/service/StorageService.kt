@@ -11,5 +11,5 @@ interface StorageService {
     fun storeAvatars(userId: UUID, files: List<FileUploadData>): List<BlogFile>
     
     fun getFile(file: BlogFile): File
-    fun getFileURL(file: BlogFile): URL
+    fun getFileURL(file: BlogFile): String
 }

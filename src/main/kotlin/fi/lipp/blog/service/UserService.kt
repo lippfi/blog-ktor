@@ -14,7 +14,7 @@ interface UserService {
      */
     fun signIn(user: UserDto.Login): String
     
-    fun getUserInfo(userId: UUID): UserDto.ProfileInfo
+    fun getUserInfo(login: String): UserDto.ProfileInfo
     
     fun update(userId: UUID, user: UserDto.Registration, oldPassword: String)
 
@@ -29,8 +29,8 @@ interface UserService {
     fun isNicknameBusy(nickname: String): Boolean
 
     fun getAvatars(userId: UUID): List<BlogFile>
-    fun getAvatarUrls(userId: UUID): List<URL>
+    fun getAvatarUrls(userId: UUID): List<String>
     fun reorderAvatars(userId: UUID, permutation: List<UUID>)
     fun addAvatar(userId: UUID, files: List<FileUploadData>)
-    fun deleteAvatar(userId: UUID, avatarId: UUID)
+    fun deleteAvatar(userId: UUID, avatarUri: String)
 }

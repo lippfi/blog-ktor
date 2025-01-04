@@ -53,6 +53,9 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
     private fun createFile(userId: UUID, uuid: UUID, fileUploadData: FileUploadData): BlogFile {
         val path = getSavingPath(fileUploadData.type)
         val fileName = uuid.toString() + fileUploadData.extension
+        
+        File(path.toString()).mkdirs()
+        
         val file = File("$path/$fileName")
         fileUploadData.inputStream.use { input ->
             file.outputStream().use { output ->
@@ -62,7 +65,7 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
         return BlogFile(uuid, userId, fileUploadData.extension, fileUploadData.type)
     }
 
-    override fun getFileURL(file: BlogFile): URL {
+    override fun getFileURL(file: BlogFile): String {
         val url = when (file.type) {
             FileType.IMAGE -> properties.imagesUrl
             FileType.VIDEO -> properties.videosUrl
@@ -70,7 +73,7 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
             FileType.STYLE -> properties.stylesUrl
             FileType.OTHER -> properties.otherUrl
         }
-        return URL("$url/${file.name}")
+        return "$url/${file.name}"
     }
 
     private fun getSavingPath(fileType: FileType): Path {

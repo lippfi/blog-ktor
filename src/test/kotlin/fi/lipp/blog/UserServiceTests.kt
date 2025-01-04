@@ -491,13 +491,13 @@ class UserServiceTests : UnitTestBase() {
             val userId = foundUser.id
 
             userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
-            val avatars = userService.getAvatars(userId)
-            val id1 = avatars[0].id
-            val id2 = avatars[1].id
-            val id3 = avatars[2].id
+            val avatars = userService.getAvatarUrls(userId)
+            val avatar1 = avatars[0]
+            val avatar2 = avatars[1]
+            val avatar3 = avatars[2]
 
-            userService.deleteAvatar(userId, id1)
-            assertEquals(listOf(id2, id3), userService.getAvatars(userId).map { it.id })
+            userService.deleteAvatar(userId, avatar1.toString())
+            assertEquals(listOf(avatar2, avatar3), userService.getAvatarUrls(userId))
 
             rollback()
         }
@@ -515,13 +515,13 @@ class UserServiceTests : UnitTestBase() {
             val userId = foundUser.id
 
             userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
-            val avatars = userService.getAvatars(userId)
-            val id1 = avatars[0].id
-            val id2 = avatars[1].id
-            val id3 = avatars[2].id
+            val avatars = userService.getAvatarUrls(userId)
+            val avatar1 = avatars[0]
+            val avatar2 = avatars[1]
+            val avatar3 = avatars[2]
 
-            userService.deleteAvatar(userId, id3)
-            assertEquals(listOf(id1, id2), userService.getAvatars(userId).map { it.id })
+            userService.deleteAvatar(userId, avatar3.toString())
+            assertEquals(listOf(avatar1, avatar2), userService.getAvatarUrls(userId))
 
             rollback()
         }
@@ -539,13 +539,13 @@ class UserServiceTests : UnitTestBase() {
             val userId = foundUser.id
 
             userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
-            val avatars = userService.getAvatars(userId)
-            val id1 = avatars[0].id
-            val id2 = avatars[1].id
-            val id3 = avatars[2].id
+            val avatars = userService.getAvatarUrls(userId)
+            val avatar1 = avatars[0]
+            val avatar2 = avatars[1]
+            val avatar3 = avatars[2]
 
-            userService.deleteAvatar(userId, id2)
-            assertEquals(listOf(id1, id3), userService.getAvatars(userId).map { it.id })
+            userService.deleteAvatar(userId, avatar2.toString())
+            assertEquals(listOf(avatar1, avatar3), userService.getAvatarUrls(userId))
 
             rollback()
         }
@@ -610,7 +610,7 @@ class UserServiceTests : UnitTestBase() {
             val userId = foundUser.id
 
             userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
-            userService.deleteAvatar(userId, UUID.randomUUID())
+            userService.deleteAvatar(userId, "nonexistent uri")
             val avatars = userService.getAvatars(userId)
             assertEquals(3, avatars.size)
 
@@ -640,7 +640,7 @@ class UserServiceTests : UnitTestBase() {
             assertEquals(1, avatars2.size)
             val avatar2 = avatars2[0]
 
-            userService.deleteAvatar(userId2, avatar1.id)
+            userService.deleteAvatar(userId2, storageService.getFileURL(avatar1).toString())
 
             avatars1 = userService.getAvatars(userId1)
             assertEquals(listOf(avatar1), avatars1)

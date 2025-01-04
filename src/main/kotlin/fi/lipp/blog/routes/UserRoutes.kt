@@ -2,8 +2,10 @@ package fi.lipp.blog.routes
 
 import fi.lipp.blog.data.FileUploadData
 import fi.lipp.blog.data.UserDto
+import fi.lipp.blog.data.toFileUploadDatas
 import fi.lipp.blog.plugins.userId
 import fi.lipp.blog.service.UserService
+import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.request.*
@@ -71,11 +73,6 @@ fun Route.userRoutes(userService: UserService) {
             }
 
             get("/avatars") {
-                val avatars = userService.getAvatars(userId)
-                call.respond(avatars)
-            }
-
-            get("/avatar-urls") {
                 val avatarUrls = userService.getAvatarUrls(userId)
                 call.respond(avatarUrls)
             }
@@ -87,14 +84,19 @@ fun Route.userRoutes(userService: UserService) {
             }
 
             post("/add-avatar") {
-                val files = call.receive<List<FileUploadData>>()
+                val multipart = call.receiveMultipart()
+                val files = multipart.toFileUploadDatas()
                 userService.addAvatar(userId, files)
                 call.respondText("Avatar added successfully")
             }
 
             delete("/delete-avatar") {
-                val avatarId = UUID.fromString(call.request.queryParameters["avatarId"])
-                userService.deleteAvatar(userId, avatarId)
+                val avatarUri = call.request.queryParameters["uri"]
+                if (avatarUri == null) {
+                    call.respond(HttpStatusCode.BadRequest, "Missing avatar uri query parameter")
+                    return@delete
+                }
+                userService.deleteAvatar(userId, avatarUri)
                 call.respondText("Avatar deleted successfully")
             }
         }

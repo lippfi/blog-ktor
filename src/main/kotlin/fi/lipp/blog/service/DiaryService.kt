@@ -1,10 +1,9 @@
 package fi.lipp.blog.service
 
-import java.net.URL
 import java.util.*
 
 interface DiaryService {
     fun setDiaryStyle(userId: UUID, styleContent: String)
     fun getDiaryStyle(diaryLogin: String) : String?
-    fun getDiaryStyleFile(diaryLogin: String) : URL?
+    fun getDiaryStyleFile(diaryLogin: String) : String?
 }

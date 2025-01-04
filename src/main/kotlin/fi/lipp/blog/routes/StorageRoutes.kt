@@ -18,13 +18,6 @@ fun Route.storageRoutes(storageService: StorageService) {
                 val storedFiles = storageService.store(userId, files)
                 call.respond(storedFiles)
             }
-
-            post("/upload-avatars") {
-                val multipart = call.receiveMultipart()
-                val files = multipart.toFileUploadDatas()
-                val storedAvatars = storageService.storeAvatars(userId, files)
-                call.respond(storedAvatars)
-            }
         }
     }
 } 

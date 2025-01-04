@@ -70,19 +70,21 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
         return createJwtToken(userEntity.id.value)
     }
 
-    override fun getUserInfo(userId: UUID): UserDto.ProfileInfo {
-        val userEntity = getUserById(userId)
-        val diaryEntity = DiaryEntity.find { Diaries.owner eq userId }.single()
-        return UserDto.ProfileInfo(
-            login = diaryEntity.login,
-            email = userEntity.email,
-            nickname = userEntity.nickname,
-            registrationTime = userEntity.registrationTime
-        )
+    override fun getUserInfo(login: String): UserDto.ProfileInfo {
+        return transaction { 
+            val diaryEntity = DiaryEntity.find { Diaries.login eq login }.singleOrNull() ?: throw DiaryNotFoundException()
+            val userEntity = UserEntity.findById(diaryEntity.owner) ?: throw UserNotFoundException()
+            UserDto.ProfileInfo(
+                login = diaryEntity.login,
+                email = userEntity.email,
+                nickname = userEntity.nickname,
+                registrationTime = userEntity.registrationTime
+            )
+        }
     }
 
     override fun update(userId: UUID, user: UserDto.Registration, oldPassword: String) {
-        val userEntity = getUserById(userId)
+        val userEntity = UserEntity.findById(userId) ?: throw UserNotFoundException()
         if (!encoder.matches(oldPassword, userEntity.password)) throw WrongPasswordException()
 
         if (userEntity.email != user.email && isEmailBusy(user.email)) throw EmailIsBusyException()
@@ -156,11 +158,15 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
     private fun getUserByEmail(email: String): UserEntity? {
         return transaction { UserEntity.find { Users.email eq email }.firstOrNull() }
     }
-    private fun getUserByLogin(login: String): UserEntity? {
+    private fun getDiaryAndUserByLogin(login: String): Pair<DiaryEntity, UserEntity>? {
         return transaction {
             val diaryEntity = DiaryEntity.find { Diaries.login eq login }.firstOrNull()
-            diaryEntity?.owner?.value?.let { UserEntity.findById(it) }
+            val userEntity = diaryEntity?.owner?.value?.let { UserEntity.findById(it) }
+            if (userEntity != null) Pair(diaryEntity, userEntity) else null
         }
+    }
+    private fun getUserByLogin(login: String): UserEntity? {
+        return getDiaryAndUserByLogin(login)?.second
     }
     private fun getDiaryByLogin(login: String): DiaryEntity? {
         return transaction { DiaryEntity.find { Diaries.login eq login }.firstOrNull() }
@@ -179,7 +185,7 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
         return avatars.map { it.toBlogFile() }
     }
 
-    override fun getAvatarUrls(userId: UUID): List<URL> {
+    override fun getAvatarUrls(userId: UUID): List<String> {
         return getAvatars(userId).map { storageService.getFileURL(it) }
     }
 
@@ -210,10 +216,12 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
     }
 
     override fun addAvatar(userId: UUID, files: List<FileUploadData>) {
-        val existingMaxOrdinal = UserAvatars.slice(UserAvatars.ordinal.max())
-            .select { UserAvatars.user eq userId }
-            .firstOrNull()
-            ?.get(UserAvatars.ordinal.max()) ?: 0
+        val existingMaxOrdinal = transaction {
+            UserAvatars.slice(UserAvatars.ordinal.max())
+                .select { UserAvatars.user eq userId }
+                .firstOrNull()
+                ?.get(UserAvatars.ordinal.max()) ?: 0
+        }
 
         val newAvatars = storageService.storeAvatars(userId, files)
 
@@ -228,13 +236,16 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
         }
     }
 
-    override fun deleteAvatar(userId: UUID, avatarId: UUID) {
+    override fun deleteAvatar(userId: UUID, avatarUri: String) {
+        val uuidRegex = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}".toRegex()
+        val avatarIdString = uuidRegex.find(avatarUri)?.value ?: return
+        val avatarId = try {
+            UUID.fromString(avatarIdString)
+        } catch (e: IllegalArgumentException) {
+            return
+        }
         transaction {
             UserAvatars.deleteWhere { (user eq userId) and (avatar eq avatarId) }
         }
-    }
-
-    private fun getUserById(userId: UUID): UserEntity {
-        return transaction { UserEntity.findById(userId) ?: throw UserNotFoundException() }
     }
 }

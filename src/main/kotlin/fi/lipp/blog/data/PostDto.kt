@@ -25,6 +25,9 @@ sealed interface PostDto {
 
         val classes : String,
         var tags : Set<String>,
+        
+        val dislikeCount: Int,
+        val isDislikedByMe: Boolean,
 
         val isCommentable: Boolean,
         val comments: List<CommentDto.View>,

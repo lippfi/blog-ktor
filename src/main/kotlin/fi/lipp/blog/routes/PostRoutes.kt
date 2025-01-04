@@ -4,47 +4,50 @@ import fi.lipp.blog.data.CommentDto
 import fi.lipp.blog.data.PostDto
 import fi.lipp.blog.model.Pageable
 import fi.lipp.blog.model.TagPolicy
+import fi.lipp.blog.plugins.USER_ID
 import fi.lipp.blog.plugins.userId
 import fi.lipp.blog.service.PostService
+import fi.lipp.blog.service.Viewer
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
+import io.ktor.server.auth.jwt.*
+import io.ktor.server.plugins.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.util.pipeline.*
 import kotlinx.datetime.LocalDateTime
 import org.jetbrains.exposed.sql.SortOrder
 import java.util.*
 
 fun Route.postRoutes(postService: PostService) {
-    authenticate {
-        route("/posts") {
+    route("/posts") {
+        authenticate(optional = true) {
             get("/preface") {
-                val diaryId = UUID.fromString(call.request.queryParameters["diaryId"])
-                val post = postService.getPreface(userId, diaryId)
+                val diaryLogin = call.request.queryParameters["diary"]
+                if (diaryLogin == null) {
+                    call.respond(HttpStatusCode.BadRequest, "Missing diary parameter")
+                    return@get
+                }
+                val post = postService.getPreface(viewer, diaryLogin)
                 if (post == null) {
-                    call.respond(HttpStatusCode.NotFound, "No preface found for diary $diaryId")
+                    call.respond(HttpStatusCode.NotFound, "No preface found")
                 } else {
                     call.respond(post)
                 }
-            }
-            
-            get("/{postId}") {
-                val postId = UUID.fromString(call.parameters["postId"])
-                val post = postService.getPostForEdit(userId, postId)
-                call.respond(post)
             }
 
             get("/{authorLogin}/{uri}") {
                 val authorLogin = call.parameters["authorLogin"]!!
                 val uri = call.parameters["uri"]!!
-                val post = postService.getPost(userId, authorLogin, uri)
+                val post = postService.getPost(viewer, authorLogin, uri)
                 call.respond(post)
             }
             
             get("/") {
-                val authorId = call.request.queryParameters["authorId"]?.let { UUID.fromString(it) }
-                val diaryId = call.request.queryParameters["diaryId"]?.let { UUID.fromString(it) }
+                val author = call.request.queryParameters["author"]
+                val diary = call.request.queryParameters["diary"]
                 val text = call.request.queryParameters["text"]
                 val tags = call.request.queryParameters["tags"]?.split(",")?.toSet()
                 val from = call.request.queryParameters["from"]?.let { LocalDateTime.parse(it) }
@@ -56,8 +59,26 @@ fun Route.postRoutes(postService: PostService) {
                 )
                 val tagPolicy = TagPolicy.valueOf(call.request.queryParameters["tagPolicy"] ?: "UNION")
 
-                val posts = postService.getPosts(userId, authorId, diaryId, text, tags?.let { Pair(tagPolicy, it) }, from, to, pageable)
+                val posts = postService.getPosts(viewer, author, diary, text, tags?.let { Pair(tagPolicy, it) }, from, to, pageable)
                 call.respond(posts)
+            }
+        }
+        
+        authenticate {
+            get("/{postId}") {
+                val postIdParameter = call.request.queryParameters["id"]
+                if (postIdParameter == null) {
+                    call.respond(HttpStatusCode.BadRequest, "Missing post id query parameter")
+                    return@get
+                }
+                val postId = try {
+                    UUID.fromString(postIdParameter)
+                } catch (e: IllegalArgumentException) {
+                    call.respond(HttpStatusCode.BadRequest, "Invalid post id query parameter")
+                    return@get
+                }
+                val post = postService.getPostForEdit(userId, postId)
+                call.respond(post)
             }
 
             put("/{postId}") {
@@ -91,4 +112,15 @@ fun Route.postRoutes(postService: PostService) {
             }
         }
     }
+}
+
+private inline val PipelineContext<*, ApplicationCall>.viewer: Viewer get() {
+    val principal = this.call.principal<JWTPrincipal>()
+    if (principal == null) {
+        val ip = this.call.request.origin.remoteHost
+        val browserFingerprint = call.request.headers["User-Agent"] ?: "unknown"
+        return Viewer.Anonymous(ip, browserFingerprint)
+    }
+    val userId = principal.payload.getClaim(USER_ID).asString()
+    return Viewer.Registered(UUID.fromString(userId))
 }

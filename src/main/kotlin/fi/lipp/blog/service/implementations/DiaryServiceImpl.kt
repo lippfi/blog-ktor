@@ -33,7 +33,7 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
         return blogFile?.let { storageService.getFile(it).readText() }
     }
 
-    override fun getDiaryStyleFile(diaryLogin: String): URL? {
+    override fun getDiaryStyleFile(diaryLogin: String): String? {
         val blogFile = getStyleFile(diaryLogin)
         return blogFile?.let { storageService.getFileURL(it) }
     }
