@@ -680,44 +680,43 @@ class PostServiceTests : UnitTestBase() {
             val pageable = Pageable(1, 4, SortOrder.DESC)
 
             val users = signUsersUp(10)
-            val user1 = users[0]
-            val diaryId1 = DiaryEntity.find { Diaries.owner eq user1 }.first().id.value
+            val (user1, login1) = users[0]
 
-            groupService.createAccessGroup(user1, diaryId1, "empty group")
-            val emptyGroupUUID = groupService.getAccessGroups(user1, diaryId1).find { it.first == "empty group" }!!.second
+            groupService.createAccessGroup(user1, login1, "empty group")
+            val emptyGroupUUID = groupService.getAccessGroups(user1, login1).find { it.first == "empty group" }!!.second
 
-            groupService.createAccessGroup(user1, diaryId1, "friends")
-            val friendsGroupUUID = groupService.getAccessGroups(user1, diaryId1).find { it.first == "friends" }!!.second
-            groupService.addUserToGroup(user1, users[2], friendsGroupUUID)
-            groupService.addUserToGroup(user1, users[4], friendsGroupUUID)
-            groupService.addUserToGroup(user1, users[6], friendsGroupUUID)
-            groupService.addUserToGroup(user1, users[8], friendsGroupUUID)
+            groupService.createAccessGroup(user1, login1, "friends")
+            val friendsGroupUUID = groupService.getAccessGroups(user1, login1).find { it.first == "friends" }!!.second
+            groupService.addUserToGroup(user1, users[2].second, friendsGroupUUID)
+            groupService.addUserToGroup(user1, users[4].second, friendsGroupUUID)
+            groupService.addUserToGroup(user1, users[6].second, friendsGroupUUID)
+            groupService.addUserToGroup(user1, users[8].second, friendsGroupUUID)
 
             val hiddenPost = createPostPostData(title = "post1", readGroup = emptyGroupUUID)
             postService.addPost(user1, hiddenPost)
             assertEquals(1, getPosts(userId = user1, pageable = pageable).content.size)
-            assertEquals(0, getPosts(userId = users[1], pageable = pageable).content.size)
-            assertEquals(0, getPosts(userId = users[2], pageable = pageable).content.size)
-            assertEquals(0, getPosts(userId = users[3], pageable = pageable).content.size)
-            assertEquals(0, getPosts(userId = users[4], pageable = pageable).content.size)
-            assertEquals(0, getPosts(userId = users[5], pageable = pageable).content.size)
-            assertEquals(0, getPosts(userId = users[6], pageable = pageable).content.size)
-            assertEquals(0, getPosts(userId = users[7], pageable = pageable).content.size)
-            assertEquals(0, getPosts(userId = users[8], pageable = pageable).content.size)
-            assertEquals(0, getPosts(userId = users[9], pageable = pageable).content.size)
+            assertEquals(0, getPosts(userId = users[1].first, pageable = pageable).content.size)
+            assertEquals(0, getPosts(userId = users[2].first, pageable = pageable).content.size)
+            assertEquals(0, getPosts(userId = users[3].first, pageable = pageable).content.size)
+            assertEquals(0, getPosts(userId = users[4].first, pageable = pageable).content.size)
+            assertEquals(0, getPosts(userId = users[5].first, pageable = pageable).content.size)
+            assertEquals(0, getPosts(userId = users[6].first, pageable = pageable).content.size)
+            assertEquals(0, getPosts(userId = users[7].first, pageable = pageable).content.size)
+            assertEquals(0, getPosts(userId = users[8].first, pageable = pageable).content.size)
+            assertEquals(0, getPosts(userId = users[9].first, pageable = pageable).content.size)
 
             val friendPost = createPostPostData(title = "post2", readGroup = friendsGroupUUID)
             postService.addPost(user1, friendPost)
-            assertEquals(2, getPosts(userId = users[0], pageable = pageable).content.size)
-            assertEquals(0, getPosts(userId = users[1], pageable = pageable).content.size)
-            assertEquals(1, getPosts(userId = users[2], pageable = pageable).content.size)
-            assertEquals(0, getPosts(userId = users[3], pageable = pageable).content.size)
-            assertEquals(1, getPosts(userId = users[4], pageable = pageable).content.size)
-            assertEquals(0, getPosts(userId = users[5], pageable = pageable).content.size)
-            assertEquals(1, getPosts(userId = users[6], pageable = pageable).content.size)
-            assertEquals(0, getPosts(userId = users[7], pageable = pageable).content.size)
-            assertEquals(1, getPosts(userId = users[8], pageable = pageable).content.size)
-            assertEquals(0, getPosts(userId = users[9], pageable = pageable).content.size)
+            assertEquals(2, getPosts(userId = users[0].first, pageable = pageable).content.size)
+            assertEquals(0, getPosts(userId = users[1].first, pageable = pageable).content.size)
+            assertEquals(1, getPosts(userId = users[2].first, pageable = pageable).content.size)
+            assertEquals(0, getPosts(userId = users[3].first, pageable = pageable).content.size)
+            assertEquals(1, getPosts(userId = users[4].first, pageable = pageable).content.size)
+            assertEquals(0, getPosts(userId = users[5].first, pageable = pageable).content.size)
+            assertEquals(1, getPosts(userId = users[6].first, pageable = pageable).content.size)
+            assertEquals(0, getPosts(userId = users[7].first, pageable = pageable).content.size)
+            assertEquals(1, getPosts(userId = users[8].first, pageable = pageable).content.size)
+            assertEquals(0, getPosts(userId = users[9].first, pageable = pageable).content.size)
 
             rollback()
         }
@@ -771,11 +770,11 @@ class PostServiceTests : UnitTestBase() {
     }
 
     @Suppress("SameParameterValue")
-    private fun signUsersUp(count: Int): List<UUID> {
-        val users = mutableListOf<UUID>()
+    private fun signUsersUp(count: Int): List<Pair<UUID, String>> {
+        val users = mutableListOf<Pair<UUID, String>>()
         userService.signUp(testUser, "")
         var userEntity = findUserByLogin(testUser.login)!!
-        users.add(userEntity.id)
+        users.add(userEntity.id to testUser.login)
 
         var i = count - 1
         while (i > 0) {
@@ -783,7 +782,7 @@ class PostServiceTests : UnitTestBase() {
             val randomUser = UserDto.Registration(login = UUID.randomUUID().toString(), email = "${UUID.randomUUID()}@mail.com", password = "123", nickname = UUID.randomUUID().toString())
             userService.signUp(randomUser, inviteCode)
             userEntity = findUserByLogin(randomUser.login)!!
-            users.add(userEntity.id)
+            users.add(userEntity.id to randomUser.login)
             --i
         }
         return users
