@@ -10,7 +10,7 @@ import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 
 // POOL
-// TODO exception handling (Success, Error) wrap or see fi.lipp.blog.plugins.RoutingKt#configureRouting
+// TODO access group routes
 // TODO Integration tests
 // TODO setup Koin in test
 

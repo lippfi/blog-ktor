@@ -8,7 +8,9 @@ import fi.lipp.blog.model.exceptions.InvalidAccessGroupException
 import fi.lipp.blog.model.exceptions.WrongUserException
 import fi.lipp.blog.repository.AccessGroups
 import fi.lipp.blog.repository.CustomGroupUsers
+import fi.lipp.blog.repository.Diaries
 import fi.lipp.blog.service.AccessGroupService
+import fi.lipp.blog.service.Viewer
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -40,26 +42,26 @@ class AccessGroupServiceImpl : AccessGroupService {
         }
     }
 
-    override fun getAccessGroups(userId: UUID, diaryId: UUID): List<Pair<String, UUID>> {
+    override fun getAccessGroups(userId: UUID, diaryLogin: String): List<Pair<String, UUID>> {
         return transaction {
-            val diaryEntity = DiaryEntity.findById(diaryId)!!
+            val diaryEntity = findDiaryByLogin(diaryLogin)
             if (userId != diaryEntity.owner.value ) throw WrongUserException()
 
-            val diaryGroups = AccessGroupEntity.find { AccessGroups.diary eq diaryId }.toList()
+            val diaryGroups = AccessGroupEntity.find { AccessGroups.diary eq diaryEntity.id }.toList()
             commonGroupList + diaryGroups.map { it.name to it.id.value }
         }
     }
 
-    override fun createAccessGroup(userId: UUID, diaryId: UUID, groupName: String) {
+    override fun createAccessGroup(userId: UUID, diaryLogin: String, groupName: String) {
         transaction {
-            val diaryEntity = DiaryEntity.findById(diaryId) ?: throw DiaryNotFoundException()
+            val diaryEntity = findDiaryByLogin(diaryLogin)
             if (diaryEntity.owner.value != userId) throw WrongUserException()
 
-            val sameNameGroup = AccessGroupEntity.find { (AccessGroups.diary eq diaryId) and (AccessGroups.name eq groupName) }.firstOrNull()
+            val sameNameGroup = AccessGroupEntity.find { (AccessGroups.diary eq diaryEntity.id) and (AccessGroups.name eq groupName) }.firstOrNull()
             if (sameNameGroup != null) throw InvalidAccessGroupException()
 
             AccessGroups.insert {
-                it[diary] = diaryId
+                it[diary] = diaryEntity.id
                 it[name] = groupName
                 it[type] = AccessGroupType.CUSTOM
                 it[ordinal] = 0
@@ -78,13 +80,14 @@ class AccessGroupServiceImpl : AccessGroupService {
         }
     }
 
-    override fun addUserToGroup(userId: UUID, memberId: UUID, groupId: UUID) {
+    override fun addUserToGroup(userId: UUID, memberLogin: String, groupId: UUID) {
         transaction {
             val accessGroupEntity = AccessGroupEntity.findById(groupId) ?: throw InvalidAccessGroupException()
             val diaryId = accessGroupEntity.diaryId?.value ?: throw InvalidAccessGroupException()
             val diaryEntity = DiaryEntity.findById(diaryId)!!
             if (userId != diaryEntity.owner.value) throw WrongUserException()
 
+            val memberId = findUserIdByDiaryLogin(memberLogin)
             if (CustomGroupUsers.select { (CustomGroupUsers.accessGroup eq groupId) and (CustomGroupUsers.member eq memberId) }.count() <= 0) {
                 CustomGroupUsers.insert {
                     it[accessGroup] = groupId
@@ -94,29 +97,45 @@ class AccessGroupServiceImpl : AccessGroupService {
         }
     }
 
-    override fun removeUserFromGroup(userId: UUID, memberId: UUID, groupId: UUID) {
+    override fun removeUserFromGroup(userId: UUID, memberLogin: String, groupId: UUID) {
         transaction {
             val accessGroupEntity = AccessGroupEntity.findById(groupId) ?: throw InvalidAccessGroupException()
             val diaryId = accessGroupEntity.diaryId?.value ?: throw InvalidAccessGroupException()
             val diaryEntity = DiaryEntity.findById(diaryId) ?: throw DiaryNotFoundException()
             if (userId != diaryEntity.owner.value) throw WrongUserException()
 
+            val memberId = findUserIdByDiaryLogin(memberLogin)
             CustomGroupUsers.deleteWhere { 
                 (accessGroup eq groupId) and (member eq memberId) 
             }
         }
     }
 
-    override fun inGroup(memberId: UUID?, groupId: UUID): Boolean {
+    override fun inGroup(viewer: Viewer, groupId: UUID): Boolean {
         return when (groupId) {
             everyoneGroupUUID -> true
-            registeredGroupUUID -> memberId != null
+            registeredGroupUUID -> viewer is Viewer.Registered
             privateGroupUUID -> false
             else -> {
-                memberId != null && transaction {
-                    CustomGroupUsers.select { (CustomGroupUsers.member eq memberId) and (CustomGroupUsers.accessGroup eq groupId) }.count() >= 0
+                if (viewer is Viewer.Anonymous) {
+                    return false
+                } else {
+                    val memberId = (viewer as Viewer.Registered).userId
+                    transaction {
+                        CustomGroupUsers.select { (CustomGroupUsers.member eq memberId) and (CustomGroupUsers.accessGroup eq groupId) }.count() >= 0
+                    }
                 }
             }
         }
+    }
+
+    @Suppress("UnusedReceiverParameter")
+    private fun Transaction.findDiaryByLogin(diaryLogin: String): DiaryEntity {
+        return DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
+    }
+    
+    private fun Transaction.findUserIdByDiaryLogin(login: String): UUID {
+        val diaryEntity = findDiaryByLogin(login) 
+        return diaryEntity.owner.value
     }
 }

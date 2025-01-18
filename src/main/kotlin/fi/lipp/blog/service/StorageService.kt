@@ -3,7 +3,6 @@ package fi.lipp.blog.service
 import fi.lipp.blog.data.BlogFile
 import fi.lipp.blog.data.FileUploadData
 import java.io.File
-import java.net.URL
 import java.util.*
 
 interface StorageService {

@@ -1,5 +1,6 @@
 package fi.lipp.blog.plugins
 
+import fi.lipp.blog.model.exceptions.BlogException
 import fi.lipp.blog.routes.diaryRoutes
 import fi.lipp.blog.routes.postRoutes
 import fi.lipp.blog.routes.storageRoutes
@@ -13,6 +14,9 @@ import org.koin.ktor.ext.get
 
 fun Application.configureRouting() {
     install(StatusPages) {
+        exception<BlogException> { call, exception ->
+            call.respondText(text = exception.message, status = HttpStatusCode.fromValue(exception.code))
+        }
         exception<Throwable> { call, cause ->
             call.respondText(text = "500: $cause" , status = HttpStatusCode.InternalServerError)
         }

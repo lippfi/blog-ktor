@@ -1,7 +1,6 @@
 package fi.lipp.blog.service
 
 import fi.lipp.blog.data.*
-import java.net.URL
 import java.util.UUID
 
 interface UserService {

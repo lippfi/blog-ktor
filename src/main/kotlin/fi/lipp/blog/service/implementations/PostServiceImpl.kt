@@ -32,9 +32,9 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
     override fun getPreface(viewer: Viewer, diaryLogin: String): PostDto.View? {
         val userId = (viewer as? Viewer.Registered)?.userId
         return transaction {
-            val diaryId = DiaryEntity.find { Diaries.login eq diaryLogin }.firstOrNull()?.id ?: throw DiaryNotFoundException()
+            val diaryId = findDiaryByLogin(diaryLogin).id
             val preface = PostEntity.find { (Posts.diary eq diaryId) and (Posts.isPreface eq true) and (Posts.isArchived eq false) }.firstOrNull() ?: return@transaction null
-            return@transaction if (userId == preface.authorId.value || accessGroupService.inGroup(userId, preface.readGroupId.value)) {
+            return@transaction if (userId == preface.authorId.value || accessGroupService.inGroup(viewer, preface.readGroupId.value)) {
                 toPostView(viewer, preface)
             } else {
                 null
@@ -45,9 +45,9 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
     override fun getPost(viewer: Viewer, diaryLogin: String, uri: String): PostDto.View {
         val userId = (viewer as? Viewer.Registered)?.userId
         return transaction {
-            val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.firstOrNull() ?: throw DiaryNotFoundException()
+            val diaryEntity = findDiaryByLogin(diaryLogin)
             val postEntity = PostEntity.find { (Posts.diary eq diaryEntity.id) and (Posts.uri eq uri) and (Posts.isArchived eq false) }.firstOrNull() ?: throw PostNotFoundException()
-            if (userId == postEntity.authorId.value || accessGroupService.inGroup(userId, postEntity.readGroupId.value)) {
+            if (userId == postEntity.authorId.value || accessGroupService.inGroup(viewer, postEntity.readGroupId.value)) {
                 toPostView(viewer, postEntity)
             } else {
                 throw PostNotFoundException()
@@ -233,7 +233,8 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
     override fun addComment(userId: UUID, comment: CommentDto.Create) {
         transaction {
             val postEntity = PostEntity.findById(comment.postId) ?: throw PostNotFoundException()
-            if (userId != postEntity.authorId.value && (!accessGroupService.inGroup(userId, postEntity.readGroupId.value) || !accessGroupService.inGroup(userId, postEntity.commentGroupId.value))) {
+            val viewer = Viewer.Registered(userId)
+            if (userId != postEntity.authorId.value && (!accessGroupService.inGroup(viewer, postEntity.readGroupId.value) || !accessGroupService.inGroup(viewer, postEntity.commentGroupId.value))) {
                 throw WrongUserException()
             }
             Comments.insert {
@@ -247,7 +248,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
 
     override fun updateComment(userId: UUID, comment: CommentDto.Update) {
         transaction {
-            val commentEntity = CommentEntity.findById(comment.id) ?: throw InvalidCommentException()
+            val commentEntity = CommentEntity.findById(comment.id) ?: throw CommentNotFoundException()
             if (userId != commentEntity.authorId.value) throw WrongUserException()
             commentEntity.apply {
                 avatar = comment.avatar
@@ -258,7 +259,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
 
     override fun deleteComment(userId: UUID, commentId: UUID) {
         transaction {
-            val commentEntity = CommentEntity.findById(commentId) ?: throw InvalidCommentException()
+            val commentEntity = CommentEntity.findById(commentId) ?: throw CommentNotFoundException()
             if (userId != commentEntity.authorId.value) throw WrongUserException()
             commentEntity.delete()
         }
@@ -267,9 +268,9 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
     override fun dislike(viewer: Viewer, diaryLogin: String, uri: String) {
         val userId = (viewer as? Viewer.Registered)?.userId
         transaction {
-            val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.firstOrNull() ?: throw DiaryNotFoundException()
+            val diaryEntity = findDiaryByLogin(diaryLogin)
             val postEntity = PostEntity.find { (Posts.diary eq diaryEntity.id) and (Posts.uri eq uri) and (Posts.isArchived eq false) }.firstOrNull() ?: throw PostNotFoundException()
-            if (postEntity.authorId.value != userId && !accessGroupService.inGroup(userId, postEntity.readGroupId.value)) {
+            if (postEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, postEntity.readGroupId.value)) {
                 throw WrongUserException()
             }
             when (viewer) {
@@ -298,9 +299,9 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
     override fun removeDislike(viewer: Viewer, diaryLogin: String, uri: String) {
         val userId = (viewer as? Viewer.Registered)?.userId
         transaction {
-            val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.firstOrNull() ?: throw DiaryNotFoundException()
+            val diaryEntity = findDiaryByLogin(diaryLogin)
             val postEntity = PostEntity.find { (Posts.diary eq diaryEntity.id) and (Posts.uri eq uri) and (Posts.isArchived eq false) }.firstOrNull() ?: throw PostNotFoundException()
-            if (postEntity.authorId.value != userId && !accessGroupService.inGroup(userId, postEntity.readGroupId.value)) {
+            if (postEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, postEntity.readGroupId.value)) {
                 throw WrongUserException()
             }
             when (viewer) {
@@ -375,7 +376,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         return uri.matches(Regex("[a-zA-Z0-9-]+"))
     }
 
-    private fun checkOrCreateUri(authorId: UUID, postTitle: String, postUri: String): String {
+    private fun Transaction.checkOrCreateUri(authorId: UUID, postTitle: String, postUri: String): String {
         return if (postUri.isBlank()) {
             createUri(authorId, postTitle)
         } else {
@@ -385,7 +386,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         }
     }
 
-    private fun createUri(authorId: UUID, postTitle: String): String {
+    private fun Transaction.createUri(authorId: UUID, postTitle: String): String {
         val wordsPart = postTitle
             .replace(Regex("[^a-zA-Z0-9 ]"), "")
             .lowercase(Locale.getDefault())
@@ -410,7 +411,8 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         }
     }
 
-    private fun isUriBusy(authorId: UUID, uri: String): Boolean {
+    @Suppress("UnusedReceiverParameter")
+    private fun Transaction.isUriBusy(authorId: UUID, uri: String): Boolean {
         return PostEntity.find { (Posts.author eq authorId) and (Posts.uri eq uri) }.firstOrNull() != null
     }
 
@@ -422,11 +424,11 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
             .joinToString("")
     }
 
-    private fun toPostView(viewer: Viewer, postEntity: PostEntity): PostDto.View {
+    private fun Transaction.toPostView(viewer: Viewer, postEntity: PostEntity): PostDto.View {
         val userId = (viewer as? Viewer.Registered)?.userId
         val author = UserEntity.findById(postEntity.authorId) ?: throw InternalServerError()
         val authorDiary = DiaryEntity.find { Diaries.owner eq author.id }.single()
-        val isCommentable = (userId == postEntity.authorId.value) || (accessGroupService.inGroup(userId, postEntity.commentGroupId.value))
+        val isCommentable = (userId == postEntity.authorId.value) || (accessGroupService.inGroup(viewer, postEntity.commentGroupId.value))
         val (isDislikedByMe, dislikeCount) = collectDislikeInfo(viewer, postEntity.id.value)
 
         return PostDto.View(
@@ -449,7 +451,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         )
     }
 
-    private fun toPostView(viewer: Viewer, row: ResultRow): PostDto.View {
+    private fun Transaction.toPostView(viewer: Viewer, row: ResultRow): PostDto.View {
         val userId = (viewer as? Viewer.Registered)?.userId
         val (isDislikedByMe, dislikeCount) = collectDislikeInfo(viewer, row[Posts.id].value)
         return PostDto.View(
@@ -470,7 +472,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
             tags = getTagsForPost(row[Posts.id].value),
 
             classes = row[Posts.classes],
-            isCommentable = (userId == row[Users.id].value) || (accessGroupService.inGroup(userId, row[Posts.commentGroup].value)),
+            isCommentable = (userId == row[Users.id].value) || (accessGroupService.inGroup(viewer, row[Posts.commentGroup].value)),
             comments = getCommentsForPost(row[Posts.id].value),
             isDislikedByMe = isDislikedByMe,
             dislikeCount = dislikeCount,
@@ -495,8 +497,9 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
             isEncrypted = postEntity.isEncrypted,
         )
     }
-    
-    private fun collectDislikeInfo(viewer: Viewer, postId: UUID): Pair<Boolean, Int> {
+
+    @Suppress("UnusedReceiverParameter")
+    private fun Transaction.collectDislikeInfo(viewer: Viewer, postId: UUID): Pair<Boolean, Int> {
         val isDislikedByMe = when (viewer) {
             is Viewer.Registered -> {
                 PostDislikeEntity.find { (PostDislikes.user eq viewer.userId) and (PostDislikes.post eq postId) }.firstOrNull() != null
@@ -511,7 +514,8 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         return isDislikedByMe to totalDislikeCount.toInt()
     }
 
-    private fun getTagsForPost(postId: UUID): Set<String> {
+    @Suppress("UnusedReceiverParameter")
+    private fun Transaction.getTagsForPost(postId: UUID): Set<String> {
         return PostTags
             .innerJoin(Tags)
             .slice(Tags.name)
@@ -520,11 +524,12 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
             .toSet()
     }
 
-    private fun getCommentsForPost(postId: UUID): List<CommentDto.View> {
-        return CommentEntity.find { Comments.post eq postId }.orderBy(Comments.creationTime to SortOrder.ASC).map { it.toComment() }
+    private fun Transaction.getCommentsForPost(postId: UUID): List<CommentDto.View> {
+        return CommentEntity.find { Comments.post eq postId }.orderBy(Comments.creationTime to SortOrder.ASC).map { it.toComment(this) }
     }
 
-    private fun CommentEntity.toComment(): CommentDto.View {
+    @Suppress("UNUSED_PARAMETER")
+    private fun CommentEntity.toComment(transaction: Transaction): CommentDto.View {
         val author = UserEntity.findById(authorId) ?: throw InternalServerError()
         val authorDiary = DiaryEntity.find { Diaries.owner eq authorId }.single()
         return CommentDto.View(
@@ -535,5 +540,11 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
             text = text,
             creationTime = creationTime,
         )
+    }
+    
+    // TODO do not duplicate this method
+    @Suppress("UnusedReceiverParameter")
+    private fun Transaction.findDiaryByLogin(login: String): DiaryEntity {
+        return DiaryEntity.find { Diaries.login eq login }.singleOrNull() ?: throw DiaryNotFoundException()
     }
 }

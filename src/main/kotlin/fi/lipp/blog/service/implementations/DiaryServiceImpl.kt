@@ -28,9 +28,9 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
         }
     }
 
-    override fun getDiaryStyle(diaryLogin: String): String? {
+    override fun getDiaryStyle(diaryLogin: String): String {
         val blogFile = getStyleFile(diaryLogin)
-        return blogFile?.let { storageService.getFile(it).readText() }
+        return blogFile?.let { storageService.getFile(it).readText() } ?: ""
     }
 
     override fun getDiaryStyleFile(diaryLogin: String): String? {
