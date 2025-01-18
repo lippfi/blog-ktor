@@ -1,3 +1,3 @@
 package fi.lipp.blog.model.exceptions
 
-class WrongPasswordException : Exception()
+class WrongPasswordException : BlogException("Wrong password", 401)

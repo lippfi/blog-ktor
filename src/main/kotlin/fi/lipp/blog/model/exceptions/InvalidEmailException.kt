@@ -1,3 +1,3 @@
 package fi.lipp.blog.model.exceptions
 
-class InvalidEmailException : Exception()
+class InvalidEmailException : BlogException("Invalid email address", 400)

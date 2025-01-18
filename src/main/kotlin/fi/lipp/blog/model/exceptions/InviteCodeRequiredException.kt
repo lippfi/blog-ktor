@@ -1,3 +1,3 @@
 package fi.lipp.blog.model.exceptions
 
-class InviteCodeRequiredException : RuntimeException()
+class InviteCodeRequiredException : BlogException("Invite code required", 400)

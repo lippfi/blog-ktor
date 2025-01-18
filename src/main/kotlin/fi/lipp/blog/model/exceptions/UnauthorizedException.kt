@@ -1,3 +1,3 @@
 package fi.lipp.blog.model.exceptions
 
-class UnauthorizedException: Exception()
+class UnauthorizedException: BlogException("Unauthorized", 401)

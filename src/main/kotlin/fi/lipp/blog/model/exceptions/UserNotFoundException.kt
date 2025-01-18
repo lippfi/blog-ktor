@@ -1,3 +1,3 @@
 package fi.lipp.blog.model.exceptions
 
-class UserNotFoundException : Exception()
+class UserNotFoundException : BlogException("User not found", 404)

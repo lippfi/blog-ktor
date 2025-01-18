@@ -1,3 +1,3 @@
 package fi.lipp.blog.model.exceptions
 
-class DiaryNotFoundException : Exception()
+class DiaryNotFoundException : BlogException("Diary not found", 404)

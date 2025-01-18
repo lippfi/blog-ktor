@@ -1,3 +1,3 @@
 package fi.lipp.blog.model.exceptions
 
-class InvalidUriException : RuntimeException()
+class InvalidUriException : BlogException("Invalid URI", 400)

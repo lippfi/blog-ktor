@@ -1,3 +1,3 @@
 package fi.lipp.blog.model.exceptions
 
-class InvalidFileExtension : RuntimeException()
+class InvalidFileExtension : BlogException("Invalid file extension", 400)

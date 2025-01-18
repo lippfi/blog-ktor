@@ -1,3 +1,3 @@
 package fi.lipp.blog.model.exceptions
 
-class InvalidAccessGroupException : RuntimeException()
+class InvalidAccessGroupException : BlogException("Invalid access group", 403)
