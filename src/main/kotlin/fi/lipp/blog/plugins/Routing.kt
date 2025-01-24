@@ -1,10 +1,7 @@
 package fi.lipp.blog.plugins
 
 import fi.lipp.blog.model.exceptions.BlogException
-import fi.lipp.blog.routes.diaryRoutes
-import fi.lipp.blog.routes.postRoutes
-import fi.lipp.blog.routes.storageRoutes
-import fi.lipp.blog.routes.userRoutes
+import fi.lipp.blog.routes.*
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.plugins.statuspages.*
@@ -26,6 +23,7 @@ fun Application.configureRouting() {
         postRoutes(get())
         diaryRoutes(get())
         storageRoutes(get())
+        accessGroupRoutes(get())
         get("/") {
             call.respondText("Hello World!")
         }

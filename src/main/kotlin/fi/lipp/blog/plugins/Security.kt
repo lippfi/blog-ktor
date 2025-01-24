@@ -2,10 +2,12 @@ package fi.lipp.blog.plugins
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
+import fi.lipp.blog.service.Viewer
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.auth.jwt.*
+import io.ktor.server.plugins.*
 import io.ktor.server.response.*
 import io.ktor.util.pipeline.*
 import org.koin.java.KoinJavaComponent.inject
@@ -66,4 +68,16 @@ fun createJwtToken(userId: UUID): String {
 inline val PipelineContext<*, ApplicationCall>.userId: UUID get() {
     val string = this.call.principal<JWTPrincipal>()!!.payload.getClaim(USER_ID).asString()
     return UUID.fromString(string)
+}
+
+inline val PipelineContext<*, ApplicationCall>.viewer: Viewer
+    get() {
+    val principal = this.call.principal<JWTPrincipal>()
+    if (principal == null) {
+        val ip = this.call.request.origin.remoteHost
+        val browserFingerprint = call.request.headers["User-Agent"] ?: "unknown"
+        return Viewer.Anonymous(ip, browserFingerprint)
+    }
+    val userId = principal.payload.getClaim(USER_ID).asString()
+    return Viewer.Registered(UUID.fromString(userId))
 }

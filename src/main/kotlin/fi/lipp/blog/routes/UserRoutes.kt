@@ -1,6 +1,5 @@
 package fi.lipp.blog.routes
 
-import fi.lipp.blog.data.FileUploadData
 import fi.lipp.blog.data.UserDto
 import fi.lipp.blog.data.toFileUploadDatas
 import fi.lipp.blog.plugins.userId

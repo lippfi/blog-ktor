@@ -4,19 +4,15 @@ import fi.lipp.blog.data.CommentDto
 import fi.lipp.blog.data.PostDto
 import fi.lipp.blog.model.Pageable
 import fi.lipp.blog.model.TagPolicy
-import fi.lipp.blog.plugins.USER_ID
 import fi.lipp.blog.plugins.userId
+import fi.lipp.blog.plugins.viewer
 import fi.lipp.blog.service.PostService
-import fi.lipp.blog.service.Viewer
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
-import io.ktor.server.auth.jwt.*
-import io.ktor.server.plugins.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import io.ktor.util.pipeline.*
 import kotlinx.datetime.LocalDateTime
 import org.jetbrains.exposed.sql.SortOrder
 import java.util.*
@@ -112,15 +108,4 @@ fun Route.postRoutes(postService: PostService) {
             }
         }
     }
-}
-
-private inline val PipelineContext<*, ApplicationCall>.viewer: Viewer get() {
-    val principal = this.call.principal<JWTPrincipal>()
-    if (principal == null) {
-        val ip = this.call.request.origin.remoteHost
-        val browserFingerprint = call.request.headers["User-Agent"] ?: "unknown"
-        return Viewer.Anonymous(ip, browserFingerprint)
-    }
-    val userId = principal.payload.getClaim(USER_ID).asString()
-    return Viewer.Registered(UUID.fromString(userId))
 }
