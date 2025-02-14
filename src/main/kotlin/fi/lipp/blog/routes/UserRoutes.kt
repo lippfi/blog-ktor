@@ -31,19 +31,19 @@ fun Route.userRoutes(userService: UserService) {
         get("/is-login-busy") {
             val login = call.request.queryParameters["login"] ?: ""
             val isBusy = userService.isLoginBusy(login)
-            call.respondText(if (isBusy) "Login is busy" else "Login is available")
+            call.respondText(isBusy.toString())
         }
 
         get("/is-email-busy") {
             val email = call.request.queryParameters["email"] ?: ""
             val isBusy = userService.isEmailBusy(email)
-            call.respondText(if (isBusy) "Email is busy" else "Email is available")
+            call.respondText(isBusy.toString())
         }
 
         get("/is-nickname-busy") {
             val email = call.request.queryParameters["nickname"] ?: ""
             val isBusy = userService.isEmailBusy(email)
-            call.respondText(if (isBusy) "Nickname is busy" else "Nickname is available")
+            call.respondText(isBusy.toString())
         }
 
         authenticate {

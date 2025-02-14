@@ -1,16 +1,20 @@
 package fi.lipp.blog.service
 
 import fi.lipp.blog.data.*
+import fi.lipp.blog.model.exceptions.*
 import java.util.UUID
+import kotlin.jvm.Throws
 
 interface UserService {
     fun generateInviteCode(userId: UUID): String
 
+    @Throws(InviteCodeRequiredException::class, InvalidInviteCodeException::class, EmailIsBusyException::class, LoginIsBusyException::class, NicknameIsBusyException::class)
     fun signUp(user: UserDto.Registration, inviteCode: String)
 
     /**
      * @return JWT token
      */
+    @Throws(UserNotFoundException::class, WrongPasswordException::class)
     fun signIn(user: UserDto.Login): String
     
     fun getUserInfo(login: String): UserDto.ProfileInfo

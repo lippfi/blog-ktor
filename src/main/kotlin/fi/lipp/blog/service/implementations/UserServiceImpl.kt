@@ -17,6 +17,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.LocalDateTime
 import java.util.*
+import kotlin.jvm.Throws
 
 class UserServiceImpl(private val encoder: PasswordEncoder, private val mailService: MailService, private val storageService: StorageService) : UserService {
     override fun generateInviteCode(userId: UUID): String {
@@ -29,6 +30,7 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
         return inviteCode.value.toString()
     }
 
+    @Throws(InviteCodeRequiredException::class, InvalidInviteCodeException::class, EmailIsBusyException::class, LoginIsBusyException::class, NicknameIsBusyException::class)
     override fun signUp(user: UserDto.Registration, inviteCode: String) {
         val inviteCodeEntity = transaction {
             if (inviteCode.isEmpty()) {
