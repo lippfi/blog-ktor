@@ -448,6 +448,8 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
             comments = getCommentsForPost(postEntity.id.value),
             isDislikedByMe = isDislikedByMe,
             dislikeCount = dislikeCount,
+            readGroupId = postEntity.readGroupId.value,
+            commentGroupId = postEntity.commentGroupId.value,
         )
     }
 
@@ -476,6 +478,9 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
             comments = getCommentsForPost(row[Posts.id].value),
             isDislikedByMe = isDislikedByMe,
             dislikeCount = dislikeCount,
+            
+            readGroupId = row[Posts.readGroup].value,
+            commentGroupId = row[Posts.commentGroup].value,
         )
     }
 

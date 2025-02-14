@@ -31,7 +31,11 @@ sealed interface PostDto {
 
         val isCommentable: Boolean,
         val comments: List<CommentDto.View>,
-        // TODO ADD groups here? It will help to fetch post once and reuse it for edits
+        
+        @Serializable(with = UUIDSerializer::class)
+        val readGroupId: UUID,
+        @Serializable(with = UUIDSerializer::class)
+        val commentGroupId: UUID,
     ) : PostDto
 
     @Serializable
