@@ -13,4 +13,6 @@ object Comments : UUIDTable() {
     val avatar = varchar("avatar", 1024)
     val text = text("text")
     val creationTime = datetime("creation_time").clientDefault { LocalDateTime.now().toKotlinLocalDateTime() }
+    
+    val parentComment = reference("parent_comment", Comments).nullable()
 }

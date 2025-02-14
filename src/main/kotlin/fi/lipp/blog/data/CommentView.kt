@@ -25,6 +25,9 @@ sealed interface CommentDto {
         val postId: UUID,
         val avatar : String,
         val text: String,
+        
+        @Serializable(with = UUIDSerializer::class)
+        val parentCommentId: UUID? = null,
     )
 
     @Serializable

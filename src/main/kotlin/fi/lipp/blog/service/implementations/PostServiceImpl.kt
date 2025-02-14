@@ -237,11 +237,16 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
             if (userId != postEntity.authorId.value && (!accessGroupService.inGroup(viewer, postEntity.readGroupId.value) || !accessGroupService.inGroup(viewer, postEntity.commentGroupId.value))) {
                 throw WrongUserException()
             }
+            if (comment.parentCommentId != null) {
+                val parentComment = CommentEntity.findById(comment.parentCommentId) ?: throw InvalidParentComment()
+                if (parentComment.postId.value != comment.postId) throw InvalidParentComment()
+            }
             Comments.insert {
                 it[post] = postEntity.id
                 it[author] = userId
                 it[avatar] = comment.avatar
                 it[text] = comment.text
+                it[parentComment] = comment.parentCommentId
             }
         }
     }

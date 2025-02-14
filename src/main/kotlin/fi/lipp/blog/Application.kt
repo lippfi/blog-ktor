@@ -19,7 +19,6 @@ import org.koin.logger.slf4jLogger
 // TODO Cors
 
 // SECOND ITERATION
-// Comment is always a reply to something
 // Come up with better post urls
 // Custom website design css
 // Better file storage (in login-named folder)

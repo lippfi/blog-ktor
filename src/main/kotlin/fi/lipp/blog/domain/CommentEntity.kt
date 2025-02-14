@@ -9,6 +9,7 @@ import java.util.*
 class CommentEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     companion object : UUIDEntityClass<CommentEntity>(Comments)
 
+    val postId by Comments.post
     val authorId by Comments.author
 
     var avatar by Comments.avatar
