@@ -91,8 +91,9 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
         if (userEntity.email != user.email && isEmailBusy(user.email)) throw EmailIsBusyException()
         if (userEntity.nickname != user.nickname && isNicknameBusy(user.nickname)) throw NicknameIsBusyException()
 
-        val diaryEntity = DiaryEntity.find { Diaries.owner eq userId }.single()
-        if (diaryEntity.login != user.login && isLoginBusy(user.login)) throw LoginIsBusyException()
+        // Login change is turned off 
+//        val diaryEntity = DiaryEntity.find { Diaries.owner eq userId }.single()
+//        if (diaryEntity.login != user.login && isLoginBusy(user.login)) throw LoginIsBusyException()
 
         transaction {
             userEntity.apply {
@@ -100,9 +101,10 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
                 password = encoder.encode(user.password)
                 nickname = user.nickname
             }
-            diaryEntity.apply {
-                login = user.login
-            }
+           // Login change is turned off 
+//            diaryEntity.apply {
+//                login = user.login
+//            }
         }
     }
 

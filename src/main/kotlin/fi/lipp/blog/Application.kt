@@ -12,7 +12,6 @@ import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 
 // POOL
-// Forbid to change login
 // Cascade delete and stuff
 // TODO API documentation
 // TODO Integration tests
