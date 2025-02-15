@@ -19,16 +19,18 @@ import org.koin.logger.slf4jLogger
 // TODO Cors
 
 // SECOND ITERATION
+// Multi-step registration (basic - language, timezone, age, nsfw, diary title, diary import)
 // Custom website design css
-// Better file storage (in login-named folder)
-// Multi-step registration (basic - language, age, diary title)
 // Better reactions
 // Multiple languages
-// Friends
+// Friends (or groups?)
 // Communities
 // Private messages
 // Notifications
 // Device sessions && token invalidation
+// Avatar validation
+// File size limits
+// Caches
 
 // THIRD ITERATION
 // background music

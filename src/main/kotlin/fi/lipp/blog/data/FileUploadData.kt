@@ -10,7 +10,7 @@ data class FileUploadData(
 ) {
     val name = fullName.substringBeforeLast('.')
     val extension = fullName.lastIndexOfOrNull('.')?.let { fullName.substring(it) } ?: ""
-    val type = getFileTypeByExtension(extension)
+    var type = getFileTypeByExtension(extension)
 
     private fun getFileTypeByExtension(extension: String): FileType {
         return when (extension) {

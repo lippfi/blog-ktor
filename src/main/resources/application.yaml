@@ -16,11 +16,12 @@ mail:
     password: ""
     from: ""
 directory:
-    images: "images"
-    videos: "videos"
-    audios: "audios"
-    styles: "styles"
-    other: "other"
+    avatars: "{userLogin}\avatars"
+    images: "{userLogin}\images"
+    videos: "{userLogin}\videos"
+    audios: "{userLogin}\audios"
+    styles: "{userLogin}\styles"
+    other: "{userLogin}\other"
 url:
     images: "???"
     videos: "???"

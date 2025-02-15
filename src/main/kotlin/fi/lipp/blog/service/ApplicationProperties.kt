@@ -8,12 +8,14 @@ interface ApplicationProperties {
     val emailAddress: String
     val emailPassword: String
 
-    val imagesDirectory: Path
-    val videosDirectory: Path
-    val audiosDirectory: Path
-    val stylesDirectory: Path
-    val otherDirectory: Path
+    fun avatarsDirectory(userLogin: String): Path
+    fun imagesDirectory(userLogin: String): Path
+    fun videosDirectory(userLogin: String): Path
+    fun audiosDirectory(userLogin: String): Path
+    fun stylesDirectory(userLogin: String): Path
+    fun otherDirectory(userLogin: String): Path
 
+    val avatarsUrl: String
     val imagesUrl: String
     val videosUrl: String
     val audiosUrl: String
