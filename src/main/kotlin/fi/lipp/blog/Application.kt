@@ -19,17 +19,18 @@ import org.koin.logger.slf4jLogger
 // TODO Cors
 
 // SECOND ITERATION
-// Multi-step registration (basic - language, timezone, age, nsfw, diary title, diary import)
-// Custom website design css
 // Better reactions
-// Multiple languages
-// Friends (or groups?)
+// Device sessions && token invalidation
+// Notifications
+// Avatar validation
+// Custom website design css
+// File size limits
+// Create dirs when store file
+
+// Multiple diary styles (switch between them)
+// Friends
 // Communities
 // Private messages
-// Notifications
-// Device sessions && token invalidation
-// Avatar validation
-// File size limits
 // Caches
 
 // THIRD ITERATION
@@ -39,9 +40,13 @@ import org.koin.logger.slf4jLogger
 // TODO post backups & drafts : 1
 // TODO follow users : 3
 
+// FORTH ITERATION
+// TODO telegram integration
+
 // LOWEST PRIORITY
+// Multiple languages
+// TODO moderation
 // TODO banned users
-// TODO better avatar storing : 1
 // TODO todo lists : 8
 // TODO what about Pages? Are they ready? Should I have start page or some order on them? Should pages have visibility? Own links?
 // TODO more application properties (invite code valid time, time before regeneration codes etc) : 1
@@ -78,7 +83,7 @@ fun KoinApplication.loadMyKoins(environment: ApplicationEnvironment): KoinApplic
         single<StorageService> { StorageServiceImpl(get()) }
         single<DiaryService> { DiaryServiceImpl(get()) }
         single<PasswordEncoder> { PasswordEncoderImpl() }
-        single<UserService> { UserServiceImpl(get(), get(), get()) }
+        single<UserService> { UserServiceImpl(get(), get(), get(), get()) }
         single<AccessGroupService> { AccessGroupServiceImpl() }
         single<PostService> { PostServiceImpl(get()) }
     }

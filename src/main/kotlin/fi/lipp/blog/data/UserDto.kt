@@ -1,5 +1,6 @@
 package fi.lipp.blog.data
 
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.Serializable
 import org.jetbrains.annotations.TestOnly
@@ -26,6 +27,8 @@ sealed interface UserDto {
         val email: String,
         val password: String,
         val nickname: String,
+        val timezone: String,
+        val language: Language,
     ): UserDto
     
     @TestOnly
@@ -37,4 +40,38 @@ sealed interface UserDto {
         val registrationTime: LocalDateTime,
         val password: String,
     ) : UserDto
+    
+    data class AdditionalInfo(
+        val sex: Sex,
+        val timezone: String,
+        val language: Language,
+        val nsfw: NSFWPolicy,
+        val birthDate: LocalDate?,
+    ): UserDto
+    
+    data class DiaryInfo(
+        val name: String,
+        val subtitle: String,
+        val defaultReadGroup: UUID,
+        val defaultCommentGroup: UUID
+    )
+}
+
+enum class Sex {
+    MALE,
+    FEMALE,
+    UNDEFINED,
+}
+
+enum class NSFWPolicy {
+    SHOW,
+    HIDE,
+    WARN,
+}
+
+enum class Language {
+    RU,
+    EN,
+    KK,
+    KK_CYRILLIC,
 }

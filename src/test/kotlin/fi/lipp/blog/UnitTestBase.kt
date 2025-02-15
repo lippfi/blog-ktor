@@ -1,26 +1,35 @@
 package fi.lipp.blog
 
+import fi.lipp.blog.data.Language
 import fi.lipp.blog.data.UserDto
 import fi.lipp.blog.domain.DiaryEntity
 import fi.lipp.blog.domain.UserEntity
-import fi.lipp.blog.repository.Diaries
-import fi.lipp.blog.repository.Users
+import fi.lipp.blog.repository.*
 import fi.lipp.blog.service.MailService
+import fi.lipp.blog.service.implementations.AccessGroupServiceImpl
 import fi.lipp.blog.service.implementations.StorageServiceImpl
 import fi.lipp.blog.service.implementations.UserServiceImpl
 import fi.lipp.blog.stubs.ApplicationPropertiesStub
 import fi.lipp.blog.stubs.PasswordEncoderStub
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.toJavaLocalDateTime
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.mockito.Mockito.mock
 import java.io.File
-import java.util.UUID
 import kotlin.io.path.Path
 import kotlin.test.assertTrue
 
 abstract class UnitTestBase {
     companion object {
+        init {
+            Database.connect("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;", driver = "org.h2.Driver")
+            transaction {
+                SchemaUtils.create(Users, Diaries, InviteCodes, PasswordResets, Files, UserAvatars, Tags, Posts, PostDislikes, AnonymousPostDislikes, PostTags, AccessGroups, CustomGroupUsers, Comments)
+            }
+        }
+        
         @JvmStatic
         protected val properties = ApplicationPropertiesStub()
         @JvmStatic
@@ -30,7 +39,9 @@ abstract class UnitTestBase {
         @JvmStatic
         protected val storageService = StorageServiceImpl(properties)
         @JvmStatic
-        protected val userService = UserServiceImpl(encoder, mailService, storageService)
+        protected val groupService = AccessGroupServiceImpl()
+        @JvmStatic
+        protected val userService = UserServiceImpl(encoder, mailService, storageService, groupService)
 
         @JvmStatic
         protected val testUser = UserDto.Registration(
@@ -38,6 +49,8 @@ abstract class UnitTestBase {
             email = "barabaka@mail.com",
             password = "password123",
             nickname = "dog_lover37",
+            language = Language.EN,
+            timezone = "Europe/Moscow",
         )
         @JvmStatic
         protected val testUser2 = UserDto.Registration(
@@ -45,6 +58,8 @@ abstract class UnitTestBase {
             email = "piecelovingkebab@proton.com",
             password = "secure_password",
             nickname = "cat_hater44",
+            language = Language.EN,
+            timezone = "Europe/Moscow",
         )
 
         @JvmStatic

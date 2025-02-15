@@ -5,10 +5,7 @@ import fi.lipp.blog.domain.*
 import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.plugins.createJwtToken
 import fi.lipp.blog.repository.*
-import fi.lipp.blog.service.MailService
-import fi.lipp.blog.service.PasswordEncoder
-import fi.lipp.blog.service.StorageService
-import fi.lipp.blog.service.UserService
+import fi.lipp.blog.service.*
 import kotlinx.datetime.toKotlinLocalDateTime
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.*
@@ -19,7 +16,7 @@ import java.time.LocalDateTime
 import java.util.*
 import kotlin.jvm.Throws
 
-class UserServiceImpl(private val encoder: PasswordEncoder, private val mailService: MailService, private val storageService: StorageService) : UserService {
+class UserServiceImpl(private val encoder: PasswordEncoder, private val mailService: MailService, private val storageService: StorageService, private val accessGroupService: AccessGroupService) : UserService {
     override fun generateInviteCode(userId: UUID): String {
         val inviteCode = transaction {
             InviteCodes.insertAndGetId {
@@ -43,7 +40,13 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
                 inviteCodeEntity
             }
         }
-
+        
+        val timezoneParsed = try {
+            kotlinx.datetime.TimeZone.of(user.timezone)
+        } catch (e: Exception) {
+            throw InvalidTimezoneException()
+        }
+        
         if (isEmailBusy(user.email)) throw EmailIsBusyException()
         if (isLoginBusy(user.login)) throw LoginIsBusyException()
         if (isNicknameBusy(user.nickname)) throw NicknameIsBusyException()
@@ -53,12 +56,20 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
                 it[password] = encoder.encode(user.password)
                 it[nickname] = user.nickname
                 it[Users.inviteCode] = inviteCodeEntity?.id
+                
+                it[sex] = Sex.UNDEFINED
+                it[nsfw] = NSFWPolicy.HIDE
+                it[timezone] = timezoneParsed.id
+                it[language] = user.language
             }
             Diaries.insert {
                 it[name] = "Unnamed blog"
+                it[subtitle] = ""
                 it[login] = user.login
                 it[owner] = userId
                 it[type] = DiaryType.PERSONAL
+                it[defaultReadGroup] = accessGroupService.everyoneGroupUUID
+                it[defaultCommentGroup] = accessGroupService.registeredGroupUUID
             }
         }
     }
@@ -69,6 +80,24 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
             throw WrongPasswordException()
         }
         return createJwtToken(userEntity.id.value)
+    }
+
+    override fun updateAdditionalInfo(userId: UUID, info: UserDto.AdditionalInfo) {
+        val timezoneParsed = try {
+            kotlinx.datetime.TimeZone.of(info.timezone)
+        } catch (e: Exception) {
+            throw InvalidTimezoneException()
+        }
+        transaction {
+            val userEntity = UserEntity.findById(userId) ?: throw UserNotFoundException()
+            userEntity.apply {
+                sex = info.sex
+                nsfw = info.nsfw
+                timezone = timezoneParsed.id
+                language = info.language
+                birthdate = info.birthDate
+            }
+        }
     }
 
     override fun getUserInfo(login: String): UserDto.ProfileInfo {

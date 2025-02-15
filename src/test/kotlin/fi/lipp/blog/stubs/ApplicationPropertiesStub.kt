@@ -12,14 +12,16 @@ class ApplicationPropertiesStub : ApplicationProperties {
     override val emailAddress = "emailAddress"
     override val emailPassword = "emailPassword"
 
-    override val imagesDirectory: Path = basePath.resolve("images")
-    override val videosDirectory: Path = basePath.resolve("videos")
-    override val audiosDirectory: Path = basePath.resolve("audios")
-    override val stylesDirectory: Path = basePath.resolve("styles")
-    override val otherDirectory: Path = basePath.resolve("other")
+    override fun avatarsDirectory(userLogin: String): Path = basePath.resolve("avatars")
+    override fun imagesDirectory(userLogin: String): Path = basePath.resolve("images")
+    override fun videosDirectory(userLogin: String): Path = basePath.resolve("videos")
+    override fun audiosDirectory(userLogin: String): Path = basePath.resolve("audios")
+    override fun stylesDirectory(userLogin: String): Path = basePath.resolve("styles")
+    override fun otherDirectory(userLogin: String): Path = basePath.resolve("other")
 
     val baseUrl = "https://blog.com"
 
+    override val avatarsUrl = "$baseUrl/avatars"
     override val imagesUrl = "$baseUrl/images"
     override val videosUrl = "$baseUrl/videos"
     override val audiosUrl = "$baseUrl/audios"

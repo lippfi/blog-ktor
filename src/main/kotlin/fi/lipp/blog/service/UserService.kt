@@ -17,6 +17,8 @@ interface UserService {
     @Throws(UserNotFoundException::class, WrongPasswordException::class)
     fun signIn(user: UserDto.Login): String
     
+    fun updateAdditionalInfo(userId: UUID, info: UserDto.AdditionalInfo)
+    
     fun getUserInfo(login: String): UserDto.ProfileInfo
     
     fun update(userId: UUID, user: UserDto.Registration, oldPassword: String)

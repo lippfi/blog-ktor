@@ -1,6 +1,7 @@
 package fi.lipp.blog
 
 import fi.lipp.blog.data.FileUploadData
+import fi.lipp.blog.data.Language
 import fi.lipp.blog.data.UserDto
 import fi.lipp.blog.domain.PasswordResetCodeEntity
 import fi.lipp.blog.domain.UserEntity
@@ -25,11 +26,7 @@ class UserServiceTests : UnitTestBase() {
         @JvmStatic
         @BeforeClass
         fun setUp() {
-            Database.connect("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;", driver = "org.h2.Driver")
-            transaction {
-                SchemaUtils.create(Users, Diaries, InviteCodes, PasswordResets, Files, UserAvatars)
-            }
-            File(properties.imagesDirectory.toString()).mkdirs()
+            File(properties.imagesDirectory("").toString()).mkdirs()
         }
 
         @JvmStatic
@@ -102,7 +99,7 @@ class UserServiceTests : UnitTestBase() {
             val inviteCode = userService.generateInviteCode(foundUser.id)
             assertThrows(LoginIsBusyException::class.java) {
                 userService.signUp(
-                    UserDto.Registration(testUser.login, "new" + testUser.email, testUser.password, "new" + testUser.nickname),
+                    UserDto.Registration(testUser.login, "new" + testUser.email, testUser.password, "new" + testUser.nickname, language = Language.EN, timezone = "Asia/Seoul"),
                     inviteCode
                 )
             }
@@ -124,7 +121,7 @@ class UserServiceTests : UnitTestBase() {
             val inviteCode = userService.generateInviteCode(foundUser.id)
             assertThrows(EmailIsBusyException::class.java) {
                 userService.signUp(
-                    UserDto.Registration("new" + testUser.login, testUser.email, testUser.password, "new" + testUser.nickname),
+                    UserDto.Registration("new" + testUser.login, testUser.email, testUser.password, "new" + testUser.nickname, language = Language.EN, timezone = "Asia/Seoul"),
                     inviteCode
                 )
             }
@@ -146,7 +143,7 @@ class UserServiceTests : UnitTestBase() {
             val inviteCode = userService.generateInviteCode(foundUser.id)
             assertThrows(NicknameIsBusyException::class.java) {
                 userService.signUp(
-                    UserDto.Registration("new" + testUser.login, "new" + testUser.email, testUser.password, testUser.nickname),
+                    UserDto.Registration("new" + testUser.login, "new" + testUser.email, testUser.password, testUser.nickname, language = Language.EN, timezone = "Asia/Seoul"),
                     inviteCode
                 )
             }
@@ -185,7 +182,7 @@ class UserServiceTests : UnitTestBase() {
             rollback()
         }
     }
-
+    
     @Test
     fun `updating user info`() {
         transaction {
@@ -193,7 +190,7 @@ class UserServiceTests : UnitTestBase() {
 
             val userEntity = findUserByLogin(testUser.login)!!
             val registrationTime = userEntity.registrationTime
-            val newUser = UserDto.Registration("new" + testUser.login, "new" + testUser.email, "new" + testUser.password, "new" + testUser.nickname)
+            val newUser = UserDto.Registration(testUser.login, "new" + testUser.email, "new" + testUser.password, "new" + testUser.nickname, language = Language.EN, timezone = "Asia/Seoul")
             userService.update(userEntity.id, newUser, testUser.password)
 
             val updatedUser = findUserByLogin(newUser.login)!!
@@ -207,6 +204,7 @@ class UserServiceTests : UnitTestBase() {
         }
     }
 
+    @Ignore // login can't be updated to avoid chaos
     @Test
     fun `updating only login`() {
         transaction {
@@ -214,7 +212,7 @@ class UserServiceTests : UnitTestBase() {
 
             val userEntity = findUserByLogin(testUser.login)!!
             val registrationTime = userEntity.registrationTime
-            val newUser = UserDto.Registration("new" + testUser.login, testUser.email, testUser.password, testUser.nickname)
+            val newUser = UserDto.Registration("new" + testUser.login, testUser.email, testUser.password, testUser.nickname, language = Language.EN, timezone = "Asia/Seoul")
             userService.update(userEntity.id, newUser, testUser.password)
 
             val updatedUser = findUserByLogin(newUser.login)!!
@@ -235,7 +233,7 @@ class UserServiceTests : UnitTestBase() {
 
             val userEntity = findUserByLogin(testUser.login)!!
             val registrationTime = userEntity.registrationTime
-            val newUser = UserDto.Registration(testUser.login, "new" + testUser.email, testUser.password, testUser.nickname)
+            val newUser = UserDto.Registration(testUser.login, "new" + testUser.email, testUser.password, testUser.nickname, language = Language.EN, timezone = "Asia/Seoul")
             userService.update(userEntity.id, newUser, testUser.password)
 
             val updatedUser = findUserByLogin(newUser.login)!!
@@ -256,7 +254,7 @@ class UserServiceTests : UnitTestBase() {
 
             val userEntity = findUserByLogin(testUser.login)!!
             val registrationTime = userEntity.registrationTime
-            val newUser = UserDto.Registration(testUser.login, testUser.email, testUser.password, "new" + testUser.nickname)
+            val newUser = UserDto.Registration(testUser.login, testUser.email, testUser.password, "new" + testUser.nickname, language = Language.EN, timezone = "Asia/Seoul")
             userService.update(userEntity.id, newUser, testUser.password)
 
             val updatedUser = findUserByLogin(newUser.login)!!
@@ -277,7 +275,7 @@ class UserServiceTests : UnitTestBase() {
 
             val userEntity = findUserByLogin(testUser.login)!!
             val registrationTime = userEntity.registrationTime
-            val newUser = UserDto.Registration(testUser.login, testUser.email, testUser.password, "new" + testUser.nickname)
+            val newUser = UserDto.Registration(testUser.login, testUser.email, testUser.password, "new" + testUser.nickname, language = Language.EN, timezone = "Asia/Seoul")
             assertThrows(WrongPasswordException::class.java) {
                 userService.update(userEntity.id, newUser, "wrong" + testUser.password)
             }
@@ -293,6 +291,7 @@ class UserServiceTests : UnitTestBase() {
         }
     }
 
+    @Ignore // login can't be changed
     @Test
     fun `updating user with busy login`() {
         transaction {
@@ -303,7 +302,7 @@ class UserServiceTests : UnitTestBase() {
             userService.signUp(testUser2, inviteCode)
 
             val userEntity = findUserByLogin(testUser.login)!!
-            val updatedUser = UserDto.Registration(testUser2.login, testUser.email, testUser.password, testUser.nickname)
+            val updatedUser = UserDto.Registration(testUser2.login, testUser.email, testUser.password, testUser.nickname, language = Language.EN, timezone = "Asia/Seoul")
             assertThrows(LoginIsBusyException::class.java) {
                 userService.update(userEntity.id, updatedUser, testUser.password)
             }
@@ -321,7 +320,7 @@ class UserServiceTests : UnitTestBase() {
             userService.signUp(testUser2, inviteCode)
 
             val userEntity = findUserByLogin(testUser.login)!!
-            val updatedUser = UserDto.Registration(testUser.login, testUser2.email, testUser.password, testUser.nickname)
+            val updatedUser = UserDto.Registration(testUser.login, testUser2.email, testUser.password, testUser.nickname, language = Language.EN, timezone = "Asia/Seoul")
             assertThrows(EmailIsBusyException::class.java) {
                 userService.update(userEntity.id, updatedUser, testUser.password)
             }
@@ -339,7 +338,7 @@ class UserServiceTests : UnitTestBase() {
             userService.signUp(testUser2, inviteCode)
 
             val userEntity = findUserByLogin(testUser.login)!!
-            val updatedUser = UserDto.Registration(testUser.login, testUser.email, testUser.password, testUser2.nickname)
+            val updatedUser = UserDto.Registration(testUser.login, testUser.email, testUser.password, testUser2.nickname, language = Language.EN, timezone = "Asia/Seoul")
             assertThrows(NicknameIsBusyException::class.java) {
                 userService.update(userEntity.id, updatedUser, testUser.password)
             }
@@ -496,7 +495,7 @@ class UserServiceTests : UnitTestBase() {
             val avatar2 = avatars[1]
             val avatar3 = avatars[2]
 
-            userService.deleteAvatar(userId, avatar1.toString())
+            userService.deleteAvatar(userId, avatar1)
             assertEquals(listOf(avatar2, avatar3), userService.getAvatarUrls(userId))
 
             rollback()
@@ -520,7 +519,7 @@ class UserServiceTests : UnitTestBase() {
             val avatar2 = avatars[1]
             val avatar3 = avatars[2]
 
-            userService.deleteAvatar(userId, avatar3.toString())
+            userService.deleteAvatar(userId, avatar3)
             assertEquals(listOf(avatar1, avatar2), userService.getAvatarUrls(userId))
 
             rollback()
@@ -544,7 +543,7 @@ class UserServiceTests : UnitTestBase() {
             val avatar2 = avatars[1]
             val avatar3 = avatars[2]
 
-            userService.deleteAvatar(userId, avatar2.toString())
+            userService.deleteAvatar(userId, avatar2)
             assertEquals(listOf(avatar1, avatar3), userService.getAvatarUrls(userId))
 
             rollback()
@@ -640,7 +639,7 @@ class UserServiceTests : UnitTestBase() {
             assertEquals(1, avatars2.size)
             val avatar2 = avatars2[0]
 
-            userService.deleteAvatar(userId2, storageService.getFileURL(avatar1).toString())
+            userService.deleteAvatar(userId2, storageService.getFileURL(avatar1))
 
             avatars1 = userService.getAvatars(userId1)
             assertEquals(listOf(avatar1), avatars1)

@@ -8,18 +8,14 @@ import fi.lipp.blog.model.TagPolicy
 import fi.lipp.blog.model.exceptions.PostNotFoundException
 import fi.lipp.blog.model.exceptions.WrongUserException
 import fi.lipp.blog.repository.*
-import fi.lipp.blog.service.AccessGroupService
 import fi.lipp.blog.service.MailService
 import fi.lipp.blog.service.PostService
 import fi.lipp.blog.service.Viewer
-import fi.lipp.blog.service.implementations.AccessGroupServiceImpl
 import fi.lipp.blog.service.implementations.PostServiceImpl
 import fi.lipp.blog.service.implementations.StorageServiceImpl
 import fi.lipp.blog.service.implementations.UserServiceImpl
 import fi.lipp.blog.stubs.ApplicationPropertiesStub
 import fi.lipp.blog.stubs.PasswordEncoderStub
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.junit.AfterClass
@@ -38,11 +34,6 @@ class PostServiceTests : UnitTestBase() {
         @JvmStatic
         @BeforeClass
         fun setUp() {
-            Database.connect("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;", driver = "org.h2.Driver")
-            transaction {
-                SchemaUtils.create(Users, Diaries, InviteCodes, PasswordResets, Files, UserAvatars, Tags, Posts, PostDislikes, AnonymousPostDislikes, PostTags, AccessGroups, CustomGroupUsers, Comments)
-            }
-            groupService = AccessGroupServiceImpl()
             postService = PostServiceImpl(groupService)
         }
 
@@ -55,8 +46,7 @@ class PostServiceTests : UnitTestBase() {
         private val encoder = PasswordEncoderStub()
         private val mailService = mock<MailService>()
         private val storageService = StorageServiceImpl(properties)
-        private val userService = UserServiceImpl(encoder, mailService, storageService)
-        private lateinit var groupService: AccessGroupService
+        private val userService = UserServiceImpl(encoder, mailService, storageService, groupService)
         private lateinit var postService: PostService
 
         private val testUser = UserDto.Registration(
@@ -64,12 +54,16 @@ class PostServiceTests : UnitTestBase() {
             email = "barabaka@mail.com",
             password = "password123",
             nickname = "dog_lover37",
+            language = Language.EN,
+            timezone = "Europe/Moscow",
         )
         private val testUser2 = UserDto.Registration(
             login = "bigbabyboy",
             email = "piecelovingkebab@proton.com",
             password = "secure_password",
             nickname = "cat_hater44",
+            language = Language.RU,
+            timezone = "Europe/Moscow",
         )
     }
 
@@ -779,7 +773,7 @@ class PostServiceTests : UnitTestBase() {
         var i = count - 1
         while (i > 0) {
             val inviteCode = userService.generateInviteCode(userEntity.id)
-            val randomUser = UserDto.Registration(login = UUID.randomUUID().toString(), email = "${UUID.randomUUID()}@mail.com", password = "123", nickname = UUID.randomUUID().toString())
+            val randomUser = UserDto.Registration(login = UUID.randomUUID().toString(), email = "${UUID.randomUUID()}@mail.com", password = "123", nickname = UUID.randomUUID().toString(), language = Language.KK, timezone = "Asia/Qostanay")
             userService.signUp(randomUser, inviteCode)
             userEntity = findUserByLogin(randomUser.login)!!
             users.add(userEntity.id to randomUser.login)

@@ -9,10 +9,15 @@ import java.util.*
 class DiaryEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     companion object : UUIDEntityClass<DiaryEntity>(Diaries)
 
-    val name by Diaries.name
+    var name by Diaries.name
+    var subtitle by Diaries.subtitle
+    
     var login: String by Diaries.login
     val creationTime by Diaries.creationTime
 
     val owner by Diaries.owner
     var style by Diaries.style
+    
+    var defaultReadGroup by Diaries.defaultReadGroup
+    var defaultCommentGroup by Diaries.defaultCommentGroup
 }

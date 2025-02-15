@@ -1,6 +1,10 @@
 package fi.lipp.blog.domain
 
+import fi.lipp.blog.data.Language
+import fi.lipp.blog.data.NSFWPolicy
+import fi.lipp.blog.data.Sex
 import fi.lipp.blog.repository.Users
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import org.jetbrains.exposed.dao.UUIDEntity
 import org.jetbrains.exposed.dao.UUIDEntityClass
@@ -14,4 +18,10 @@ class UserEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var password: String by Users.password
     var nickname: String by Users.nickname
     var registrationTime: LocalDateTime by Users.registrationTime
+    
+    var sex: Sex by Users.sex
+    var nsfw: NSFWPolicy by Users.nsfw
+    var timezone: String by Users.timezone
+    var language: Language by Users.language
+    var birthdate: LocalDate? by Users.birthdate
 }

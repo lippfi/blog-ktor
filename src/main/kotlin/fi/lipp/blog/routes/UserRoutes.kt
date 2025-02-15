@@ -3,6 +3,7 @@ package fi.lipp.blog.routes
 import fi.lipp.blog.data.UserDto
 import fi.lipp.blog.data.toFileUploadDatas
 import fi.lipp.blog.plugins.userId
+import fi.lipp.blog.service.DiaryService
 import fi.lipp.blog.service.UserService
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -56,6 +57,12 @@ fun Route.userRoutes(userService: UserService) {
                 val (user, oldPassword) = call.receive<UpdateUserRequest>()
                 userService.update(userId, user, oldPassword)
                 call.respondText("User updated successfully")
+            }
+            
+            post("/update-additional-info") {
+                val info = call.receive<UserDto.AdditionalInfo>()
+                userService.updateAdditionalInfo(userId, info)
+                call.respondText("User info updated successfully")
             }
 
             post("/send-password-reset-email") {

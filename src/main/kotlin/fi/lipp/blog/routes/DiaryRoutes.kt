@@ -1,5 +1,7 @@
 package fi.lipp.blog.routes
 
+import fi.lipp.blog.data.UserDto
+import fi.lipp.blog.plugins.userId
 import fi.lipp.blog.service.DiaryService
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -14,11 +16,7 @@ fun Route.diaryRoutes(diaryService: DiaryService) {
         get("/style") {
             val diaryLogin = call.request.queryParameters["diaryLogin"] ?: ""
             val style = diaryService.getDiaryStyle(diaryLogin)
-            if (style != null) {
-                call.respond(style)
-            } else {
-                call.respondText("Diary style not found", status = HttpStatusCode.NotFound)
-            }
+            call.respond(style)
         }
 
         get("/style-file") {
@@ -39,6 +37,12 @@ fun Route.diaryRoutes(diaryService: DiaryService) {
                 call.respondText("Diary style set successfully")
             }
 
+            post("/update-diary-info") {
+                val diaryLogin = call.request.queryParameters["login"] ?: ""
+                val info = call.receive<UserDto.DiaryInfo>()
+                diaryService.updateDiaryInfo(userId, diaryLogin, info)
+                call.respondText("Diary info updated successfully")
+            }
         }
     }
 }

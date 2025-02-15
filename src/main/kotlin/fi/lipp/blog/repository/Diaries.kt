@@ -7,12 +7,17 @@ import org.jetbrains.exposed.sql.kotlin.datetime.datetime
 import java.time.LocalDateTime
 
 object Diaries : UUIDTable() {
-    val name = varchar("name", 20)
+    val name = varchar("name", 40)
+    val subtitle = varchar("subtitle", 200)
+    
     val login = varchar("login", 50).uniqueIndex("idx_diary_login")
     val creationTime = datetime("creation_time").clientDefault { LocalDateTime.now().toKotlinLocalDateTime() }
 
     val owner = reference("owner", Users, onDelete = ReferenceOption.CASCADE)
     val style = reference("style", Files, onDelete = ReferenceOption.CASCADE).nullable()
+    
+    val defaultReadGroup = reference("default_read_group", AccessGroups)
+    val defaultCommentGroup = reference("default_comment_group", AccessGroups)
     
     val type = enumerationByName<DiaryType>("type", 50)
 }
