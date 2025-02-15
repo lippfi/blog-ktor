@@ -392,8 +392,8 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
     }
 
     private fun Transaction.createUri(authorId: UUID, postTitle: String): String {
-        val wordsPart = postTitle
-            .replace(Regex("[^a-zA-Z0-9 ]"), "")
+        val wordsPart = postTitle.lowercase().map { transliterate(it) }.joinToString("")
+            .replace(Regex("[^-a-zA-Z0-9 ]"), "")
             .lowercase(Locale.getDefault())
             .split(Regex("\\s+"))
             .joinToString("-")
@@ -408,7 +408,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         var length = 3
         while (true) {
             val prefix = generateRandomAlphanumericString(length)
-            val uri = prefix + "_" + wordsPart
+            val uri = "$prefix-$wordsPart"
             if (!isUriBusy(authorId, uri)) {
                 return uri
             }
@@ -421,6 +421,8 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         return PostEntity.find { (Posts.author eq authorId) and (Posts.uri eq uri) }.firstOrNull() != null
     }
 
+    // I don't want to info about the number of posts to be discovered, so...
+    // But yes, it's an overcomplication kinda
     private fun generateRandomAlphanumericString(length: Int): String {
         val charPool : List<Char> = ('a'..'z') + ('A'..'Z') + ('0'..'9')
         return (1..length)
@@ -556,5 +558,45 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
     @Suppress("UnusedReceiverParameter")
     private fun Transaction.findDiaryByLogin(login: String): DiaryEntity {
         return DiaryEntity.find { Diaries.login eq login }.singleOrNull() ?: throw DiaryNotFoundException()
+    }
+
+    private fun transliterate(char: Char): String {
+        if (!char.isCyrillic()) return char.toString()
+        return when (char.lowercase()) {
+            "а" -> "a"
+            "б" -> "b"
+            "в" -> "v"
+            "г" -> "g"
+            "д" -> "d"
+            "е", "ё" -> "e"
+            "ж" -> "zh"
+            "з" -> "z"
+            "и", "й" -> "i"
+            "к" -> "k"
+            "л" -> "l"
+            "м" -> "m"
+            "н" -> "n"
+            "о" -> "o"
+            "п" -> "p"
+            "р" -> "r"
+            "с" -> "s"
+            "т" -> "t"
+            "у" -> "u"
+            "ф" -> "f"
+            "х" -> "kh"
+            "ц" -> "ts"
+            "ч" -> "ch"
+            "ш" -> "sh"
+            "щ" -> "shch"
+            "ы" -> "y"
+            "э" -> "e"
+            "ю" -> "yu"
+            "я" -> "ya"
+            else -> char.toString()
+        }
+    }
+    
+    private fun Char.isCyrillic(): Boolean {
+        return this in 'а'..'я' || this in 'А'..'Я'
     }
 }

@@ -19,7 +19,6 @@ import org.koin.logger.slf4jLogger
 // TODO Cors
 
 // SECOND ITERATION
-// Come up with better post urls
 // Custom website design css
 // Better file storage (in login-named folder)
 // Multi-step registration (basic - language, age, diary title)
