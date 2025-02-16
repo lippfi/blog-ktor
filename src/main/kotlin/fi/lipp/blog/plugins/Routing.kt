@@ -20,7 +20,7 @@ fun Application.configureRouting() {
     }
     routing {
         userRoutes(get())
-        postRoutes(get())
+        postRoutes(get(), get())
         diaryRoutes(get())
         storageRoutes(get())
         accessGroupRoutes(get())

@@ -9,6 +9,7 @@ import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.repository.*
 import fi.lipp.blog.service.AccessGroupService
 import fi.lipp.blog.service.PostService
+import fi.lipp.blog.service.ReactionService
 import fi.lipp.blog.service.StorageService
 import fi.lipp.blog.service.Viewer
 import java.io.FileNotFoundException
@@ -25,6 +26,7 @@ import kotlin.random.Random
 class PostServiceImpl(
     private val accessGroupService: AccessGroupService,
     private val storageService: StorageService,
+    private val reactionService: ReactionService,
 ) : PostService {
     override fun getPostForEdit(userId: UUID, postId: UUID): PostDto.Update {
         return transaction {
@@ -275,172 +277,6 @@ class PostServiceImpl(
         }
     }
 
-    override fun addReaction(viewer: Viewer, diaryLogin: String, uri: String, reactionId: UUID) {
-        val userId = (viewer as? Viewer.Registered)?.userId
-        transaction {
-            val diaryEntity = findDiaryByLogin(diaryLogin)
-            val postEntity = PostEntity.find { (Posts.diary eq diaryEntity.id) and (Posts.uri eq uri) and (Posts.isArchived eq false) }.firstOrNull() ?: throw PostNotFoundException()
-            if (postEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, postEntity.readGroupId.value)) {
-                throw WrongUserException()
-            }
-            when (viewer) {
-                is Viewer.Registered -> {
-                    val hasReaction = PostReactions.select { 
-                        (PostReactions.user eq userId) and 
-                        (PostReactions.post eq postEntity.id) and 
-                        (PostReactions.reaction eq reactionId)
-                    }.firstOrNull() != null
-                    if (!hasReaction) {
-                        PostReactions.insert {
-                            it[user] = viewer.userId
-                            it[post] = postEntity.id
-                            it[reaction] = reactionId
-                        }
-                    }
-                }
-                is Viewer.Anonymous -> {
-                    val hasReaction = AnonymousPostReactions.select { 
-                        (AnonymousPostReactions.ipFingerprint eq viewer.ipFingerprint) and 
-                        (AnonymousPostReactions.post eq postEntity.id) and 
-                        (AnonymousPostReactions.reaction eq reactionId)
-                    }.firstOrNull() != null
-                    if (!hasReaction) {
-                        AnonymousPostReactions.insert {
-                            it[ipFingerprint] = viewer.ipFingerprint
-                            it[post] = postEntity.id
-                            it[reaction] = reactionId
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    override fun removeReaction(viewer: Viewer, diaryLogin: String, uri: String, reactionId: UUID) {
-        val userId = (viewer as? Viewer.Registered)?.userId
-        transaction {
-            val diaryEntity = findDiaryByLogin(diaryLogin)
-            val postEntity = PostEntity.find { (Posts.diary eq diaryEntity.id) and (Posts.uri eq uri) and (Posts.isArchived eq false) }.firstOrNull() ?: throw PostNotFoundException()
-            if (postEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, postEntity.readGroupId.value)) {
-                throw WrongUserException()
-            }
-            when (viewer) {
-                is Viewer.Registered -> {
-                    val reaction = PostReactionEntity.find { 
-                        (PostReactions.user eq userId) and 
-                        (PostReactions.post eq postEntity.id) and 
-                        (PostReactions.reaction eq reactionId)
-                    }.firstOrNull() ?: return@transaction
-                    reaction.delete()
-                }
-                is Viewer.Anonymous -> {
-                    val reaction = AnonymousPostReactionEntity.find { 
-                        (AnonymousPostReactions.ipFingerprint eq viewer.ipFingerprint) and 
-                        (AnonymousPostReactions.post eq postEntity.id) and 
-                        (AnonymousPostReactions.reaction eq reactionId)
-                    }.firstOrNull() ?: return@transaction
-                    reaction.delete()
-                }
-            }
-        }
-    }
-
-    override fun createReaction(userId: UUID, reaction: ReactionDto.Create): ReactionDto.View {
-        // Store the icon file first
-        val reaction = storageService.storeReaction(userId, reaction.icon)
-
-        return transaction {
-            // Get the file entity
-            val iconFile = FileEntity.findById(reaction.id) ?: throw FileNotFoundException()
-
-            val reactionEntity = ReactionEntity.new {
-                name = reaction.name
-                icon = iconFile
-            }
-            toReactionView(reactionEntity)
-        }
-    }
-
-    override fun updateReaction(userId: UUID, reaction: ReactionDto.Update): ReactionDto.View {
-        // Store the new icon file
-        val storedFile = storageService.storeReaction(userId, reaction.icon)
-
-        return transaction {
-            val reactionEntity = ReactionEntity.findById(reaction.id) ?: throw ReactionNotFoundException()
-
-            // Get the old icon file ID for cleanup
-            val oldIconId = reactionEntity.icon.id.value
-
-            // Get the file entity
-            val iconFile = FileEntity.findById(storedFile.id) ?: throw FileNotFoundException()
-
-            reactionEntity.name = reaction.name
-            reactionEntity.icon = iconFile
-
-            // Delete old localizations
-            ReactionLocalizations.deleteWhere { ReactionLocalizations.reaction eq reaction.id }
-
-            // Add new localizations
-            reaction.localizations.forEach { (language, localizedName) ->
-                ReactionLocalizationEntity.new {
-                    this.reaction = reactionEntity
-                    this.language = language
-                    this.localizedName = localizedName
-                }
-            }
-
-            Files.deleteWhere { Files.id eq oldIconId }
-
-            toReactionView(reactionEntity)
-        }
-    }
-
-    override fun deleteReaction(userId: UUID, reactionId: UUID) {
-        transaction {
-            val reactionEntity = ReactionEntity.findById(reactionId) ?: throw ReactionNotFoundException()
-            reactionEntity.delete()
-        }
-    }
-
-    override fun addReactionLocalization(userId: UUID, localization: ReactionDto.AddLocalization) {
-        transaction {
-            val reactionEntity = ReactionEntity.findById(localization.id) ?: throw ReactionNotFoundException()
-
-            // Check if localization already exists
-            if (ReactionLocalizations.select {
-                    (ReactionLocalizations.reaction eq reactionEntity.id) and
-                    (ReactionLocalizations.language eq localization.language)
-                }.count() > 0
-            ) {
-                throw LocalizationAlreadyExistsException()
-            }
-
-            ReactionLocalizationEntity.new {
-                this.reaction = reactionEntity
-                this.language = localization.language
-                this.localizedName = localization.localizedName
-            }
-        }
-    }
-
-    override fun getReactions(): List<ReactionDto.View> {
-        return transaction {
-            ReactionEntity.all().map { toReactionView(it) }
-        }
-    }
-
-    private fun toReactionView(reactionEntity: ReactionEntity): ReactionDto.View {
-        val localizations = ReactionLocalizationEntity.find {
-            ReactionLocalizations.reaction eq reactionEntity.id
-        }.associate { it.language to it.localizedName }
-
-        return ReactionDto.View(
-            id = reactionEntity.id.value,
-            name = reactionEntity.name,
-            iconUri = storageService.getFileURL(reactionEntity.icon.toBlogFile()),
-            localizations = localizations
-        )
-    }
 
     private fun deletePost(postEntity: PostEntity) {
         postEntity.apply {

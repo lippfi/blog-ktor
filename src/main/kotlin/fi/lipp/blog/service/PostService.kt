@@ -34,14 +34,6 @@ interface PostService {
     fun updateComment(userId: UUID, comment: CommentDto.Update)
     fun deleteComment(userId: UUID, commentId: UUID)
 
-    fun addReaction(viewer: Viewer, diaryLogin: String, uri: String, reactionId: UUID)
-    fun removeReaction(viewer: Viewer, diaryLogin: String, uri: String, reactionId: UUID)
-
-    fun createReaction(userId: UUID, reaction: ReactionDto.Create): ReactionDto.View
-    fun updateReaction(userId: UUID, reaction: ReactionDto.Update): ReactionDto.View
-    fun deleteReaction(userId: UUID, reactionId: UUID)
-    fun addReactionLocalization(userId: UUID, localization: ReactionDto.AddLocalization)
-    fun getReactions(): List<ReactionDto.View>
 }
 
 sealed interface Viewer {

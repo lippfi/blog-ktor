@@ -10,6 +10,7 @@ import fi.lipp.blog.model.exceptions.WrongUserException
 import fi.lipp.blog.repository.*
 import fi.lipp.blog.service.MailService
 import fi.lipp.blog.service.PostService
+import fi.lipp.blog.service.ReactionService
 import fi.lipp.blog.service.Viewer
 import fi.lipp.blog.service.implementations.PostServiceImpl
 import fi.lipp.blog.service.implementations.StorageServiceImpl
@@ -34,7 +35,7 @@ class PostServiceTests : UnitTestBase() {
         @JvmStatic
         @BeforeClass
         fun setUp() {
-            postService = PostServiceImpl(groupService, storageService)
+            postService = PostServiceImpl(groupService, storageService, reactionService)
         }
 
         @JvmStatic
@@ -45,6 +46,7 @@ class PostServiceTests : UnitTestBase() {
         private val properties = ApplicationPropertiesStub()
         private val encoder = PasswordEncoderStub()
         private val mailService = mock<MailService>()
+        private val reactionService = mock<ReactionService>()
         private val storageService = StorageServiceImpl(properties)
         private val userService = UserServiceImpl(encoder, mailService, storageService, groupService)
         private lateinit var postService: PostService

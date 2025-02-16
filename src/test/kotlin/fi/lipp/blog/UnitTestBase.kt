@@ -73,7 +73,6 @@ abstract class UnitTestBase {
                     PostTags,
                     Comments,
                     Reactions,
-                    ReactionLocalizations,
                     PostReactions,
                     AnonymousPostReactions
                 )
@@ -176,7 +175,6 @@ abstract class UnitTestBase {
             // Delete all data except access groups in the correct order to handle dependencies
             exec("DELETE FROM ${AnonymousPostReactions.tableName}")
             exec("DELETE FROM ${PostReactions.tableName}")
-            exec("DELETE FROM ${ReactionLocalizations.tableName}")
             exec("DELETE FROM ${Reactions.tableName}")
             exec("DELETE FROM ${Comments.tableName}")
             exec("DELETE FROM ${PostTags.tableName}")

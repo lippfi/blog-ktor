@@ -6,33 +6,18 @@ import java.util.UUID
 import fi.lipp.blog.data.FileUploadData
 
 sealed interface ReactionDto {
-    @Serializable
-    data class Create(
-        val name: String,
-        @Contextual val icon: FileUploadData,
-        val localizations: Map<Language, String>
-    ) : ReactionDto
+    companion object {
+        private val namePattern = Regex("^[a-zA-Z][a-zA-Z0-9-]*$")
 
-    @Serializable
-    data class Update(
-        @Contextual val id: UUID,
-        val name: String,
-        @Contextual val icon: FileUploadData,
-        val localizations: Map<Language, String>
-    ) : ReactionDto
+        fun validateName(name: String) {
+            require(name.matches(namePattern)) { "Reaction name must start with a letter and contain only English letters, numbers, and hyphens" }
+        }
+    }
 
     @Serializable
     data class View(
         @Contextual val id: UUID,
         val name: String,
         val iconUri: String,
-        val localizations: Map<Language, String>
-    ) : ReactionDto
-
-    @Serializable
-    data class AddLocalization(
-        @Contextual val id: UUID,
-        val language: Language,
-        val localizedName: String
     ) : ReactionDto
 }

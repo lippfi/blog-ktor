@@ -8,6 +8,7 @@ import fi.lipp.blog.model.TagPolicy
 import fi.lipp.blog.plugins.userId
 import fi.lipp.blog.plugins.viewer
 import fi.lipp.blog.service.PostService
+import fi.lipp.blog.service.ReactionService
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -18,7 +19,7 @@ import kotlinx.datetime.LocalDateTime
 import org.jetbrains.exposed.sql.SortOrder
 import java.util.*
 
-fun Route.postRoutes(postService: PostService) {
+fun Route.postRoutes(postService: PostService, reactionService: ReactionService) {
     route("/posts") {
         authenticate(optional = true) {
             get("/preface") {
@@ -110,101 +111,23 @@ fun Route.postRoutes(postService: PostService) {
 
             // Reaction management endpoints
             get("/reactions") {
-                val reactions = postService.getReactions()
+                val reactions = reactionService.getReactions()
                 call.respond(reactions)
             }
 
             post("/reactions") {
                 val multipart = call.receiveMultipart()
-                var name: String? = null
-                var localizations: Map<Language, String>? = null
-                var icon: FileUploadData? = null
+                val name: String = call.request.queryParameters["name"].toString()
+                val icon: FileUploadData = multipart.toFileUploadDatas().first() // TODO method for one upload data
 
-                multipart.forEachPart { part ->
-                    when (part) {
-                        is PartData.FormItem -> {
-                            when (part.name) {
-                                "name" -> name = part.value
-                                "localizations" -> localizations = Json.decodeFromString<Map<Language, String>>(part.value)
-                            }
-                        }
-                        is PartData.FileItem -> {
-                            if (part.name == "icon") {
-                                val fileName = part.originalFileName ?: "icon"
-                                icon = FileUploadData(fileName, part.streamProvider())
-                            }
-                        }
-                        else -> {}
-                    }
-                    part.dispose()
-                }
-
-                if (name == null || localizations == null || icon == null) {
-                    call.respond(HttpStatusCode.BadRequest, "Missing required fields")
-                    return@post
-                }
-
-                val reaction = ReactionDto.Create(
-                    name = name!!,
-                    icon = icon!!,
-                    localizations = localizations!!
-                )
-                val createdReaction = postService.createReaction(userId, reaction)
+                val createdReaction = reactionService.createReaction(userId, name, icon)
                 call.respond(createdReaction)
             }
 
-            put("/reactions/{reactionId}") {
-                val multipart = call.receiveMultipart()
-                var id: UUID? = null
-                var name: String? = null
-                var localizations: Map<Language, String>? = null
-                var icon: FileUploadData? = null
-
-                multipart.forEachPart { part ->
-                    when (part) {
-                        is PartData.FormItem -> {
-                            when (part.name) {
-                                "id" -> id = UUID.fromString(part.value)
-                                "name" -> name = part.value
-                                "localizations" -> localizations = Json.decodeFromString<Map<Language, String>>(part.value)
-                            }
-                        }
-                        is PartData.FileItem -> {
-                            if (part.name == "icon") {
-                                val fileName = part.originalFileName ?: "icon"
-                                icon = FileUploadData(fileName, part.streamProvider())
-                            }
-                        }
-                        else -> {}
-                    }
-                    part.dispose()
-                }
-
-                if (id == null || name == null || localizations == null || icon == null) {
-                    call.respond(HttpStatusCode.BadRequest, "Missing required fields")
-                    return@put
-                }
-
-                val reaction = ReactionDto.Update(
-                    id = id!!,
-                    name = name!!,
-                    icon = icon!!,
-                    localizations = localizations!!
-                )
-                val updatedReaction = postService.updateReaction(userId, reaction)
-                call.respond(updatedReaction)
-            }
-
-            delete("/reactions/{reactionId}") {
-                val reactionId = UUID.fromString(call.parameters["reactionId"])
-                postService.deleteReaction(userId, reactionId)
+            delete("/reactions/{name}") {
+                val name = call.parameters["name"]!!
+                reactionService.deleteReaction(userId, name)
                 call.respondText("Reaction deleted successfully")
-            }
-
-            post("/reactions/{reactionId}/localizations") {
-                val localization = call.receive<ReactionDto.AddLocalization>()
-                postService.addReactionLocalization(userId, localization)
-                call.respondText("Localization added successfully")
             }
         }
 
@@ -214,7 +137,7 @@ fun Route.postRoutes(postService: PostService) {
                 val authorLogin = call.parameters["authorLogin"]!!
                 val uri = call.parameters["uri"]!!
                 val reactionId = UUID.fromString(call.parameters["reactionId"])
-                postService.addReaction(viewer, authorLogin, uri, reactionId)
+                reactionService.addReaction(viewer, authorLogin, uri, reactionId)
                 call.respondText("Reaction added successfully")
             }
 
@@ -222,7 +145,7 @@ fun Route.postRoutes(postService: PostService) {
                 val authorLogin = call.parameters["authorLogin"]!!
                 val uri = call.parameters["uri"]!!
                 val reactionId = UUID.fromString(call.parameters["reactionId"])
-                postService.removeReaction(viewer, authorLogin, uri, reactionId)
+                reactionService.removeReaction(viewer, authorLogin, uri, reactionId)
                 call.respondText("Reaction removed successfully")
             }
         }

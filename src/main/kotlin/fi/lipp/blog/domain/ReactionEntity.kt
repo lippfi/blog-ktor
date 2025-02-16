@@ -14,14 +14,6 @@ class ReactionEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var icon by FileEntity referencedOn Reactions.icon
 }
 
-class ReactionLocalizationEntity(id: EntityID<UUID>) : UUIDEntity(id) {
-    companion object : UUIDEntityClass<ReactionLocalizationEntity>(ReactionLocalizations)
-
-    var reaction by ReactionEntity referencedOn ReactionLocalizations.reaction
-    var language by ReactionLocalizations.language
-    var localizedName by ReactionLocalizations.localizedName
-}
-
 class PostReactionEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     companion object : UUIDEntityClass<PostReactionEntity>(PostReactions)
 

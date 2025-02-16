@@ -14,16 +14,7 @@ object Reactions : UUIDTable() {
 
     init {
         uniqueIndex("reactions_name_unique", name)
-    }
-}
-
-object ReactionLocalizations : UUIDTable() {
-    val reaction = reference("reaction", Reactions, onDelete = ReferenceOption.CASCADE)
-    val language = enumerationByName("language", 20, Language::class)
-    val localizedName = text("localized_name")
-
-    init {
-        uniqueIndex("reaction_localizations_unique", reaction, language)
+        check("reaction_name_pattern") { name.regexp("^[a-zA-Z][a-zA-Z0-9-]*$") }
     }
 }
 
