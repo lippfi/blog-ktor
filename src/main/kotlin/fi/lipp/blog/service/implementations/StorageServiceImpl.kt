@@ -11,7 +11,9 @@ import fi.lipp.blog.domain.UserUploadEntity
 import fi.lipp.blog.model.exceptions.DailyUploadLimitExceededException
 import fi.lipp.blog.model.exceptions.InternalServerError
 import fi.lipp.blog.model.exceptions.InvalidAvatarExtensionException
+import fi.lipp.blog.model.exceptions.InvalidAvatarDimensionsException
 import fi.lipp.blog.model.exceptions.InvalidReactionImageException
+import javax.imageio.ImageIO
 import fi.lipp.blog.repository.UserUploads
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
@@ -33,20 +35,21 @@ import java.util.UUID
 class StorageServiceImpl(private val properties: ApplicationProperties): StorageService {
     override fun store(userId: UUID, files: List<FileUploadData>): List<BlogFile> {
         val userLogin = getUserLogin(userId)
-        return store(userId, userLogin, files) {}
+        return store(userId, userLogin, files) { it }
     }
 
     override fun storeAvatars(userId: UUID, files: List<FileUploadData>): List<BlogFile> {
-        // TODO store as AVATAR type
         val userLogin = getUserLogin(userId)
         return store(userId, userLogin, files) { file ->
-           validateAvatar(file) 
+           validateAvatar(file)
         }
     }
 
     override fun storeReaction(userId: UUID, file: FileUploadData): BlogFile {
         val userLogin = getUserLogin(userId)
-        return store(userId, userLogin, listOf(file)) { validateReaction(it) }[0]
+        return store(userId, userLogin, listOf(file)) { file ->
+            file.apply { type = FileType.REACTION }
+        }[0]
     }
 
     private fun getUserLogin(userId: UUID): String {
@@ -55,10 +58,22 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
 
     // TODO safer avatar storing. Only the given extensions with size & dimensions limits
     private val allowedImageExtensions = setOf(".jpg", ".jpeg", ".png", ".gif")
-    private fun validateAvatar(file: FileUploadData) {
+    private fun validateAvatar(file: FileUploadData): FileUploadData {
         if (!allowedImageExtensions.contains(file.extension)) throw InvalidAvatarExtensionException()
-        // TODO dirty code
-        file.type = FileType.AVATAR
+
+        // Read the entire input stream into a byte array
+        val bytes = file.inputStream.readAllBytes()
+        val image = ImageIO.read(bytes.inputStream())
+
+        if (image.width != 100 || image.height != 100) {
+            throw InvalidAvatarDimensionsException()
+        }
+
+        // Create a new FileUploadData with a fresh InputStream from the bytes
+        return FileUploadData(
+            fullName = file.fullName,
+            inputStream = bytes.inputStream()
+        )
     }
 
     private fun validateReaction(file: FileUploadData) {
@@ -81,10 +96,12 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
         }
     }
 
-    private fun store(userId: UUID, userLogin: String, files: List<FileUploadData>, performChecks: (FileUploadData) -> Unit): List<BlogFile> {
-        val totalSize = files.sumOf { it.inputStream.available().toLong() }
+    private fun store(userId: UUID, userLogin: String, files: List<FileUploadData>, performChecks: (FileUploadData) -> FileUploadData): List<BlogFile> {
         val blogFiles = mutableListOf<BlogFile>()
         transaction {
+            val validatedFiles = files.map { performChecks(it) }
+            val totalSize = validatedFiles.sumOf { it.inputStream.available().toLong() }
+
             val currentUpload = getDailyUpload(userId)
             val userQuota = getUserQuota(userId)
             val dailyLimit = userQuota.getDailyLimitBytes(properties)
@@ -95,8 +112,8 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
                     throw DailyUploadLimitExceededException(dailyLimit, newTotal)
                 }
             }
-            files.forEach { file ->
-                performChecks(file)
+
+            validatedFiles.forEach { file ->
                 val uuid = Files.insertAndGetId {
                     it[owner] = userId
                     it[extension] = file.extension

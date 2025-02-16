@@ -20,6 +20,7 @@ import org.mockito.kotlin.eq
 import java.io.File
 import java.util.*
 import kotlin.test.*
+import javax.imageio.ImageIO
 
 // TODO start Koin
 class UserServiceTests : UnitTestBase() {
@@ -183,7 +184,7 @@ class UserServiceTests : UnitTestBase() {
             rollback()
         }
     }
-    
+
     @Test
     fun `updating user info`() {
         transaction {
@@ -422,6 +423,38 @@ class UserServiceTests : UnitTestBase() {
             assertEquals(avatar1, avatars[0])
             assertEquals(avatar2, avatars[1])
             assertEquals(avatar3, avatars[2])
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `adding avatar with wrong dimensions`() {
+        transaction {
+            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
+            // Modify the image dimensions by wrapping it in a new FileUploadData
+            val modifiedInputStream = avatarFile1.inputStream().use { input ->
+                val originalImage = ImageIO.read(input)
+                val resizedImage = java.awt.image.BufferedImage(200, 200, originalImage.type)
+                val g = resizedImage.createGraphics()
+                g.drawImage(originalImage, 0, 0, 200, 200, null)
+                g.dispose()
+
+                val outputStream = java.io.ByteArrayOutputStream()
+                ImageIO.write(resizedImage, "png", outputStream)
+                java.io.ByteArrayInputStream(outputStream.toByteArray())
+            }
+            val wrongSizeUpload = FileUploadData(avatarFile1.name, modifiedInputStream)
+
+            userService.signUp(testUser, "")
+            val foundUser = findUserByLogin(testUser.login)!!
+            val userId = foundUser.id
+
+            assertThrows(InvalidAvatarDimensionsException::class.java) {
+                userService.addAvatar(userId, listOf(wrongSizeUpload))
+            }
+            val avatars = userService.getAvatars(userId)
+            assertEquals(0, avatars.size)
 
             rollback()
         }
