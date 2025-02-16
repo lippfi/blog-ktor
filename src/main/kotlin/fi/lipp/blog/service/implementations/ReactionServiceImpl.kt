@@ -158,17 +158,10 @@ class ReactionServiceImpl(
         }
     }
 
-    override fun addCommentReaction(viewer: Viewer, diaryLogin: String, uri: String, commentId: UUID, reactionId: UUID) {
+    override fun addCommentReaction(viewer: Viewer, commentId: UUID, reactionId: UUID) {
         val userId = (viewer as? Viewer.Registered)?.userId
         transaction {
-            val diaryEntity = findDiaryByLogin(diaryLogin)
-            val postEntity = PostEntity.find { (Posts.diary eq diaryEntity.id) and (Posts.uri eq uri) and (Posts.isArchived eq false) }.firstOrNull() ?: throw PostNotFoundException()
             val commentEntity = CommentEntity.findById(commentId) ?: throw CommentNotFoundException()
-
-            // Verify comment belongs to the post
-            if (commentEntity.postId.value != postEntity.id.value) {
-                throw CommentNotFoundException()
-            }
 
             // Check reaction permissions
             if (commentEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, commentEntity.reactionGroupId.value)) {
@@ -208,17 +201,10 @@ class ReactionServiceImpl(
         }
     }
 
-    override fun removeCommentReaction(viewer: Viewer, diaryLogin: String, uri: String, commentId: UUID, reactionId: UUID) {
+    override fun removeCommentReaction(viewer: Viewer, commentId: UUID, reactionId: UUID) {
         val userId = (viewer as? Viewer.Registered)?.userId
         transaction {
-            val diaryEntity = findDiaryByLogin(diaryLogin)
-            val postEntity = PostEntity.find { (Posts.diary eq diaryEntity.id) and (Posts.uri eq uri) and (Posts.isArchived eq false) }.firstOrNull() ?: throw PostNotFoundException()
             val commentEntity = CommentEntity.findById(commentId) ?: throw CommentNotFoundException()
-
-            // Verify comment belongs to the post
-            if (commentEntity.postId.value != postEntity.id.value) {
-                throw CommentNotFoundException()
-            }
 
             // Check reaction permissions
             if (commentEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, commentEntity.reactionGroupId.value)) {

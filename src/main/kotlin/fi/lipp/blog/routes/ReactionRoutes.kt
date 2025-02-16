@@ -77,29 +77,25 @@ fun Route.reactionRoutes(reactionService: ReactionService) {
         }
 
         // Comment reactions
-        post("/{diaryLogin}/{uri}/comments/{commentId}/{reactionId}") {
-            val diaryLogin = call.parameters["diaryLogin"] ?: throw IllegalArgumentException("Missing diaryLogin parameter")
-            val uri = call.parameters["uri"] ?: throw IllegalArgumentException("Missing uri parameter")
+        post("/comments/{commentId}/{reactionId}") {
             val commentId = call.parameters["commentId"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing commentId parameter")
             val reactionId = call.parameters["reactionId"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing reactionId parameter")
 
             val viewer = call.principal<JWTPrincipal>()?.let { Viewer.Registered(userId) }
                 ?: Viewer.Anonymous(call.request.origin.remoteHost, call.request.headers["User-Agent"] ?: "unknown")
 
-            reactionService.addCommentReaction(viewer, diaryLogin, uri, commentId, reactionId)
+            reactionService.addCommentReaction(viewer, commentId, reactionId)
             call.respondText("Comment reaction added successfully")
         }
 
-        delete("/{diaryLogin}/{uri}/comments/{commentId}/{reactionId}") {
-            val diaryLogin = call.parameters["diaryLogin"] ?: throw IllegalArgumentException("Missing diaryLogin parameter")
-            val uri = call.parameters["uri"] ?: throw IllegalArgumentException("Missing uri parameter")
+        delete("/comments/{commentId}/{reactionId}") {
             val commentId = call.parameters["commentId"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing commentId parameter")
             val reactionId = call.parameters["reactionId"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing reactionId parameter")
 
             val viewer = call.principal<JWTPrincipal>()?.let { Viewer.Registered(userId) }
                 ?: Viewer.Anonymous(call.request.origin.remoteHost, call.request.headers["User-Agent"] ?: "unknown")
 
-            reactionService.removeCommentReaction(viewer, diaryLogin, uri, commentId, reactionId)
+            reactionService.removeCommentReaction(viewer, commentId, reactionId)
             call.respondText("Comment reaction removed successfully")
         }
 

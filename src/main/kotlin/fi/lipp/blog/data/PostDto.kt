@@ -41,6 +41,8 @@ sealed interface PostDto {
         val commentGroupId: UUID,
         @Serializable(with = UUIDSerializer::class)
         val reactionGroupId: UUID,
+        @Serializable(with = UUIDSerializer::class)
+        val commentReactionGroupId: UUID,
     ) : PostDto
 
     @Serializable
@@ -57,6 +59,8 @@ sealed interface PostDto {
         val commentGroupId: UUID,
         @Serializable(with = UUIDSerializer::class)
         val reactionGroupId: UUID,
+        @Serializable(with = UUIDSerializer::class)
+        val commentReactionGroupId: UUID,
 
         var tags : Set<String>,
         val classes : String,
@@ -81,6 +85,8 @@ sealed interface PostDto {
         val commentGroupId: UUID,
         @Serializable(with = UUIDSerializer::class)
         val reactionGroupId: UUID,
+        @Serializable(with = UUIDSerializer::class)
+        val commentReactionGroupId: UUID,
 
         var tags : Set<String>,
         val classes : String,

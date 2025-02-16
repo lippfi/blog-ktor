@@ -16,7 +16,7 @@ interface ReactionService {
     fun removeReaction(viewer: Viewer, diaryLogin: String, uri: String, reactionId: UUID)
 
     // Comment reactions
-    fun addCommentReaction(viewer: Viewer, diaryLogin: String, uri: String, commentId: UUID, reactionId: UUID)
-    fun removeCommentReaction(viewer: Viewer, diaryLogin: String, uri: String, commentId: UUID, reactionId: UUID)
+    fun addCommentReaction(viewer: Viewer, commentId: UUID, reactionId: UUID)
+    fun removeCommentReaction(viewer: Viewer, commentId: UUID, reactionId: UUID)
     fun getCommentReactions(commentId: UUID): List<ReactionDto.ReactionInfo>
 }

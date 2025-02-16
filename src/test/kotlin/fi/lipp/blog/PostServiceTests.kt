@@ -800,6 +800,7 @@ class PostServiceTests : UnitTestBase() {
         readGroup: UUID = groupService.everyoneGroupUUID,
         commentGroup: UUID = groupService.everyoneGroupUUID,
         reactionGroup: UUID = groupService.everyoneGroupUUID,
+        commentReactionGroup: UUID = reactionGroup,
     ): PostDto.Create {
         return PostDto.Create(
             uri  = uri,
@@ -813,6 +814,7 @@ class PostServiceTests : UnitTestBase() {
             readGroupId = readGroup,
             commentGroupId = commentGroup,
             reactionGroupId = reactionGroup,
+            commentReactionGroupId = commentReactionGroup,
         )
     }
 
@@ -828,6 +830,7 @@ class PostServiceTests : UnitTestBase() {
         readGroup: UUID = groupService.everyoneGroupUUID,
         commentGroup: UUID = groupService.everyoneGroupUUID,
         reactionGroup: UUID = groupService.everyoneGroupUUID,
+        commentReactionGroup: UUID = reactionGroup,
     ): PostDto.Update {
         return PostDto.Update(
             id = id,
@@ -841,6 +844,7 @@ class PostServiceTests : UnitTestBase() {
             readGroupId = readGroup,
             commentGroupId = commentGroup,
             reactionGroupId = reactionGroup,
+            commentReactionGroupId = commentReactionGroup,
         )
     }
 }

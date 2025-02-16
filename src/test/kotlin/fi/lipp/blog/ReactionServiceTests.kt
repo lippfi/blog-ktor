@@ -47,6 +47,7 @@ class ReactionServiceTests : UnitTestBase() {
                 readGroupId = groupId,
                 commentGroupId = groupId,
                 reactionGroupId = groupId,
+                commentReactionGroupId = groupId,
                 isPreface = false,
                 isEncrypted = false,
                 classes = "",
