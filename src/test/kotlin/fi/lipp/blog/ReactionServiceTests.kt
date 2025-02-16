@@ -263,6 +263,47 @@ class ReactionServiceTests : UnitTestBase() {
     }
 
     @Test
+    fun `test post reaction information`() {
+        // Create test users
+        val inviteCode = userService.generateInviteCode(testUser.id)
+        userService.signUp(testUser2, inviteCode)
+        val user2 = findUserByLogin(testUser2.login)!!
+
+        // Create a reaction
+        val reaction = reactionService.createReaction(
+            testUser.id,
+            "like",
+            FileUploadData(
+                fullName = "reaction.png",
+                inputStream = avatarFile1.inputStream()
+            )
+        )
+
+        // Create a post
+        val post = createTestPost(testUser.id)
+
+        // Add reactions from different users
+        reactionService.addReaction(Viewer.Registered(testUser.id), testUser.login, post.uri, reaction.id)
+        reactionService.addReaction(Viewer.Registered(user2.id), testUser.login, post.uri, reaction.id)
+        reactionService.addReaction(Viewer.Anonymous("127.0.0.1", "test1"), testUser.login, post.uri, reaction.id)
+        reactionService.addReaction(Viewer.Anonymous("127.0.0.2", "test2"), testUser.login, post.uri, reaction.id)
+
+        // Get post and verify reaction information
+        val updatedPost = postService.getPost(Viewer.Registered(testUser.id), testUser.login, post.uri)
+        assertEquals(1, updatedPost.reactions.size)
+
+        val reactionInfo = updatedPost.reactions[0]
+        assertEquals(reaction.id, reactionInfo.reactionId)
+        assertEquals(reaction.name, reactionInfo.name)
+        assertEquals(reaction.iconUri, reactionInfo.iconUri)
+        assertEquals(4, reactionInfo.count)
+        assertEquals(2, reactionInfo.anonymousCount)
+        assertEquals(2, reactionInfo.userLogins.size)
+        assertTrue(reactionInfo.userLogins.contains(testUser.login))
+        assertTrue(reactionInfo.userLogins.contains(testUser2.login))
+    }
+
+    @Test
     fun `test search reactions by name`() {
         // Create test reactions
         val testReactions = listOf(

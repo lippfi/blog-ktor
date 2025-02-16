@@ -435,6 +435,7 @@ class PostServiceImpl(
             commentGroupId = postEntity.commentGroupId.value,
             reactionGroupId = postEntity.reactionGroupId.value,
             isReactable = isReactable,
+            reactions = collectReactionInfo(postEntity.id.value),
         )
     }
 
@@ -468,6 +469,7 @@ class PostServiceImpl(
             commentGroupId = row[Posts.commentGroup].value,
             reactionGroupId = row[Posts.reactionGroup].value,
             isReactable = (userId == row[Users.id].value) || (accessGroupService.inGroup(viewer, row[Posts.reactionGroup].value)),
+            reactions = collectReactionInfo(row[Posts.id].value),
         )
     }
 
@@ -520,6 +522,56 @@ class PostServiceImpl(
     private fun Transaction.getCommentsForPost(postId: UUID): List<CommentDto.View> {
         return CommentEntity.find { Comments.post eq postId }.orderBy(Comments.creationTime to SortOrder.ASC).map { it.toComment(this) }
     }
+
+    private fun Transaction.collectReactionInfo(postId: UUID): List<PostDto.ReactionInfo> {
+        // Get reactions with their files
+        val reactionData = (PostReactions innerJoin Reactions innerJoin Files)
+            .slice(Reactions.id, Reactions.name, Files.id)
+            .select { PostReactions.post eq postId }
+            .map { row ->
+                Triple(
+                    row[Reactions.id].value,
+                    row[Reactions.name],
+                    row[Files.id].value
+                )
+            }.distinct()
+
+        // Get user logins for each reaction
+        val reactionUsers = mutableMapOf<UUID, MutableList<String>>()
+        reactionData.forEach { (reactionId, _, _) ->
+            val userLogins = (PostReactions innerJoin Users innerJoin Diaries)
+                .slice(Diaries.login)
+                .select { (PostReactions.post eq postId) and (PostReactions.reaction eq reactionId) }
+                .map { it[Diaries.login] }
+                .distinct()
+            reactionUsers[reactionId] = userLogins.toMutableList()
+        }
+
+        // Get anonymous reactions count
+        val anonymousCounts = mutableMapOf<UUID, Int>()
+        reactionData.forEach { (reactionId, _, _) ->
+            val count = AnonymousPostReactions
+                .select { (AnonymousPostReactions.post eq postId) and (AnonymousPostReactions.reaction eq reactionId) }
+                .count()
+            anonymousCounts[reactionId] = count.toInt()
+        }
+
+        // Create ReactionInfo objects
+        return reactionData.map { (reactionId, name, fileId) ->
+            val userLogins = reactionUsers[reactionId] ?: emptyList()
+            val anonymousCount = anonymousCounts[reactionId] ?: 0
+
+            PostDto.ReactionInfo(
+                reactionId = reactionId,
+                name = name,
+                iconUri = storageService.getFileURL(FileEntity.findById(fileId)!!.toBlogFile()),
+                count = userLogins.size + anonymousCount,
+                userLogins = userLogins,
+                anonymousCount = anonymousCount
+            )
+        }
+    }
+
 
     @Suppress("UNUSED_PARAMETER")
     private fun CommentEntity.toComment(transaction: Transaction): CommentDto.View {

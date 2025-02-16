@@ -7,6 +7,17 @@ import java.util.UUID
 
 sealed interface PostDto {
     @Serializable
+    data class ReactionInfo(
+        @Serializable(with = UUIDSerializer::class)
+        val reactionId: UUID,
+        val name: String,
+        val iconUri: String,
+        val count: Int,
+        val userLogins: List<String>,
+        val anonymousCount: Int
+    )
+
+    @Serializable
     data class View(
         @Serializable(with = UUIDSerializer::class)
         val id: UUID,
@@ -30,6 +41,7 @@ sealed interface PostDto {
         val isDislikedByMe: Boolean,
 
         val isReactable: Boolean,
+        val reactions: List<ReactionInfo>,
         val isCommentable: Boolean,
         val comments: List<CommentDto.View>,
 
