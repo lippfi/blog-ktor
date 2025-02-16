@@ -49,7 +49,7 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
     override fun storeReaction(userId: UUID, file: FileUploadData): BlogFile {
         val userLogin = getUserLogin(userId)
         return store(userId, userLogin, listOf(file)) { file ->
-            file.apply { type = FileType.REACTION }
+            validateReaction(file)
         }[0]
     }
 
@@ -58,7 +58,7 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
     }
 
     // TODO safer avatar storing. Only the given extensions with size & dimensions limits
-    private val allowedImageExtensions = setOf(".jpg", ".jpeg", ".png", ".gif")
+    private val allowedImageExtensions = setOf(".jpg", ".jpeg", ".png", ".gif", ".svg")
     private fun validateAvatar(file: FileUploadData): FileUploadData {
         if (!allowedImageExtensions.contains(file.extension)) throw InvalidAvatarExtensionException()
 
@@ -83,9 +83,31 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
         )
     }
 
-    private fun validateReaction(file: FileUploadData) {
+    private fun validateReaction(file: FileUploadData): FileUploadData {
         if (!allowedImageExtensions.contains(file.extension)) throw InvalidReactionImageException()
-        file.type = FileType.REACTION
+
+        // Read the entire input stream into a byte array
+        val bytes = file.inputStream.readAllBytes()
+
+        // Check if file size is less than 512KB
+        if (bytes.size > 512 * 1024) {
+            throw InvalidReactionImageException()
+        }
+
+        val image = ImageIO.read(bytes.inputStream())
+
+        // Check if image is square and dimensions are <= 100x100
+        if (image.width != image.height || image.width > 100) {
+            throw InvalidReactionImageException()
+        }
+
+        // Create a new FileUploadData with a fresh InputStream from the bytes
+        return FileUploadData(
+            fullName = file.fullName,
+            inputStream = bytes.inputStream()
+        ).apply { 
+            type = FileType.REACTION 
+        }
     }
 
     override fun getFile(file: BlogFile): File {
