@@ -3,12 +3,13 @@ package fi.lipp.blog.data
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 import java.util.UUID
+import fi.lipp.blog.data.FileUploadData
 
 sealed interface ReactionDto {
     @Serializable
     data class Create(
         val name: String,
-        @Contextual val iconId: UUID,
+        @Contextual val icon: FileUploadData,
         val localizations: Map<Language, String>
     ) : ReactionDto
 
@@ -16,7 +17,7 @@ sealed interface ReactionDto {
     data class Update(
         @Contextual val id: UUID,
         val name: String,
-        @Contextual val iconId: UUID,
+        @Contextual val icon: FileUploadData,
         val localizations: Map<Language, String>
     ) : ReactionDto
 

@@ -32,11 +32,9 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
         }
     }
 
-    override fun storeReactions(userId: UUID, files: List<FileUploadData>): List<BlogFile> {
+    override fun storeReaction(userId: UUID, file: FileUploadData): BlogFile {
         val userLogin = getUserLogin(userId)
-        return store(userId, userLogin, files) { file ->
-            validateReaction(file)
-        }
+        return store(userId, userLogin, listOf(file)) { validateReaction(it) }[0]
     }
 
     private fun getUserLogin(userId: UUID): String {

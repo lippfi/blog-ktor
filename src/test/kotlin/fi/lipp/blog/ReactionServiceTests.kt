@@ -51,7 +51,10 @@ class ReactionServiceTests : UnitTestBase() {
     fun `test create reaction`() {
         val reaction = ReactionDto.Create(
             name = "like",
-            iconId = testFile.id,
+            icon = FileUploadData(
+                fullName = "reaction.png",
+                inputStream = avatarFile1.inputStream()
+            ),
             localizations = mapOf(
                 Language.EN to "Like",
                 Language.RU to "Нравится"
@@ -61,7 +64,6 @@ class ReactionServiceTests : UnitTestBase() {
         val created = postService.createReaction(testUser.id, reaction)
         assertNotNull(created)
         assertEquals(reaction.name, created.name)
-        assertEquals("http://example.com/icon.png", created.iconUri)
         assertEquals(reaction.localizations, created.localizations)
     }
 
@@ -69,7 +71,10 @@ class ReactionServiceTests : UnitTestBase() {
     fun `test update reaction`() {
         val create = ReactionDto.Create(
             name = "like",
-            iconId = testFile.id,
+            icon = FileUploadData(
+                fullName = "reaction.png",
+                inputStream = avatarFile1.inputStream()
+            ),
             localizations = mapOf(Language.EN to "Like")
         )
 
@@ -78,7 +83,10 @@ class ReactionServiceTests : UnitTestBase() {
         val update = ReactionDto.Update(
             id = created.id,
             name = "super-like",
-            iconId = testFile.id,
+            icon = FileUploadData(
+                fullName = "reaction2.png",
+                inputStream = avatarFile2.inputStream()
+            ),
             localizations = mapOf(
                 Language.EN to "Super Like",
                 Language.RU to "Супер"
@@ -94,7 +102,10 @@ class ReactionServiceTests : UnitTestBase() {
     fun `test delete reaction`() {
         val reaction = ReactionDto.Create(
             name = "like",
-            iconId = testFile.id,
+            icon = FileUploadData(
+                fullName = "reaction.png",
+                inputStream = avatarFile1.inputStream()
+            ),
             localizations = mapOf(Language.EN to "Like")
         )
 
@@ -105,7 +116,10 @@ class ReactionServiceTests : UnitTestBase() {
             postService.updateReaction(testUser.id, ReactionDto.Update(
                 id = created.id,
                 name = "new-name",
-                iconId = testFile.id,
+                icon = FileUploadData(
+                    fullName = "reaction2.png",
+                    inputStream = avatarFile2.inputStream()
+                ),
                 localizations = mapOf()
             ))
         }
@@ -115,7 +129,10 @@ class ReactionServiceTests : UnitTestBase() {
     fun `test add reaction to post`() {
         val reaction = postService.createReaction(testUser.id, ReactionDto.Create(
             name = "like",
-            iconId = testFile.id,
+            icon = FileUploadData(
+                fullName = "reaction.png",
+                inputStream = avatarFile1.inputStream()
+            ),
             localizations = mapOf(Language.EN to "Like")
         ))
 
@@ -131,7 +148,10 @@ class ReactionServiceTests : UnitTestBase() {
     fun `test remove reaction from post`() {
         val reaction = postService.createReaction(testUser.id, ReactionDto.Create(
             name = "like",
-            iconId = testFile.id,
+            icon = FileUploadData(
+                fullName = "reaction.png",
+                inputStream = avatarFile1.inputStream()
+            ),
             localizations = mapOf(Language.EN to "Like")
         ))
 
@@ -148,7 +168,10 @@ class ReactionServiceTests : UnitTestBase() {
     fun `test anonymous reactions`() {
         val reaction = postService.createReaction(testUser.id, ReactionDto.Create(
             name = "like",
-            iconId = testFile.id,
+            icon = FileUploadData(
+                fullName = "reaction.png",
+                inputStream = avatarFile1.inputStream()
+            ),
             localizations = mapOf(Language.EN to "Like")
         ))
 

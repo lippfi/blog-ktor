@@ -346,30 +346,33 @@ class PostServiceImpl(
     }
 
     override fun createReaction(userId: UUID, reaction: ReactionDto.Create): ReactionDto.View {
+        // Store the icon file first
+        val reaction = storageService.storeReaction(userId, reaction.icon)
+
         return transaction {
-            val iconFile = FileEntity.findById(reaction.iconId) ?: throw FileNotFoundException()
+            // Get the file entity
+            val iconFile = FileEntity.findById(reaction.id) ?: throw FileNotFoundException()
 
             val reactionEntity = ReactionEntity.new {
                 name = reaction.name
                 icon = iconFile
             }
-
-            reaction.localizations.forEach { (language, localizedName) ->
-                ReactionLocalizationEntity.new {
-                    this.reaction = reactionEntity
-                    this.language = language
-                    this.localizedName = localizedName
-                }
-            }
-
             toReactionView(reactionEntity)
         }
     }
 
     override fun updateReaction(userId: UUID, reaction: ReactionDto.Update): ReactionDto.View {
+        // Store the new icon file
+        val storedFile = storageService.storeReaction(userId, reaction.icon)
+
         return transaction {
             val reactionEntity = ReactionEntity.findById(reaction.id) ?: throw ReactionNotFoundException()
-            val iconFile = FileEntity.findById(reaction.iconId) ?: throw FileNotFoundException()
+
+            // Get the old icon file ID for cleanup
+            val oldIconId = reactionEntity.icon.id.value
+
+            // Get the file entity
+            val iconFile = FileEntity.findById(storedFile.id) ?: throw FileNotFoundException()
 
             reactionEntity.name = reaction.name
             reactionEntity.icon = iconFile
@@ -385,6 +388,8 @@ class PostServiceImpl(
                     this.localizedName = localizedName
                 }
             }
+
+            Files.deleteWhere { Files.id eq oldIconId }
 
             toReactionView(reactionEntity)
         }

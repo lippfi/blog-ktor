@@ -1,8 +1,8 @@
 package fi.lipp.blog.routes
 
-import fi.lipp.blog.data.CommentDto
-import fi.lipp.blog.data.PostDto
-import fi.lipp.blog.data.ReactionDto
+import fi.lipp.blog.data.*
+import io.ktor.http.content.*
+import kotlinx.serialization.json.Json
 import fi.lipp.blog.model.Pageable
 import fi.lipp.blog.model.TagPolicy
 import fi.lipp.blog.plugins.userId
@@ -115,13 +115,82 @@ fun Route.postRoutes(postService: PostService) {
             }
 
             post("/reactions") {
-                val reaction = call.receive<ReactionDto.Create>()
+                val multipart = call.receiveMultipart()
+                var name: String? = null
+                var localizations: Map<Language, String>? = null
+                var icon: FileUploadData? = null
+
+                multipart.forEachPart { part ->
+                    when (part) {
+                        is PartData.FormItem -> {
+                            when (part.name) {
+                                "name" -> name = part.value
+                                "localizations" -> localizations = Json.decodeFromString<Map<Language, String>>(part.value)
+                            }
+                        }
+                        is PartData.FileItem -> {
+                            if (part.name == "icon") {
+                                val fileName = part.originalFileName ?: "icon"
+                                icon = FileUploadData(fileName, part.streamProvider())
+                            }
+                        }
+                        else -> {}
+                    }
+                    part.dispose()
+                }
+
+                if (name == null || localizations == null || icon == null) {
+                    call.respond(HttpStatusCode.BadRequest, "Missing required fields")
+                    return@post
+                }
+
+                val reaction = ReactionDto.Create(
+                    name = name!!,
+                    icon = icon!!,
+                    localizations = localizations!!
+                )
                 val createdReaction = postService.createReaction(userId, reaction)
                 call.respond(createdReaction)
             }
 
             put("/reactions/{reactionId}") {
-                val reaction = call.receive<ReactionDto.Update>()
+                val multipart = call.receiveMultipart()
+                var id: UUID? = null
+                var name: String? = null
+                var localizations: Map<Language, String>? = null
+                var icon: FileUploadData? = null
+
+                multipart.forEachPart { part ->
+                    when (part) {
+                        is PartData.FormItem -> {
+                            when (part.name) {
+                                "id" -> id = UUID.fromString(part.value)
+                                "name" -> name = part.value
+                                "localizations" -> localizations = Json.decodeFromString<Map<Language, String>>(part.value)
+                            }
+                        }
+                        is PartData.FileItem -> {
+                            if (part.name == "icon") {
+                                val fileName = part.originalFileName ?: "icon"
+                                icon = FileUploadData(fileName, part.streamProvider())
+                            }
+                        }
+                        else -> {}
+                    }
+                    part.dispose()
+                }
+
+                if (id == null || name == null || localizations == null || icon == null) {
+                    call.respond(HttpStatusCode.BadRequest, "Missing required fields")
+                    return@put
+                }
+
+                val reaction = ReactionDto.Update(
+                    id = id!!,
+                    name = name!!,
+                    icon = icon!!,
+                    localizations = localizations!!
+                )
                 val updatedReaction = postService.updateReaction(userId, reaction)
                 call.respond(updatedReaction)
             }
