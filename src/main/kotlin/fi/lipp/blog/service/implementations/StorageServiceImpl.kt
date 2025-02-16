@@ -157,13 +157,24 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
         return blogFiles
     }
 
+    private fun ensureDirectoryExists(path: Path) {
+        val directory = path.toFile()
+        if (!directory.exists()) {
+            if (!directory.mkdirs()) {
+                throw InternalServerError()
+            }
+        } else if (!directory.isDirectory) {
+            throw InternalServerError()
+        }
+    }
+
     private fun createFile(userId: UUID, userLogin: String, uuid: UUID, fileUploadData: FileUploadData): BlogFile {
         val path = getSavingPath(userLogin, fileUploadData.type)
         val fileName = uuid.toString() + fileUploadData.extension
 
-        File(path.toString()).mkdirs()
+        ensureDirectoryExists(path)
 
-        val file = File("$path/$fileName")
+        val file = path.resolve(fileName).toFile()
         fileUploadData.inputStream.use { input ->
             file.outputStream().use { output ->
                 input.copyTo(output)

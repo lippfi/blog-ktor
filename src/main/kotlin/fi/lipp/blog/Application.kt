@@ -18,7 +18,6 @@ import org.koin.logger.slf4jLogger
 // TODO Cors
 
 // SECOND ITERATION
-// Create dirs when store file
 // Clear dirs after running tests
 // Friends
 // Communities
