@@ -9,16 +9,32 @@ import fi.lipp.blog.service.AccessGroupService
 import fi.lipp.blog.service.ReactionService
 import fi.lipp.blog.service.StorageService
 import fi.lipp.blog.service.Viewer
+import io.ktor.server.config.ApplicationConfig
 import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.FileNotFoundException
 import java.util.UUID
 
 class ReactionServiceImpl(
     private val storageService: StorageService,
-    private val accessGroupService: AccessGroupService
+    private val accessGroupService: AccessGroupService,
+    private val config: ApplicationConfig
 ) : ReactionService {
+    private val configuredBasicNames by lazy {
+        config.property("reactions.basic").getList()
+    }
+
+    private val cachedBasicReactions by lazy {
+        transaction {
+            configuredBasicNames.mapNotNull { name ->
+                ReactionEntity.find { Reactions.name eq name }.firstOrNull()?.let { toReactionView(it) }
+            }
+        }
+    }
+
+    override fun getBasicReactions(): List<ReactionDto.View> {
+        return cachedBasicReactions
+    }
     override fun createReaction(userId: UUID, name: String, icon: FileUploadData): ReactionDto.View {
         // Validate reaction name
         ReactionDto.validateName(name)

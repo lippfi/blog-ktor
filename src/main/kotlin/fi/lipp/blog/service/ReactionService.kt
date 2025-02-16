@@ -8,6 +8,7 @@ interface ReactionService {
     fun createReaction(userId: UUID, name: String, icon: FileUploadData): ReactionDto.View
     fun deleteReaction(userId: UUID, name: String)
     fun getReactions(): List<ReactionDto.View>
+    fun getBasicReactions(): List<ReactionDto.View>
     fun searchReactionsByName(namePattern: String): List<ReactionDto.View>
     fun getUserRecentReactions(userId: UUID, limit: Int = 50): List<ReactionDto.View>
 

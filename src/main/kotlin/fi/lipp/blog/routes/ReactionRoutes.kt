@@ -20,6 +20,11 @@ fun Route.reactionRoutes(reactionService: ReactionService) {
             call.respond(reactions)
         }
 
+        get("/basic") {
+            val reactions = reactionService.getBasicReactions()
+            call.respond(reactions)
+        }
+
         get("/search") {
             val pattern = call.request.queryParameters["pattern"] ?: ""
             val reactions = reactionService.searchReactionsByName(pattern)

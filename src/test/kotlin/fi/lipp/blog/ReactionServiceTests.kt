@@ -7,6 +7,8 @@ import fi.lipp.blog.service.ReactionService
 import fi.lipp.blog.service.Viewer
 import fi.lipp.blog.service.implementations.PostServiceImpl
 import fi.lipp.blog.service.implementations.ReactionServiceImpl
+import io.ktor.server.config.ApplicationConfig
+import io.ktor.server.config.MapApplicationConfig
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.UUID
 import kotlin.test.*
@@ -28,7 +30,10 @@ class ReactionServiceTests : UnitTestBase() {
                 fullName = "reaction.png",
                 inputStream = avatarFile1.inputStream()
             ))
-            reactionService = ReactionServiceImpl(storageService, groupService)
+            val config = MapApplicationConfig().apply {
+                put("reactions.basic", "like,love,haha,wow,sad,angry")
+            }
+            reactionService = ReactionServiceImpl(storageService, groupService, config)
             postService = PostServiceImpl(groupService, storageService, reactionService)
         }
     }
@@ -382,5 +387,46 @@ class ReactionServiceTests : UnitTestBase() {
         assertEquals(2, limitedReactions.size)
         assertEquals(createdReactions[1].id, limitedReactions[0].id)
         assertEquals(createdReactions[2].id, limitedReactions[1].id)
+    }
+
+    @Test
+    fun `test get basic reactions`() {
+        // Create all basic reactions
+        val expectedBasicReactions = listOf("like", "love", "haha", "wow", "sad", "angry")
+        expectedBasicReactions.forEach { name ->
+            reactionService.createReaction(
+                testUser.id,
+                name,
+                FileUploadData(
+                    fullName = "reaction.png",
+                    inputStream = avatarFile1.inputStream()
+                )
+            )
+        }
+
+        // Create a non-basic reaction
+        reactionService.createReaction(
+            testUser.id,
+            "custom",
+            FileUploadData(
+                fullName = "reaction.png",
+                inputStream = avatarFile1.inputStream()
+            )
+        )
+
+        // Get basic reactions and verify
+        val basicReactionsList = reactionService.getBasicReactions()
+        assertEquals(expectedBasicReactions.size, basicReactionsList.size)
+        basicReactionsList.forEach { reaction ->
+            assertTrue(expectedBasicReactions.contains(reaction.name))
+        }
+
+        // Verify caching by getting reactions again
+        val cachedReactions = reactionService.getBasicReactions()
+        assertEquals(basicReactionsList, cachedReactions)
+
+        transaction {
+            rollback()
+        }
     }
 }
