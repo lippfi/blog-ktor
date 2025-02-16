@@ -2,6 +2,7 @@ package fi.lipp.blog
 
 import fi.lipp.blog.data.*
 import fi.lipp.blog.model.exceptions.*
+import fi.lipp.blog.service.NotificationService
 import fi.lipp.blog.service.PostService
 import fi.lipp.blog.service.ReactionService
 import fi.lipp.blog.service.Viewer
@@ -10,6 +11,7 @@ import fi.lipp.blog.service.implementations.ReactionServiceImpl
 import io.ktor.server.config.ApplicationConfig
 import io.ktor.server.config.MapApplicationConfig
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.mockito.kotlin.mock
 import java.util.UUID
 import kotlin.test.*
 
@@ -19,6 +21,7 @@ class ReactionServiceTests : UnitTestBase() {
     private lateinit var testFile: BlogFile
     private lateinit var postService: PostService
     private lateinit var reactionService: ReactionService
+    private val notificationService = mock<NotificationService>()
 
     @BeforeTest
     fun setUp() {
@@ -39,8 +42,8 @@ class ReactionServiceTests : UnitTestBase() {
                 put("reactions.basic.4", "sad")
                 put("reactions.basic.5", "angry")
             }
-            reactionService = ReactionServiceImpl(storageService, groupService, config)
-            postService = PostServiceImpl(groupService, storageService, reactionService)
+            reactionService = ReactionServiceImpl(storageService, groupService, notificationService, config)
+            postService = PostServiceImpl(groupService, storageService, reactionService, notificationService)
         }
     }
 

@@ -12,7 +12,7 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.*
 
-class NotificationServiceImpl() : NotificationService {
+class NotificationServiceImpl : NotificationService {
 
     override fun getNotifications(userId: UUID): List<NotificationDto> = transaction {
         Notifications

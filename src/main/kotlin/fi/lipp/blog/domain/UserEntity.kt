@@ -2,8 +2,8 @@ package fi.lipp.blog.domain
 
 import fi.lipp.blog.data.Language
 import fi.lipp.blog.data.NSFWPolicy
-import fi.lipp.blog.data.NotificationSettings
 import fi.lipp.blog.data.Sex
+import fi.lipp.blog.data.StorageQuota
 import fi.lipp.blog.repository.Users
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
@@ -33,4 +33,5 @@ class UserEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var notifyAboutCommentReactions: Boolean by Users.notifyAboutCommentReactions
     var notifyAboutPrivateMessages: Boolean by Users.notifyAboutPrivateMessages
     var notifyAboutMentions: Boolean by Users.notifyAboutMentions
+    var storageQuota: StorageQuota by Users.storageQuota
 }

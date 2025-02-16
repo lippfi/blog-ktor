@@ -4,7 +4,22 @@ import fi.lipp.blog.data.Language
 import fi.lipp.blog.data.UserDto
 import fi.lipp.blog.domain.DiaryEntity
 import fi.lipp.blog.domain.UserEntity
-import fi.lipp.blog.repository.*
+import fi.lipp.blog.repository.AccessGroups
+import fi.lipp.blog.repository.AnonymousPostReactions
+import fi.lipp.blog.repository.Comments
+import fi.lipp.blog.repository.CustomGroupUsers
+import fi.lipp.blog.repository.Diaries
+import fi.lipp.blog.repository.Files
+import fi.lipp.blog.repository.InviteCodes
+import fi.lipp.blog.repository.PasswordResets
+import fi.lipp.blog.repository.PostReactions
+import fi.lipp.blog.repository.PostTags
+import fi.lipp.blog.repository.Posts
+import fi.lipp.blog.repository.Reactions
+import fi.lipp.blog.repository.Tags
+import fi.lipp.blog.repository.UserAvatars
+import fi.lipp.blog.repository.UserUploads
+import fi.lipp.blog.repository.Users
 import fi.lipp.blog.service.*
 import fi.lipp.blog.service.implementations.AccessGroupServiceImpl
 import fi.lipp.blog.service.implementations.StorageServiceImpl
@@ -72,7 +87,8 @@ abstract class UnitTestBase {
                     Comments,
                     Reactions,
                     PostReactions,
-                    AnonymousPostReactions
+                    AnonymousPostReactions,
+                    UserUploads
                 )
             }
             startKoin {

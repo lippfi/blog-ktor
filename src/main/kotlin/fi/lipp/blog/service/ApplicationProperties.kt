@@ -1,6 +1,7 @@
 package fi.lipp.blog.service
 
 import java.nio.file.Path
+import fi.lipp.blog.data.StorageQuota
 
 interface ApplicationProperties {
     val emailHost: String
@@ -23,4 +24,9 @@ interface ApplicationProperties {
     val stylesUrl: String
     val otherUrl: String
     val reactionsUrl: String
+
+    /**
+     * Get storage quota limit in bytes for the specified quota tier
+     */
+    fun getQuotaLimit(quota: StorageQuota): Long?
 }

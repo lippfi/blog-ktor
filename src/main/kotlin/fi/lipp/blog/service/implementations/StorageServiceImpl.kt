@@ -3,17 +3,29 @@ package fi.lipp.blog.service.implementations
 import fi.lipp.blog.data.BlogFile
 import fi.lipp.blog.data.FileType
 import fi.lipp.blog.data.FileUploadData
+import fi.lipp.blog.data.StorageQuota
 import fi.lipp.blog.domain.DiaryEntity
 import fi.lipp.blog.domain.FileEntity
+import fi.lipp.blog.domain.UserEntity
+import fi.lipp.blog.domain.UserUploadEntity
+import fi.lipp.blog.model.exceptions.DailyUploadLimitExceededException
 import fi.lipp.blog.model.exceptions.InternalServerError
 import fi.lipp.blog.model.exceptions.InvalidAvatarExtensionException
 import fi.lipp.blog.model.exceptions.InvalidReactionImageException
+import fi.lipp.blog.repository.UserUploads
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import fi.lipp.blog.repository.Diaries
 import fi.lipp.blog.repository.Files
+import fi.lipp.blog.repository.Users
 import fi.lipp.blog.service.ApplicationProperties
 import fi.lipp.blog.service.StorageService
+import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.insertAndGetId
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import java.io.File
 import java.nio.file.Path
 import java.util.UUID
@@ -63,9 +75,26 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
         return File("$path/${file.name}")
     }
 
+    private fun getUserQuota(userId: UUID): StorageQuota {
+        return transaction {
+            UserEntity.findById(userId)?.storageQuota ?: StorageQuota.BASIC
+        }
+    }
+
     private fun store(userId: UUID, userLogin: String, files: List<FileUploadData>, performChecks: (FileUploadData) -> Unit): List<BlogFile> {
+        val totalSize = files.sumOf { it.inputStream.available().toLong() }
         val blogFiles = mutableListOf<BlogFile>()
         transaction {
+            val currentUpload = getDailyUpload(userId)
+            val userQuota = getUserQuota(userId)
+            val dailyLimit = userQuota.getDailyLimitBytes(properties)
+
+            if (dailyLimit != null) {
+                val newTotal = currentUpload + totalSize
+                if (newTotal > dailyLimit) {
+                    throw DailyUploadLimitExceededException(dailyLimit, newTotal)
+                }
+            }
             files.forEach { file ->
                 performChecks(file)
                 val uuid = Files.insertAndGetId {
@@ -76,6 +105,8 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
                 val blogFile = createFile(userId, userLogin, uuid.value, file)
                 blogFiles.add(blogFile)
             }
+
+            trackUpload(userId, totalSize)
         }
         return blogFiles
     }
@@ -106,6 +137,30 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
             FileType.REACTION -> properties.reactionsUrl
         }
         return "$url/${file.name}"
+    }
+
+    private fun getDailyUpload(userId: UUID): Long {
+        val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+        return UserUploadEntity.find { 
+            (UserUploads.user eq userId) and (UserUploads.date eq today)
+        }.firstOrNull()?.totalBytes ?: 0
+    }
+
+    private fun trackUpload(userId: UUID, size: Long) {
+        val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+        val upload = UserUploadEntity.find { 
+            (UserUploads.user eq userId) and (UserUploads.date eq today)
+        }.firstOrNull()
+
+        if (upload != null) {
+            upload.totalBytes += size
+        } else {
+            UserUploadEntity.new {
+                user = UserEntity[userId]
+                date = today
+                totalBytes = size
+            }
+        }
     }
 
     private fun getSavingPath(userLogin: String, fileType: FileType): Path {

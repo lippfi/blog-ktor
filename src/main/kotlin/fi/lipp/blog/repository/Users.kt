@@ -3,6 +3,7 @@ package fi.lipp.blog.repository
 import fi.lipp.blog.data.Language
 import fi.lipp.blog.data.NSFWPolicy
 import fi.lipp.blog.data.Sex
+import fi.lipp.blog.data.StorageQuota
 import kotlinx.datetime.toKotlinLocalDateTime
 import org.jetbrains.exposed.dao.id.UUIDTable
 import org.jetbrains.exposed.sql.ReferenceOption
@@ -31,4 +32,5 @@ object Users : UUIDTable() {
     val notifyAboutCommentReactions = bool("notify_about_comment_reactions").default(true)
     val notifyAboutPrivateMessages = bool("notify_about_private_messages").default(true)
     val notifyAboutMentions = bool("notify_about_mentions").default(true)
+    val storageQuota = enumerationByName("storage_quota", 20, StorageQuota::class).default(StorageQuota.BASIC)
 }

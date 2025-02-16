@@ -1,5 +1,6 @@
 package fi.lipp.blog.service.implementations
 
+import fi.lipp.blog.data.StorageQuota
 import fi.lipp.blog.service.ApplicationProperties
 import io.ktor.server.application.*
 import kotlin.io.path.Path
@@ -25,4 +26,11 @@ class ApplicationPropertiesImpl(private val environment: ApplicationEnvironment)
     override val stylesUrl = environment.config.property("url.styles").getString()
     override val otherUrl = environment.config.property("url.other").getString()
     override val reactionsUrl = environment.config.property("url.reactions").getString()
+
+    override fun getQuotaLimit(quota: StorageQuota): Long? = when (quota) {
+        StorageQuota.BASIC -> 1024 * 1024 * environment.config.property("storage.quota.basic").getString().toLong()
+        StorageQuota.STANDARD -> 1024 * 1024 * environment.config.property("storage.quota.standard").getString().toLong()
+        StorageQuota.MAX -> 1024 * 1024 * environment.config.property("storage.quota.max").getString().toLong()
+        StorageQuota.UNLIMITED -> null
+    }
 }

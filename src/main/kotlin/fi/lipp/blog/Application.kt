@@ -21,6 +21,7 @@ import org.koin.logger.slf4jLogger
 // Avatar validation
 // File size limits
 // Create dirs when store file
+// Clear dirs after running tests
 // Friends
 // Communities
 // Private messages
@@ -85,7 +86,7 @@ fun KoinApplication.loadMyKoins(environment: ApplicationEnvironment): KoinApplic
         single<AccessGroupService> { AccessGroupServiceImpl() }
         single<ReactionService> { ReactionServiceImpl(get<StorageService>(), get<AccessGroupService>(), get<NotificationService>(), get<ApplicationEnvironment>().config) }
         single<PostService> { PostServiceImpl(get<AccessGroupService>(), get<StorageService>(), get<ReactionService>(), get<NotificationService>()) }
-        single<NotificationService> { NotificationServiceImpl(get()) }
+        single<NotificationService> { NotificationServiceImpl() }
     }
     return modules(appModules)
 }

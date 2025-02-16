@@ -109,28 +109,6 @@ fun Route.postRoutes(postService: PostService, reactionService: ReactionService)
                 call.respondText("Comment deleted successfully")
             }
 
-            post("/{id}/subscribe") {
-                val id = call.parameters["id"]?.let { UUID.fromString(it) }
-                    ?: return@post call.respond(HttpStatusCode.BadRequest, "Invalid post ID")
-                postService.subscribeToComments(userId, id)
-                call.respondText("Subscribed to post comments successfully")
-            }
-
-            post("/{id}/unsubscribe") {
-                val id = call.parameters["id"]?.let { UUID.fromString(it) }
-                    ?: return@post call.respond(HttpStatusCode.BadRequest, "Invalid post ID")
-                postService.unsubscribeFromComments(userId, id)
-                call.respondText("Unsubscribed from post comments successfully")
-            }
-
-            get("/{id}/subscription") {
-                val id = call.parameters["id"]?.let { UUID.fromString(it) }
-                    ?: return@get call.respond(HttpStatusCode.BadRequest, "Invalid post ID")
-                val isSubscribed = postService.isSubscribedToComments(userId, id)
-                call.respond(mapOf("subscribed" to isSubscribed))
-            }
-
-            // Reaction management endpoints
             get("/reactions") {
                 val namePattern = call.request.queryParameters["name"]
                 val reactions = if (namePattern != null) {
