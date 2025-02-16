@@ -24,6 +24,7 @@ fun Application.configureRouting() {
         diaryRoutes(get())
         storageRoutes(get())
         accessGroupRoutes(get())
+        reactionRoutes(get())
         get("/") {
             call.respondText("Hello World!")
         }

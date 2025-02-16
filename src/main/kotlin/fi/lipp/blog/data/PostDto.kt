@@ -4,19 +4,9 @@ import fi.lipp.blog.util.UUIDSerializer
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.Serializable
 import java.util.UUID
+import fi.lipp.blog.data.ReactionDto
 
 sealed interface PostDto {
-    @Serializable
-    data class ReactionInfo(
-        @Serializable(with = UUIDSerializer::class)
-        val reactionId: UUID,
-        val name: String,
-        val iconUri: String,
-        val count: Int,
-        val userLogins: List<String>,
-        val anonymousCount: Int
-    )
-
     @Serializable
     data class View(
         @Serializable(with = UUIDSerializer::class)
@@ -41,7 +31,7 @@ sealed interface PostDto {
         val isDislikedByMe: Boolean,
 
         val isReactable: Boolean,
-        val reactions: List<ReactionInfo>,
+        val reactions: List<ReactionDto.ReactionInfo>,
         val isCommentable: Boolean,
         val comments: List<CommentDto.View>,
 

@@ -13,6 +13,29 @@ object Comments : UUIDTable() {
     val avatar = varchar("avatar", 1024)
     val text = text("text")
     val creationTime = datetime("creation_time").clientDefault { LocalDateTime.now().toKotlinLocalDateTime() }
-    
+
     val parentComment = reference("parent_comment", Comments).nullable()
+    val reactionGroup = reference("reaction_group", AccessGroups, onDelete = ReferenceOption.CASCADE)
+}
+
+object CommentReactions : UUIDTable() {
+    val user = reference("user", Users, onDelete = ReferenceOption.CASCADE)
+    val comment = reference("comment", Comments, onDelete = ReferenceOption.CASCADE)
+    val reaction = reference("reaction", Reactions, onDelete = ReferenceOption.CASCADE)
+    val timestamp = datetime("timestamp").clientDefault { LocalDateTime.now().toKotlinLocalDateTime() }
+
+    init {
+        uniqueIndex("comment_reactions_unique", user, comment, reaction)
+    }
+}
+
+object AnonymousCommentReactions : UUIDTable() {
+    val ipFingerprint = varchar("ip_fingerprint", 2048)
+    val comment = reference("comment", Comments, onDelete = ReferenceOption.CASCADE)
+    val reaction = reference("reaction", Reactions, onDelete = ReferenceOption.CASCADE)
+    val timestamp = datetime("timestamp").clientDefault { LocalDateTime.now().toKotlinLocalDateTime() }
+
+    init {
+        uniqueIndex("anonymous_comment_reactions_unique", ipFingerprint, comment, reaction)
+    }
 }

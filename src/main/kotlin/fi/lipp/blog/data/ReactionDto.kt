@@ -15,8 +15,20 @@ sealed interface ReactionDto {
     }
 
     @Serializable
+    data class ReactionInfo(
+        @Contextual
+        val reactionId: UUID,
+        val name: String,
+        val iconUri: String,
+        val count: Int,
+        val userLogins: List<String>,
+        val anonymousCount: Int
+    ) : ReactionDto
+
+    @Serializable
     data class View(
-        @Contextual val id: UUID,
+        @Contextual
+        val id: UUID,
         val name: String,
         val iconUri: String,
     ) : ReactionDto

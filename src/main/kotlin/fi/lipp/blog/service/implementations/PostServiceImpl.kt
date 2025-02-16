@@ -267,6 +267,14 @@ class PostServiceImpl(
                 it[avatar] = comment.avatar
                 it[text] = comment.text
                 it[parentComment] = comment.parentCommentId
+                it[reactionGroup] = comment.reactionGroupId?.let { groupId ->
+                    // Verify the reaction group belongs to the diary
+                    val groupEntity = AccessGroupEntity.findById(groupId) ?: throw InvalidAccessGroupException()
+                    if (groupEntity.diaryId?.value != postEntity.diaryId.value) {
+                        throw InvalidAccessGroupException()
+                    }
+                    groupEntity.id
+                } ?: postEntity.reactionGroupId
             }
         }
     }
@@ -523,7 +531,7 @@ class PostServiceImpl(
         return CommentEntity.find { Comments.post eq postId }.orderBy(Comments.creationTime to SortOrder.ASC).map { it.toComment(this) }
     }
 
-    private fun Transaction.collectReactionInfo(postId: UUID): List<PostDto.ReactionInfo> {
+    private fun Transaction.collectReactionInfo(postId: UUID): List<ReactionDto.ReactionInfo> {
         // Get reactions with their files
         val reactionData = (PostReactions innerJoin Reactions innerJoin Files)
             .slice(Reactions.id, Reactions.name, Files.id)
@@ -561,7 +569,7 @@ class PostServiceImpl(
             val userLogins = reactionUsers[reactionId] ?: emptyList()
             val anonymousCount = anonymousCounts[reactionId] ?: 0
 
-            PostDto.ReactionInfo(
+            ReactionDto.ReactionInfo(
                 reactionId = reactionId,
                 name = name,
                 iconUri = storageService.getFileURL(FileEntity.findById(fileId)!!.toBlogFile()),
@@ -577,6 +585,8 @@ class PostServiceImpl(
     private fun CommentEntity.toComment(transaction: Transaction): CommentDto.View {
         val author = UserEntity.findById(authorId) ?: throw InternalServerError()
         val authorDiary = DiaryEntity.find { Diaries.owner eq authorId }.single()
+        val viewer = Viewer.Registered(authorId.value)
+        val isReactable = (authorId.value == author.id.value) || accessGroupService.inGroup(viewer, reactionGroupId.value)
         return CommentDto.View(
             id = id.value,
             authorLogin = authorDiary.login,
@@ -584,6 +594,9 @@ class PostServiceImpl(
             avatar = avatar,
             text = text,
             creationTime = creationTime,
+            isReactable = isReactable,
+            reactions = reactionService.getCommentReactions(id.value),
+            reactionGroupId = reactionGroupId.value,
         )
     }
 

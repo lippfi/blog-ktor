@@ -2,13 +2,15 @@ package fi.lipp.blog.data
 
 import fi.lipp.blog.util.UUIDSerializer
 import kotlinx.datetime.LocalDateTime
+import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 import java.util.UUID
+import fi.lipp.blog.data.ReactionDto
 
 sealed interface CommentDto {
     @Serializable
     data class View(
-        @Serializable(with = UUIDSerializer::class)
+        @Contextual
         val id: UUID,
 
         val avatar : String,
@@ -17,17 +19,26 @@ sealed interface CommentDto {
 
         val text: String,
         val creationTime : LocalDateTime,
+
+        val isReactable: Boolean,
+        val reactions: List<ReactionDto.ReactionInfo>,
+
+        @Contextual
+        val reactionGroupId: UUID,
     )
 
     @Serializable
     data class Create(
-        @Serializable(with = UUIDSerializer::class)
+        @Contextual
         val postId: UUID,
         val avatar : String,
         val text: String,
-        
-        @Serializable(with = UUIDSerializer::class)
+
+        @Contextual
         val parentCommentId: UUID? = null,
+
+        @Contextual
+        val reactionGroupId: UUID? = null,  // If null, use post's reaction group
     )
 
     @Serializable
