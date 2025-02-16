@@ -22,7 +22,6 @@ import java.util.*
 import kotlin.test.*
 import javax.imageio.ImageIO
 
-// TODO start Koin
 class UserServiceTests : UnitTestBase() {
     companion object {
         @JvmStatic

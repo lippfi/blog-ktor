@@ -2,6 +2,7 @@ package fi.lipp.blog
 
 import fi.lipp.blog.data.Language
 import fi.lipp.blog.data.UserDto
+import fi.lipp.blog.data.FileUploadData
 import fi.lipp.blog.domain.DiaryEntity
 import fi.lipp.blog.domain.UserEntity
 import fi.lipp.blog.repository.AccessGroups
@@ -35,6 +36,7 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.mockito.kotlin.*
+import java.io.ByteArrayInputStream
 import java.io.File
 import kotlin.io.path.Path
 import kotlin.test.assertTrue
@@ -202,6 +204,27 @@ abstract class UnitTestBase {
             exec("DELETE FROM ${Users.tableName}")
             // Don't delete AccessGroups as they are required for the system to work
             commit()
+        }
+    }
+
+    @After
+    fun cleanStoredFiles() {
+        transaction {
+            val testFile = FileUploadData(
+                fullName = "test.png",
+                inputStream = ByteArrayInputStream(ByteArray(10))
+            )
+            val user = findUserByLogin(testUser.login)
+            if (user != null) {
+                val storedFile = storageService.store(user.id, listOf(testFile))[0]
+                val file = storageService.getFile(storedFile)
+                val userDir = file.parentFile.parentFile // Go up to user's directory
+                if (userDir.exists()) {
+                    userDir.walkBottomUp().forEach<File> { f: File ->
+                        f.delete()
+                    }
+                }
+            }
         }
     }
 }

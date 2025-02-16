@@ -18,7 +18,6 @@ import org.koin.logger.slf4jLogger
 // TODO Cors
 
 // SECOND ITERATION
-// Clear dirs after running tests
 // Friends
 // Communities
 // Private messages
