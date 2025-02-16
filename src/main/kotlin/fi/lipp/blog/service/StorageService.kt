@@ -8,7 +8,8 @@ import java.util.*
 interface StorageService {
     fun store(userId: UUID, files: List<FileUploadData>): List<BlogFile>
     fun storeAvatars(userId: UUID, files: List<FileUploadData>): List<BlogFile>
-    
+    fun storeReactions(userId: UUID, files: List<FileUploadData>): List<BlogFile>
+
     fun getFile(file: BlogFile): File
     fun getFileURL(file: BlogFile): String
 }

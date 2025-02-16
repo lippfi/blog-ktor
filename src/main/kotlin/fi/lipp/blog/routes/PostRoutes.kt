@@ -2,6 +2,7 @@ package fi.lipp.blog.routes
 
 import fi.lipp.blog.data.CommentDto
 import fi.lipp.blog.data.PostDto
+import fi.lipp.blog.data.ReactionDto
 import fi.lipp.blog.model.Pageable
 import fi.lipp.blog.model.TagPolicy
 import fi.lipp.blog.plugins.userId
@@ -40,7 +41,7 @@ fun Route.postRoutes(postService: PostService) {
                 val post = postService.getPost(viewer, authorLogin, uri)
                 call.respond(post)
             }
-            
+
             get("/") {
                 val author = call.request.queryParameters["author"]
                 val diary = call.request.queryParameters["diary"]
@@ -59,7 +60,7 @@ fun Route.postRoutes(postService: PostService) {
                 call.respond(posts)
             }
         }
-        
+
         authenticate {
             get("/{postId}") {
                 val postIdParameter = call.request.queryParameters["id"]
@@ -105,6 +106,55 @@ fun Route.postRoutes(postService: PostService) {
                 val commentId = UUID.fromString(call.parameters["commentId"])
                 postService.deleteComment(userId, commentId)
                 call.respondText("Comment deleted successfully")
+            }
+
+            // Reaction management endpoints
+            get("/reactions") {
+                val reactions = postService.getReactions()
+                call.respond(reactions)
+            }
+
+            post("/reactions") {
+                val reaction = call.receive<ReactionDto.Create>()
+                val createdReaction = postService.createReaction(userId, reaction)
+                call.respond(createdReaction)
+            }
+
+            put("/reactions/{reactionId}") {
+                val reaction = call.receive<ReactionDto.Update>()
+                val updatedReaction = postService.updateReaction(userId, reaction)
+                call.respond(updatedReaction)
+            }
+
+            delete("/reactions/{reactionId}") {
+                val reactionId = UUID.fromString(call.parameters["reactionId"])
+                postService.deleteReaction(userId, reactionId)
+                call.respondText("Reaction deleted successfully")
+            }
+
+            post("/reactions/{reactionId}/localizations") {
+                val localization = call.receive<ReactionDto.AddLocalization>()
+                postService.addReactionLocalization(userId, localization)
+                call.respondText("Localization added successfully")
+            }
+        }
+
+        // Endpoints for adding/removing reactions to posts
+        authenticate(optional = true) {
+            post("/{authorLogin}/{uri}/reactions/{reactionId}") {
+                val authorLogin = call.parameters["authorLogin"]!!
+                val uri = call.parameters["uri"]!!
+                val reactionId = UUID.fromString(call.parameters["reactionId"])
+                postService.addReaction(viewer, authorLogin, uri, reactionId)
+                call.respondText("Reaction added successfully")
+            }
+
+            delete("/{authorLogin}/{uri}/reactions/{reactionId}") {
+                val authorLogin = call.parameters["authorLogin"]!!
+                val uri = call.parameters["uri"]!!
+                val reactionId = UUID.fromString(call.parameters["reactionId"])
+                postService.removeReaction(viewer, authorLogin, uri, reactionId)
+                call.respondText("Reaction removed successfully")
             }
         }
     }

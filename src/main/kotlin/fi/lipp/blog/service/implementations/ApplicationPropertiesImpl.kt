@@ -16,6 +16,7 @@ class ApplicationPropertiesImpl(private val environment: ApplicationEnvironment)
     override fun audiosDirectory(userLogin: String) = Path(environment.config.property("directory.audios").getString().replace("{userLogin}", userLogin))
     override fun stylesDirectory(userLogin: String) = Path(environment.config.property("directory.styles").getString().replace("{userLogin}", userLogin))
     override fun otherDirectory(userLogin: String) = Path(environment.config.property("directory.other").getString().replace("{userLogin}", userLogin))
+    override fun reactionsDirectory(userLogin: String) = Path(environment.config.property("directory.reactions").getString().replace("{userLogin}", userLogin))
 
     override val avatarsUrl = environment.config.property("url.avatars").getString()
     override val imagesUrl = environment.config.property("url.images").getString()
@@ -23,4 +24,5 @@ class ApplicationPropertiesImpl(private val environment: ApplicationEnvironment)
     override val audiosUrl = environment.config.property("url.audios").getString()
     override val stylesUrl = environment.config.property("url.styles").getString()
     override val otherUrl = environment.config.property("url.other").getString()
+    override val reactionsUrl = environment.config.property("url.reactions").getString()
 }

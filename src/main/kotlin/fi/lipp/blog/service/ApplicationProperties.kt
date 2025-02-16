@@ -14,6 +14,7 @@ interface ApplicationProperties {
     fun audiosDirectory(userLogin: String): Path
     fun stylesDirectory(userLogin: String): Path
     fun otherDirectory(userLogin: String): Path
+    fun reactionsDirectory(userLogin: String): Path
 
     val avatarsUrl: String
     val imagesUrl: String
@@ -21,4 +22,5 @@ interface ApplicationProperties {
     val audiosUrl: String
     val stylesUrl: String
     val otherUrl: String
+    val reactionsUrl: String
 }

@@ -85,7 +85,7 @@ fun KoinApplication.loadMyKoins(environment: ApplicationEnvironment): KoinApplic
         single<PasswordEncoder> { PasswordEncoderImpl() }
         single<UserService> { UserServiceImpl(get(), get(), get(), get()) }
         single<AccessGroupService> { AccessGroupServiceImpl() }
-        single<PostService> { PostServiceImpl(get()) }
+        single<PostService> { PostServiceImpl(get(), get()) }
     }
     return modules(appModules)
 }

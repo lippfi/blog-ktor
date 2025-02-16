@@ -7,6 +7,7 @@ import fi.lipp.blog.domain.DiaryEntity
 import fi.lipp.blog.domain.FileEntity
 import fi.lipp.blog.model.exceptions.InternalServerError
 import fi.lipp.blog.model.exceptions.InvalidAvatarExtensionException
+import fi.lipp.blog.model.exceptions.InvalidReactionImageException
 import fi.lipp.blog.repository.Diaries
 import fi.lipp.blog.repository.Files
 import fi.lipp.blog.service.ApplicationProperties
@@ -30,17 +31,29 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
            validateAvatar(file) 
         }
     }
-    
+
+    override fun storeReactions(userId: UUID, files: List<FileUploadData>): List<BlogFile> {
+        val userLogin = getUserLogin(userId)
+        return store(userId, userLogin, files) { file ->
+            validateReaction(file)
+        }
+    }
+
     private fun getUserLogin(userId: UUID): String {
         return transaction { DiaryEntity.find { Diaries.owner eq userId }.singleOrNull()?.login ?: throw InternalServerError() }
     }
 
     // TODO safer avatar storing. Only the given extensions with size & dimensions limits
-    private val allowedAvatarExtensions = setOf(".jpg", ".jpeg", ".png", ".gif")
+    private val allowedImageExtensions = setOf(".jpg", ".jpeg", ".png", ".gif")
     private fun validateAvatar(file: FileUploadData) {
-        if (!allowedAvatarExtensions.contains(file.extension)) throw InvalidAvatarExtensionException()
+        if (!allowedImageExtensions.contains(file.extension)) throw InvalidAvatarExtensionException()
         // TODO dirty code
         file.type = FileType.AVATAR
+    }
+
+    private fun validateReaction(file: FileUploadData) {
+        if (!allowedImageExtensions.contains(file.extension)) throw InvalidReactionImageException()
+        file.type = FileType.REACTION
     }
 
     override fun getFile(file: BlogFile): File {
@@ -72,9 +85,9 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
     private fun createFile(userId: UUID, userLogin: String, uuid: UUID, fileUploadData: FileUploadData): BlogFile {
         val path = getSavingPath(userLogin, fileUploadData.type)
         val fileName = uuid.toString() + fileUploadData.extension
-        
+
         File(path.toString()).mkdirs()
-        
+
         val file = File("$path/$fileName")
         fileUploadData.inputStream.use { input ->
             file.outputStream().use { output ->
@@ -92,6 +105,7 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
             FileType.AUDIO -> properties.audiosUrl
             FileType.STYLE -> properties.stylesUrl
             FileType.OTHER -> properties.otherUrl
+            FileType.REACTION -> properties.reactionsUrl
         }
         return "$url/${file.name}"
     }
@@ -104,6 +118,7 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
             FileType.AUDIO -> properties.audiosDirectory(userLogin)
             FileType.STYLE -> properties.stylesDirectory(userLogin)
             FileType.OTHER -> properties.otherDirectory(userLogin)
+            FileType.REACTION -> properties.reactionsDirectory(userLogin)
         }
     }
 }

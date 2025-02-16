@@ -3,7 +3,7 @@ ktor:
         modules:
             - fi.lipp.blog.ApplicationKt.module
     deployment:
-        port: 80
+        port: 8080
 jwt:
     issuer: "blog application"
     audience: "jwt-audience"
@@ -22,6 +22,7 @@ directory:
     audios: "{userLogin}/audios"
     styles: "{userLogin}/styles"
     other: "{userLogin}/other"
+    reactions: "{userLogin}/reactions"
 url:
     avatars: "???"
     images: "???"
@@ -29,3 +30,4 @@ url:
     audios: "???"
     styles: "???"
     other: "???"
+    reactions: "???"

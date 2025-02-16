@@ -26,10 +26,14 @@ abstract class UnitTestBase {
         init {
             Database.connect("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;", driver = "org.h2.Driver")
             transaction {
-                SchemaUtils.create(Users, Diaries, InviteCodes, PasswordResets, Files, UserAvatars, Tags, Posts, PostDislikes, AnonymousPostDislikes, PostTags, AccessGroups, CustomGroupUsers, Comments)
+                SchemaUtils.create(
+                    Users, Diaries, InviteCodes, PasswordResets, Files, UserAvatars, Tags, Posts,
+                    PostDislikes, AnonymousPostDislikes, PostTags, AccessGroups, CustomGroupUsers, Comments,
+                    Reactions, ReactionLocalizations, PostReactions, AnonymousPostReactions
+                )
             }
         }
-        
+
         @JvmStatic
         protected val properties = ApplicationPropertiesStub()
         @JvmStatic
@@ -88,7 +92,7 @@ abstract class UnitTestBase {
             )
         }
     }
-    
+
     protected fun assertNow(dateTime: LocalDateTime) {
         val javaDateTime = dateTime.toJavaLocalDateTime()
         assertTrue(javaDateTime.isAfter(java.time.LocalDateTime.now().minusSeconds(20)))

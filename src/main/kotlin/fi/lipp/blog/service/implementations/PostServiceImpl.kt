@@ -9,7 +9,9 @@ import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.repository.*
 import fi.lipp.blog.service.AccessGroupService
 import fi.lipp.blog.service.PostService
+import fi.lipp.blog.service.StorageService
 import fi.lipp.blog.service.Viewer
+import java.io.FileNotFoundException
 import kotlinx.datetime.LocalDateTime
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.*
@@ -20,7 +22,10 @@ import java.util.*
 import kotlin.math.ceil
 import kotlin.random.Random
 
-class PostServiceImpl(private val accessGroupService: AccessGroupService) : PostService {
+class PostServiceImpl(
+    private val accessGroupService: AccessGroupService,
+    private val storageService: StorageService,
+) : PostService {
     override fun getPostForEdit(userId: UUID, postId: UUID): PostDto.Update {
         return transaction {
             val postEntity = PostEntity.findById(postId) ?: throw PostNotFoundException()
@@ -270,7 +275,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         }
     }
 
-    override fun dislike(viewer: Viewer, diaryLogin: String, uri: String) {
+    override fun addReaction(viewer: Viewer, diaryLogin: String, uri: String, reactionId: UUID) {
         val userId = (viewer as? Viewer.Registered)?.userId
         transaction {
             val diaryEntity = findDiaryByLogin(diaryLogin)
@@ -280,20 +285,30 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
             }
             when (viewer) {
                 is Viewer.Registered -> {
-                    val isDisliked = PostDislikes.select { (PostDislikes.user eq userId) and (PostDislikes.post eq postEntity.id) }.firstOrNull() != null
-                    if (!isDisliked) {
-                        PostDislikes.insert {
+                    val hasReaction = PostReactions.select { 
+                        (PostReactions.user eq userId) and 
+                        (PostReactions.post eq postEntity.id) and 
+                        (PostReactions.reaction eq reactionId)
+                    }.firstOrNull() != null
+                    if (!hasReaction) {
+                        PostReactions.insert {
                             it[user] = viewer.userId
                             it[post] = postEntity.id
+                            it[reaction] = reactionId
                         }
                     }
                 }
                 is Viewer.Anonymous -> {
-                    val isDisliked = AnonymousPostDislikes.select { (AnonymousPostDislikes.ipFingerprint eq viewer.ipFingerprint) and (AnonymousPostDislikes.post eq postEntity.id) }.firstOrNull() != null
-                    if (!isDisliked) {
-                        AnonymousPostDislikes.insert {
+                    val hasReaction = AnonymousPostReactions.select { 
+                        (AnonymousPostReactions.ipFingerprint eq viewer.ipFingerprint) and 
+                        (AnonymousPostReactions.post eq postEntity.id) and 
+                        (AnonymousPostReactions.reaction eq reactionId)
+                    }.firstOrNull() != null
+                    if (!hasReaction) {
+                        AnonymousPostReactions.insert {
                             it[ipFingerprint] = viewer.ipFingerprint
                             it[post] = postEntity.id
+                            it[reaction] = reactionId
                         }
                     }
                 }
@@ -301,7 +316,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
         }
     }
 
-    override fun removeDislike(viewer: Viewer, diaryLogin: String, uri: String) {
+    override fun removeReaction(viewer: Viewer, diaryLogin: String, uri: String, reactionId: UUID) {
         val userId = (viewer as? Viewer.Registered)?.userId
         transaction {
             val diaryEntity = findDiaryByLogin(diaryLogin)
@@ -311,15 +326,115 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
             }
             when (viewer) {
                 is Viewer.Registered -> {
-                    val dislike = PostDislikeEntity.find { (PostDislikes.user eq userId) and (PostDislikes.post eq postEntity.id) }.firstOrNull() ?: return@transaction
-                    dislike.delete()
+                    val reaction = PostReactionEntity.find { 
+                        (PostReactions.user eq userId) and 
+                        (PostReactions.post eq postEntity.id) and 
+                        (PostReactions.reaction eq reactionId)
+                    }.firstOrNull() ?: return@transaction
+                    reaction.delete()
                 }
                 is Viewer.Anonymous -> {
-                    val dislike = AnonymousPostDislikeEntity.find { (AnonymousPostDislikes.ipFingerprint eq viewer.ipFingerprint) and (AnonymousPostDislikes.post eq postEntity.id) }.firstOrNull() ?: return@transaction
-                    dislike.delete()
+                    val reaction = AnonymousPostReactionEntity.find { 
+                        (AnonymousPostReactions.ipFingerprint eq viewer.ipFingerprint) and 
+                        (AnonymousPostReactions.post eq postEntity.id) and 
+                        (AnonymousPostReactions.reaction eq reactionId)
+                    }.firstOrNull() ?: return@transaction
+                    reaction.delete()
                 }
             }
         }
+    }
+
+    override fun createReaction(userId: UUID, reaction: ReactionDto.Create): ReactionDto.View {
+        return transaction {
+            val iconFile = FileEntity.findById(reaction.iconId) ?: throw FileNotFoundException()
+
+            val reactionEntity = ReactionEntity.new {
+                name = reaction.name
+                icon = iconFile
+            }
+
+            reaction.localizations.forEach { (language, localizedName) ->
+                ReactionLocalizationEntity.new {
+                    this.reaction = reactionEntity
+                    this.language = language
+                    this.localizedName = localizedName
+                }
+            }
+
+            toReactionView(reactionEntity)
+        }
+    }
+
+    override fun updateReaction(userId: UUID, reaction: ReactionDto.Update): ReactionDto.View {
+        return transaction {
+            val reactionEntity = ReactionEntity.findById(reaction.id) ?: throw ReactionNotFoundException()
+            val iconFile = FileEntity.findById(reaction.iconId) ?: throw FileNotFoundException()
+
+            reactionEntity.name = reaction.name
+            reactionEntity.icon = iconFile
+
+            // Delete old localizations
+            ReactionLocalizations.deleteWhere { ReactionLocalizations.reaction eq reaction.id }
+
+            // Add new localizations
+            reaction.localizations.forEach { (language, localizedName) ->
+                ReactionLocalizationEntity.new {
+                    this.reaction = reactionEntity
+                    this.language = language
+                    this.localizedName = localizedName
+                }
+            }
+
+            toReactionView(reactionEntity)
+        }
+    }
+
+    override fun deleteReaction(userId: UUID, reactionId: UUID) {
+        transaction {
+            val reactionEntity = ReactionEntity.findById(reactionId) ?: throw ReactionNotFoundException()
+            reactionEntity.delete()
+        }
+    }
+
+    override fun addReactionLocalization(userId: UUID, localization: ReactionDto.AddLocalization) {
+        transaction {
+            val reactionEntity = ReactionEntity.findById(localization.id) ?: throw ReactionNotFoundException()
+
+            // Check if localization already exists
+            if (ReactionLocalizations.select {
+                    (ReactionLocalizations.reaction eq reactionEntity.id) and
+                    (ReactionLocalizations.language eq localization.language)
+                }.count() > 0
+            ) {
+                throw LocalizationAlreadyExistsException()
+            }
+
+            ReactionLocalizationEntity.new {
+                this.reaction = reactionEntity
+                this.language = localization.language
+                this.localizedName = localization.localizedName
+            }
+        }
+    }
+
+    override fun getReactions(): List<ReactionDto.View> {
+        return transaction {
+            ReactionEntity.all().map { toReactionView(it) }
+        }
+    }
+
+    private fun toReactionView(reactionEntity: ReactionEntity): ReactionDto.View {
+        val localizations = ReactionLocalizationEntity.find {
+            ReactionLocalizations.reaction eq reactionEntity.id
+        }.associate { it.language to it.localizedName }
+
+        return ReactionDto.View(
+            id = reactionEntity.id.value,
+            name = reactionEntity.name,
+            iconUri = storageService.getFileURL(reactionEntity.icon.toBlogFile()),
+            localizations = localizations
+        )
     }
 
     private fun deletePost(postEntity: PostEntity) {
@@ -485,7 +600,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
             comments = getCommentsForPost(row[Posts.id].value),
             isDislikedByMe = isDislikedByMe,
             dislikeCount = dislikeCount,
-            
+
             readGroupId = row[Posts.readGroup].value,
             commentGroupId = row[Posts.commentGroup].value,
         )
@@ -553,7 +668,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
             creationTime = creationTime,
         )
     }
-    
+
     // TODO do not duplicate this method
     @Suppress("UnusedReceiverParameter")
     private fun Transaction.findDiaryByLogin(login: String): DiaryEntity {
@@ -595,7 +710,7 @@ class PostServiceImpl(private val accessGroupService: AccessGroupService) : Post
             else -> char.toString()
         }
     }
-    
+
     private fun Char.isCyrillic(): Boolean {
         return this in 'а'..'я' || this in 'А'..'Я'
     }

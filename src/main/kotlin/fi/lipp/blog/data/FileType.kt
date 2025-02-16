@@ -7,4 +7,5 @@ enum class FileType {
     AUDIO,
     STYLE,
     OTHER,
+    REACTION,
 }

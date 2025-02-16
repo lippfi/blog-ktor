@@ -18,6 +18,7 @@ class ApplicationPropertiesStub : ApplicationProperties {
     override fun audiosDirectory(userLogin: String): Path = basePath.resolve("audios")
     override fun stylesDirectory(userLogin: String): Path = basePath.resolve("styles")
     override fun otherDirectory(userLogin: String): Path = basePath.resolve("other")
+    override fun reactionsDirectory(userLogin: String): Path = basePath.resolve("reactions")
 
     val baseUrl = "https://blog.com"
 
@@ -27,4 +28,5 @@ class ApplicationPropertiesStub : ApplicationProperties {
     override val audiosUrl = "$baseUrl/audios"
     override val stylesUrl = "$baseUrl/styles"
     override val otherUrl = "$baseUrl/other"
+    override val reactionsUrl = "$baseUrl/reactions"
 }
