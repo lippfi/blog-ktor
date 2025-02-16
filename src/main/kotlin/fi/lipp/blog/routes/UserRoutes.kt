@@ -1,5 +1,6 @@
 package fi.lipp.blog.routes
 
+import fi.lipp.blog.data.NotificationSettings
 import fi.lipp.blog.data.UserDto
 import fi.lipp.blog.data.toFileUploadDatas
 import fi.lipp.blog.plugins.userId
@@ -111,6 +112,12 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService)
                 val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 50
                 val reactions = reactionService.getUserRecentReactions(userId, limit)
                 call.respond(reactions)
+            }
+
+            post("/notification-settings") {
+                val settings = call.receive<NotificationSettings>()
+                userService.updateNotificationSettings(userId, settings)
+                call.respondText("Notification settings updated successfully")
             }
         }
     }

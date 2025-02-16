@@ -15,6 +15,7 @@ class CommentEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var avatar by Comments.avatar
     var text by Comments.text
 
+    val parentComment by Comments.parentComment
     val creationTime by Comments.creationTime
     var reactionGroupId by Comments.reactionGroup
 }

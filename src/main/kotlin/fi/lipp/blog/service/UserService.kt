@@ -16,11 +16,11 @@ interface UserService {
      */
     @Throws(UserNotFoundException::class, WrongPasswordException::class)
     fun signIn(user: UserDto.Login): String
-    
+
     fun updateAdditionalInfo(userId: UUID, info: UserDto.AdditionalInfo)
-    
+
     fun getUserInfo(login: String): UserDto.ProfileInfo
-    
+
     fun update(userId: UUID, user: UserDto.Registration, oldPassword: String)
 
     /**
@@ -38,4 +38,9 @@ interface UserService {
     fun reorderAvatars(userId: UUID, permutation: List<UUID>)
     fun addAvatar(userId: UUID, files: List<FileUploadData>)
     fun deleteAvatar(userId: UUID, avatarUri: String)
+
+    /**
+     * Update user's notification settings
+     */
+    fun updateNotificationSettings(userId: UUID, settings: NotificationSettings)
 }

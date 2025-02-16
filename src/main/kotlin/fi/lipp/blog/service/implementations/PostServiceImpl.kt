@@ -8,16 +8,12 @@ import fi.lipp.blog.model.TagPolicy
 import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.repository.*
 import fi.lipp.blog.service.AccessGroupService
+import fi.lipp.blog.service.NotificationService
 import fi.lipp.blog.service.PostService
 import fi.lipp.blog.service.ReactionService
 import fi.lipp.blog.service.StorageService
 import fi.lipp.blog.service.Viewer
-import org.jetbrains.exposed.sql.Query
 import org.jetbrains.exposed.sql.andWhere
-import org.jetbrains.exposed.sql.statements.InsertStatement
-import org.jetbrains.exposed.sql.Expression
-import org.jetbrains.exposed.sql.Op
-import java.io.FileNotFoundException
 import kotlinx.datetime.LocalDateTime
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.*
@@ -32,6 +28,7 @@ class PostServiceImpl(
     private val accessGroupService: AccessGroupService,
     private val storageService: StorageService,
     private val reactionService: ReactionService,
+    private val notificationService: NotificationService
 ) : PostService {
     override fun getPostForEdit(userId: UUID, postId: UUID): PostDto.Update {
         return transaction {
@@ -60,6 +57,7 @@ class PostServiceImpl(
             val diaryEntity = findDiaryByLogin(diaryLogin)
             val postEntity = PostEntity.find { (Posts.diary eq diaryEntity.id) and (Posts.uri eq uri) and (Posts.isArchived eq false) }.firstOrNull() ?: throw PostNotFoundException()
             if (userId == postEntity.authorId.value || accessGroupService.inGroup(viewer, postEntity.readGroupId.value)) {
+                if (userId != null) notificationService.readAllPostNotifications(userId, postEntity.id.value)
                 toPostView(viewer, postEntity)
             } else {
                 throw PostNotFoundException()
@@ -278,7 +276,7 @@ class PostServiceImpl(
                 val parentComment = CommentEntity.findById(comment.parentCommentId) ?: throw InvalidParentComment()
                 if (parentComment.postId.value != comment.postId) throw InvalidParentComment()
             }
-            Comments.insert {
+            val commentId = Comments.insertAndGetId {
                 it[post] = postEntity.id
                 it[author] = userId
                 it[avatar] = comment.avatar
@@ -293,6 +291,10 @@ class PostServiceImpl(
                     groupEntity.id
                 } ?: postEntity.reactionGroupId
             }
+
+            val postId = postEntity.id.value
+            notificationService.subscribeToComments(userId, postId)
+            notificationService.notifyAboutComment(commentId.value, userId, postId)
         }
     }
 
@@ -314,7 +316,6 @@ class PostServiceImpl(
             commentEntity.delete()
         }
     }
-
 
     private fun deletePost(postEntity: PostEntity) {
         postEntity.apply {
@@ -367,6 +368,8 @@ class PostServiceImpl(
                     it[PostTags.post] = postId
                 }
             }
+
+            notificationService.subscribeToComments(userId, postId.value)
         }
     }
 

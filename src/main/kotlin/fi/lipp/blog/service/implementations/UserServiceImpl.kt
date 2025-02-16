@@ -40,13 +40,13 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
                 inviteCodeEntity
             }
         }
-        
+
         val timezoneParsed = try {
             kotlinx.datetime.TimeZone.of(user.timezone)
         } catch (e: Exception) {
             throw InvalidTimezoneException()
         }
-        
+
         if (isEmailBusy(user.email)) throw EmailIsBusyException()
         if (isLoginBusy(user.login)) throw LoginIsBusyException()
         if (isNicknameBusy(user.nickname)) throw NicknameIsBusyException()
@@ -56,7 +56,7 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
                 it[password] = encoder.encode(user.password)
                 it[nickname] = user.nickname
                 it[Users.inviteCode] = inviteCodeEntity?.id
-                
+
                 it[sex] = Sex.UNDEFINED
                 it[nsfw] = NSFWPolicy.HIDE
                 it[timezone] = timezoneParsed.id
@@ -108,7 +108,14 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
                 login = diaryEntity.login,
                 email = userEntity.email,
                 nickname = userEntity.nickname,
-                registrationTime = userEntity.registrationTime
+                registrationTime = userEntity.registrationTime,
+                notificationSettings = NotificationSettings(
+                    notifyAboutComments = userEntity.notifyAboutComments,
+                    notifyAboutReplies = userEntity.notifyAboutReplies,
+                    notifyAboutPostReactions = userEntity.notifyAboutPostReactions,
+                    notifyAboutCommentReactions = userEntity.notifyAboutCommentReactions,
+                    notifyAboutPrivateMessages = userEntity.notifyAboutPrivateMessages
+                )
             )
         }
     }
@@ -278,6 +285,19 @@ class UserServiceImpl(private val encoder: PasswordEncoder, private val mailServ
         }
         transaction {
             UserAvatars.deleteWhere { (user eq userId) and (avatar eq avatarId) }
+        }
+    }
+
+    override fun updateNotificationSettings(userId: UUID, settings: NotificationSettings) {
+        transaction {
+            val userEntity = UserEntity.findById(userId) ?: throw UserNotFoundException()
+            userEntity.apply {
+                notifyAboutComments = settings.notifyAboutComments
+                notifyAboutReplies = settings.notifyAboutReplies
+                notifyAboutPostReactions = settings.notifyAboutPostReactions
+                notifyAboutCommentReactions = settings.notifyAboutCommentReactions
+                notifyAboutPrivateMessages = settings.notifyAboutPrivateMessages
+            }
         }
     }
 }

@@ -33,7 +33,6 @@ interface PostService {
     fun addComment(userId: UUID, comment: CommentDto.Create)
     fun updateComment(userId: UUID, comment: CommentDto.Update)
     fun deleteComment(userId: UUID, commentId: UUID)
-
 }
 
 sealed interface Viewer {

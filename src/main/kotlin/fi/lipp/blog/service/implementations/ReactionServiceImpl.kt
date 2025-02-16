@@ -6,6 +6,7 @@ import fi.lipp.blog.domain.*
 import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.repository.*
 import fi.lipp.blog.service.AccessGroupService
+import fi.lipp.blog.service.NotificationService
 import fi.lipp.blog.service.ReactionService
 import fi.lipp.blog.service.StorageService
 import fi.lipp.blog.service.Viewer
@@ -18,6 +19,7 @@ import java.util.UUID
 class ReactionServiceImpl(
     private val storageService: StorageService,
     private val accessGroupService: AccessGroupService,
+    private val notificationService: NotificationService,
     private val config: ApplicationConfig
 ) : ReactionService {
     private val configuredBasicNames by lazy {
@@ -93,6 +95,11 @@ class ReactionServiceImpl(
                             it[post] = postEntity.id
                             it[reaction] = reactionId
                         }
+
+                        val postAuthor = UserEntity.findById(postEntity.authorId.value)!!
+                        if (postAuthor.id.value != viewer.userId && postAuthor.notifyAboutPostReactions) {
+                            notificationService.notifyAboutPostReaction(postEntity.id.value)
+                        }
                     }
                 }
                 is Viewer.Anonymous -> {
@@ -106,6 +113,11 @@ class ReactionServiceImpl(
                             it[ipFingerprint] = viewer.ipFingerprint
                             it[post] = postEntity.id
                             it[reaction] = reactionId
+                        }
+
+                        val postAuthor = UserEntity.findById(postEntity.authorId.value)!!
+                        if (postAuthor.notifyAboutPostReactions) {
+                            notificationService.notifyAboutPostReaction(postEntity.id.value)
                         }
                     }
                 }
@@ -196,6 +208,11 @@ class ReactionServiceImpl(
                             it[user] = viewer.userId
                             it[comment] = commentId
                             it[reaction] = reactionId
+                        }
+
+                        // Create notification for comment author
+                        if (viewer.userId != commentEntity.authorId.value) {
+                            notificationService.notifyAboutCommentReaction(commentEntity.authorId.value)
                         }
                     }
                 }

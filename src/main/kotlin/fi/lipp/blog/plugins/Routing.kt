@@ -25,6 +25,7 @@ fun Application.configureRouting() {
         storageRoutes(get())
         accessGroupRoutes(get())
         reactionRoutes(get())
+        notificationRoutes(get())
         get("/") {
             call.respondText("Hello World!")
         }

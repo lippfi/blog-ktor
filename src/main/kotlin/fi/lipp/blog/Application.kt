@@ -18,25 +18,25 @@ import org.koin.logger.slf4jLogger
 // TODO Cors
 
 // SECOND ITERATION
-// Device sessions && token invalidation
-// Notifications
 // Avatar validation
-// Custom website design css
 // File size limits
 // Create dirs when store file
-
-// Multiple diary styles (switch between them)
 // Friends
 // Communities
 // Private messages
-// Caches
+// Reposts
+// follow diaries : 3
+// Friends, discussed now, subscribed feed
 
 // THIRD ITERATION
+// Caches
+// Custom website design css
+// Multiple diary styles (switch between them)
+// Device sessions && token invalidation
 // background music
 // Ignore list
 // TODO diary backup & diary restore
 // TODO post backups & drafts : 1
-// TODO follow users : 3
 
 // FORTH ITERATION
 // TODO telegram integration
@@ -83,8 +83,9 @@ fun KoinApplication.loadMyKoins(environment: ApplicationEnvironment): KoinApplic
         single<PasswordEncoder> { PasswordEncoderImpl() }
         single<UserService> { UserServiceImpl(get(), get(), get(), get()) }
         single<AccessGroupService> { AccessGroupServiceImpl() }
-        single<ReactionService> { ReactionServiceImpl(get<StorageService>(), get<AccessGroupService>(), get<ApplicationEnvironment>().config) }
-        single<PostService> { PostServiceImpl(get<AccessGroupService>(), get<StorageService>(), get<ReactionService>()) }
+        single<ReactionService> { ReactionServiceImpl(get<StorageService>(), get<AccessGroupService>(), get<NotificationService>(), get<ApplicationEnvironment>().config) }
+        single<PostService> { PostServiceImpl(get<AccessGroupService>(), get<StorageService>(), get<ReactionService>(), get<NotificationService>()) }
+        single<NotificationService> { NotificationServiceImpl(get()) }
     }
     return modules(appModules)
 }

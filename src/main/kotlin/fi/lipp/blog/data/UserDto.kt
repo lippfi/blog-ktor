@@ -1,5 +1,6 @@
 package fi.lipp.blog.data
 
+import fi.lipp.blog.util.UUIDSerializer
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.Serializable
@@ -13,8 +14,9 @@ sealed interface UserDto {
         val email: String,
         val nickname: String,
         val registrationTime: LocalDateTime,
+        val notificationSettings: NotificationSettings,
     ) : UserDto
-    
+
     @Serializable
     data class Login(
         val login: String,
@@ -30,7 +32,7 @@ sealed interface UserDto {
         val timezone: String,
         val language: Language,
     ): UserDto
-    
+
     @TestOnly
     data class FullProfileInfo(
         val id: UUID,
@@ -40,7 +42,8 @@ sealed interface UserDto {
         val registrationTime: LocalDateTime,
         val password: String,
     ) : UserDto
-    
+
+    @Serializable
     data class AdditionalInfo(
         val sex: Sex,
         val timezone: String,
@@ -48,11 +51,14 @@ sealed interface UserDto {
         val nsfw: NSFWPolicy,
         val birthDate: LocalDate?,
     ): UserDto
-    
+
+    @Serializable
     data class DiaryInfo(
         val name: String,
         val subtitle: String,
+        @Serializable(with = UUIDSerializer::class)
         val defaultReadGroup: UUID,
+        @Serializable(with = UUIDSerializer::class)
         val defaultCommentGroup: UUID
     )
 }
