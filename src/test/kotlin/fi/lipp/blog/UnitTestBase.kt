@@ -68,8 +68,6 @@ abstract class UnitTestBase {
                     InviteCodes,
                     PasswordResets,
                     Posts,
-                    PostDislikes,
-                    AnonymousPostDislikes,
                     PostTags,
                     Comments,
                     Reactions,
@@ -178,8 +176,6 @@ abstract class UnitTestBase {
             exec("DELETE FROM ${Reactions.tableName}")
             exec("DELETE FROM ${Comments.tableName}")
             exec("DELETE FROM ${PostTags.tableName}")
-            exec("DELETE FROM ${AnonymousPostDislikes.tableName}")
-            exec("DELETE FROM ${PostDislikes.tableName}")
             exec("DELETE FROM ${Posts.tableName}")
             exec("DELETE FROM ${PasswordResets.tableName}")
             exec("DELETE FROM ${InviteCodes.tableName}")

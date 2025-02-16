@@ -31,7 +31,13 @@ class ReactionServiceTests : UnitTestBase() {
                 inputStream = avatarFile1.inputStream()
             ))
             val config = MapApplicationConfig().apply {
-                put("reactions.basic", "like,love,haha,wow,sad,angry")
+                put("reactions.basic.size", "6")
+                put("reactions.basic.0", "like")
+                put("reactions.basic.1", "love")
+                put("reactions.basic.2", "haha")
+                put("reactions.basic.3", "wow")
+                put("reactions.basic.4", "sad")
+                put("reactions.basic.5", "angry")
             }
             reactionService = ReactionServiceImpl(storageService, groupService, config)
             postService = PostServiceImpl(groupService, storageService, reactionService)

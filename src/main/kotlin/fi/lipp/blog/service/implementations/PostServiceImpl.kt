@@ -12,6 +12,11 @@ import fi.lipp.blog.service.PostService
 import fi.lipp.blog.service.ReactionService
 import fi.lipp.blog.service.StorageService
 import fi.lipp.blog.service.Viewer
+import org.jetbrains.exposed.sql.Query
+import org.jetbrains.exposed.sql.andWhere
+import org.jetbrains.exposed.sql.statements.InsertStatement
+import org.jetbrains.exposed.sql.Expression
+import org.jetbrains.exposed.sql.Op
 import java.io.FileNotFoundException
 import kotlinx.datetime.LocalDateTime
 import org.jetbrains.exposed.dao.id.EntityID
@@ -435,7 +440,6 @@ class PostServiceImpl(
         val authorDiary = DiaryEntity.find { Diaries.owner eq author.id }.single()
         val isCommentable = (userId == postEntity.authorId.value) || (accessGroupService.inGroup(viewer, postEntity.commentGroupId.value))
         val isReactable = (userId == postEntity.authorId.value) || (accessGroupService.inGroup(viewer, postEntity.reactionGroupId.value))
-        val (isDislikedByMe, dislikeCount) = collectDislikeInfo(viewer, postEntity.id.value)
 
         return PostDto.View(
             id = postEntity.id.value,
@@ -452,8 +456,6 @@ class PostServiceImpl(
             tags = postEntity.tags.map { it.name }.toSet(),
             isCommentable = isCommentable,
             comments = getCommentsForPost(postEntity.id.value),
-            isDislikedByMe = isDislikedByMe,
-            dislikeCount = dislikeCount,
             readGroupId = postEntity.readGroupId.value,
             commentGroupId = postEntity.commentGroupId.value,
             reactionGroupId = postEntity.reactionGroupId.value,
@@ -465,7 +467,6 @@ class PostServiceImpl(
 
     private fun Transaction.toPostView(viewer: Viewer, row: ResultRow): PostDto.View {
         val userId = (viewer as? Viewer.Registered)?.userId
-        val (isDislikedByMe, dislikeCount) = collectDislikeInfo(viewer, row[Posts.id].value)
         return PostDto.View(
             id = row[Posts.id].value,
             uri = row[Posts.uri],
@@ -486,8 +487,6 @@ class PostServiceImpl(
             classes = row[Posts.classes],
             isCommentable = (userId == row[Users.id].value) || (accessGroupService.inGroup(viewer, row[Posts.commentGroup].value)),
             comments = getCommentsForPost(row[Posts.id].value),
-            isDislikedByMe = isDislikedByMe,
-            dislikeCount = dislikeCount,
 
             readGroupId = row[Posts.readGroup].value,
             commentGroupId = row[Posts.commentGroup].value,
@@ -517,22 +516,6 @@ class PostServiceImpl(
 
             isEncrypted = postEntity.isEncrypted,
         )
-    }
-
-    @Suppress("UnusedReceiverParameter")
-    private fun Transaction.collectDislikeInfo(viewer: Viewer, postId: UUID): Pair<Boolean, Int> {
-        val isDislikedByMe = when (viewer) {
-            is Viewer.Registered -> {
-                PostDislikeEntity.find { (PostDislikes.user eq viewer.userId) and (PostDislikes.post eq postId) }.firstOrNull() != null
-            }
-            is Viewer.Anonymous -> {
-                AnonymousPostDislikeEntity.find { (AnonymousPostDislikes.ipFingerprint eq viewer.ipFingerprint) and (AnonymousPostDislikes.post eq postId) }.firstOrNull() != null
-            }
-        }
-        val userDislikeCount = PostDislikes.select { PostDislikes.post eq postId }.count()
-        val anonymousDislikeCount = AnonymousPostDislikes.select { AnonymousPostDislikes.post eq postId }.count()
-        val totalDislikeCount = userDislikeCount + anonymousDislikeCount
-        return isDislikedByMe to totalDislikeCount.toInt()
     }
 
     @Suppress("UnusedReceiverParameter")

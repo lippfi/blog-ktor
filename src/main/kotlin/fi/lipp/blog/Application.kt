@@ -18,7 +18,6 @@ import org.koin.logger.slf4jLogger
 // TODO Cors
 
 // SECOND ITERATION
-// Better reactions
 // Device sessions && token invalidation
 // Notifications
 // Avatar validation
