@@ -177,7 +177,12 @@ class PostServiceImpl(
                 post.uri
             }
 
-            val (readGroup, commentGroup) = getReadAndCommentGroups(postEntity.diaryId.value, post.readGroupId, post.commentGroupId)
+            val (readGroup, commentGroup, reactionGroup) = getReadAndCommentGroups(
+                postEntity.diaryId.value,
+                post.readGroupId,
+                post.commentGroupId,
+                post.reactionGroupId
+            )
 
             postEntity.apply {
                 uri = newUri
@@ -191,12 +196,13 @@ class PostServiceImpl(
                 isEncrypted = post.isEncrypted
                 readGroupId = readGroup.id
                 commentGroupId = commentGroup.id
+                reactionGroupId = reactionGroup.id
             }
             updatePostTags(postEntity, post.tags)
         }
     }
 
-    private fun getReadAndCommentGroups(diaryId: UUID, readGroupId: UUID, commentGroupId: UUID): Pair<AccessGroupEntity, AccessGroupEntity> {
+    private fun getReadAndCommentGroups(diaryId: UUID, readGroupId: UUID, commentGroupId: UUID, reactionGroupId: UUID): Triple<AccessGroupEntity, AccessGroupEntity, AccessGroupEntity> {
         val readGroupEntity = AccessGroupEntity.findById(readGroupId) ?: throw InvalidAccessGroupException()
         val readGroupDiaryId = readGroupEntity.diaryId?.value
         if (readGroupDiaryId != null && readGroupDiaryId != diaryId) {
@@ -208,7 +214,14 @@ class PostServiceImpl(
         if (commentGroupDiaryId != null && commentGroupDiaryId != diaryId) {
             throw InvalidAccessGroupException()
         }
-        return readGroupEntity to commentGroupEntity
+
+        val reactionGroupEntity = AccessGroupEntity.findById(reactionGroupId) ?: throw InvalidAccessGroupException()
+        val reactionGroupDiaryId = reactionGroupEntity.diaryId?.value
+        if (reactionGroupDiaryId != null && reactionGroupDiaryId != diaryId) {
+            throw InvalidAccessGroupException()
+        }
+
+        return Triple(readGroupEntity, commentGroupEntity, reactionGroupEntity)
     }
 
     private fun updatePostTags(postEntity: PostEntity, newTags: Set<String>) {
@@ -290,7 +303,12 @@ class PostServiceImpl(
             val postUri = checkOrCreateUri(userId, post.title, post.uri)
             val diaryId = DiaryEntity.find { Diaries.owner eq userId }.first().id.value
 
-            val (readGroupEntity, commentGroupEntity) = getReadAndCommentGroups(diaryId, post.readGroupId, post.commentGroupId)
+            val (readGroupEntity, commentGroupEntity, reactionGroupEntity) = getReadAndCommentGroups(
+                diaryId,
+                post.readGroupId,
+                post.commentGroupId,
+                post.reactionGroupId
+            )
 
             val postId = Posts.insertAndGetId {
                 it[uri] = postUri
@@ -311,6 +329,7 @@ class PostServiceImpl(
 
                 it[readGroup] = readGroupEntity.id
                 it[commentGroup] = commentGroupEntity.id
+                it[reactionGroup] = reactionGroupEntity.id
             }
 
             for (tag in post.tags) {
@@ -392,6 +411,7 @@ class PostServiceImpl(
         val author = UserEntity.findById(postEntity.authorId) ?: throw InternalServerError()
         val authorDiary = DiaryEntity.find { Diaries.owner eq author.id }.single()
         val isCommentable = (userId == postEntity.authorId.value) || (accessGroupService.inGroup(viewer, postEntity.commentGroupId.value))
+        val isReactable = (userId == postEntity.authorId.value) || (accessGroupService.inGroup(viewer, postEntity.reactionGroupId.value))
         val (isDislikedByMe, dislikeCount) = collectDislikeInfo(viewer, postEntity.id.value)
 
         return PostDto.View(
@@ -413,6 +433,8 @@ class PostServiceImpl(
             dislikeCount = dislikeCount,
             readGroupId = postEntity.readGroupId.value,
             commentGroupId = postEntity.commentGroupId.value,
+            reactionGroupId = postEntity.reactionGroupId.value,
+            isReactable = isReactable,
         )
     }
 
@@ -444,6 +466,8 @@ class PostServiceImpl(
 
             readGroupId = row[Posts.readGroup].value,
             commentGroupId = row[Posts.commentGroup].value,
+            reactionGroupId = row[Posts.reactionGroup].value,
+            isReactable = (userId == row[Users.id].value) || (accessGroupService.inGroup(viewer, row[Posts.reactionGroup].value)),
         )
     }
 
@@ -458,6 +482,7 @@ class PostServiceImpl(
 
             readGroupId = postEntity.readGroupId.value,
             commentGroupId = postEntity.commentGroupId.value,
+            reactionGroupId = postEntity.reactionGroupId.value,
 
             tags = postEntity.tags.map { it.name }.toSet(),
             classes = postEntity.classes,

@@ -33,15 +33,20 @@ class ReactionServiceTests : UnitTestBase() {
         }
     }
 
-    private fun createTestPost(userId: UUID, uri: String = "test-post-${UUID.randomUUID()}"): PostDto.View {
+    private fun createTestPost(
+        userId: UUID,
+        uri: String = "test-post-${UUID.randomUUID()}",
+        groupId: UUID = groupService.everyoneGroupUUID
+    ): PostDto.View {
         return transaction {
             postService.addPost(userId, PostDto.Create(
                 title = "Test Post",
                 uri = uri,
                 text = "Test content",
                 tags = setOf(),
-                readGroupId = groupService.everyoneGroupUUID,
-                commentGroupId = groupService.everyoneGroupUUID,
+                readGroupId = groupId,
+                commentGroupId = groupId,
+                reactionGroupId = groupId,
                 isPreface = false,
                 isEncrypted = false,
                 classes = "",
@@ -212,6 +217,49 @@ class ReactionServiceTests : UnitTestBase() {
                 inputStream = avatarFile2.inputStream()
             ))
         }
+    }
+
+    @Test
+    fun `test reaction group permissions`() {
+        // Create test users
+        val inviteCode = userService.generateInviteCode(testUser.id)
+        userService.signUp(testUser2, inviteCode)
+        val user2 = findUserByLogin(testUser2.login)!!
+
+        // Create a reaction
+        val reaction = reactionService.createReaction(
+            testUser.id,
+            "like",
+            FileUploadData(
+                fullName = "reaction.png",
+                inputStream = avatarFile1.inputStream()
+            )
+        )
+
+        // Create posts with different reaction group permissions
+        val everyonePost = createTestPost(testUser.id, "post-everyone", groupService.everyoneGroupUUID)
+        val registeredPost = createTestPost(testUser.id, "post-registered", groupService.registeredGroupUUID)
+        val privatePost = createTestPost(testUser.id, "post-private", groupService.privateGroupUUID)
+
+        // Test everyone post
+        reactionService.addReaction(Viewer.Anonymous("127.0.0.1", "test"), testUser.login, everyonePost.uri, reaction.id)
+        reactionService.addReaction(Viewer.Registered(user2.id), testUser.login, everyonePost.uri, reaction.id)
+
+        // Test registered users post
+        assertFailsWith<WrongUserException>("Anonymous user should not be able to react to registered-only post") {
+            reactionService.addReaction(Viewer.Anonymous("127.0.0.1", "test"), testUser.login, registeredPost.uri, reaction.id)
+        }
+        reactionService.addReaction(Viewer.Registered(user2.id), testUser.login, registeredPost.uri, reaction.id)
+
+        // Test private post
+        assertFailsWith<WrongUserException>("Anonymous user should not be able to react to private post") {
+            reactionService.addReaction(Viewer.Anonymous("127.0.0.1", "test"), testUser.login, privatePost.uri, reaction.id)
+        }
+        assertFailsWith<WrongUserException>("Other user should not be able to react to private post") {
+            reactionService.addReaction(Viewer.Registered(user2.id), testUser.login, privatePost.uri, reaction.id)
+        }
+        // Author should be able to react to their own private post
+        reactionService.addReaction(Viewer.Registered(testUser.id), testUser.login, privatePost.uri, reaction.id)
     }
 
     @Test

@@ -31,4 +31,5 @@ class PostEntity(id: EntityID<UUID>) : UUIDEntity(id) {
 
     var readGroupId by Posts.readGroup
     var commentGroupId by Posts.commentGroup
+    var reactionGroupId by Posts.reactionGroup
 }

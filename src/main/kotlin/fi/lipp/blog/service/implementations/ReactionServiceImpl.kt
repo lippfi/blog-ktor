@@ -61,7 +61,7 @@ class ReactionServiceImpl(
         transaction {
             val diaryEntity = findDiaryByLogin(diaryLogin)
             val postEntity = PostEntity.find { (Posts.diary eq diaryEntity.id) and (Posts.uri eq uri) and (Posts.isArchived eq false) }.firstOrNull() ?: throw PostNotFoundException()
-            if (postEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, postEntity.readGroupId.value)) {
+            if (postEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, postEntity.reactionGroupId.value)) {
                 throw WrongUserException()
             }
             when (viewer) {
@@ -102,7 +102,7 @@ class ReactionServiceImpl(
         transaction {
             val diaryEntity = findDiaryByLogin(diaryLogin)
             val postEntity = PostEntity.find { (Posts.diary eq diaryEntity.id) and (Posts.uri eq uri) and (Posts.isArchived eq false) }.firstOrNull() ?: throw PostNotFoundException()
-            if (postEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, postEntity.readGroupId.value)) {
+            if (postEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, postEntity.reactionGroupId.value)) {
                 throw WrongUserException()
             }
             when (viewer) {

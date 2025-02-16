@@ -25,17 +25,20 @@ sealed interface PostDto {
 
         val classes : String,
         var tags : Set<String>,
-        
+
         val dislikeCount: Int,
         val isDislikedByMe: Boolean,
 
+        val isReactable: Boolean,
         val isCommentable: Boolean,
         val comments: List<CommentDto.View>,
-        
+
         @Serializable(with = UUIDSerializer::class)
         val readGroupId: UUID,
         @Serializable(with = UUIDSerializer::class)
         val commentGroupId: UUID,
+        @Serializable(with = UUIDSerializer::class)
+        val reactionGroupId: UUID,
     ) : PostDto
 
     @Serializable
@@ -50,6 +53,8 @@ sealed interface PostDto {
         val readGroupId: UUID,
         @Serializable(with = UUIDSerializer::class)
         val commentGroupId: UUID,
+        @Serializable(with = UUIDSerializer::class)
+        val reactionGroupId: UUID,
 
         var tags : Set<String>,
         val classes : String,
@@ -72,6 +77,8 @@ sealed interface PostDto {
         val readGroupId: UUID,
         @Serializable(with = UUIDSerializer::class)
         val commentGroupId: UUID,
+        @Serializable(with = UUIDSerializer::class)
+        val reactionGroupId: UUID,
 
         var tags : Set<String>,
         val classes : String,
@@ -79,5 +86,3 @@ sealed interface PostDto {
         val isEncrypted: Boolean,
     ) : PostDto
 }
-
-
