@@ -10,6 +10,7 @@ import java.time.LocalDateTime
 object Reactions : UUIDTable() {
     val name = varchar("name", 50)  // Technical name/identifier
     val icon = reference("icon", Files, onDelete = ReferenceOption.RESTRICT)
+    val creator = reference("creator", Users, onDelete = ReferenceOption.CASCADE)
     val createdAt = datetime("created_at").clientDefault { LocalDateTime.now().toKotlinLocalDateTime() }
 
     init {

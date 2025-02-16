@@ -30,9 +30,11 @@ class ReactionServiceImpl(
             // Get the file entity
             val iconFile = FileEntity.findById(storedFile.id) ?: throw FileNotFoundException()
 
+            val userEntity = UserEntity.findById(userId) ?: throw WrongUserException()
             val reactionEntity = ReactionEntity.new {
                 this.name = name
                 this.icon = iconFile
+                this.creator = userEntity
             }
             toReactionView(reactionEntity)
         }
@@ -41,6 +43,9 @@ class ReactionServiceImpl(
     override fun deleteReaction(userId: UUID, name: String) {
         transaction {
             val reactionEntity = ReactionEntity.find { Reactions.name eq name }.firstOrNull() ?: throw ReactionNotFoundException()
+            if (reactionEntity.creator.id.value != userId) {
+                throw WrongUserException()
+            }
             reactionEntity.delete()
         }
     }

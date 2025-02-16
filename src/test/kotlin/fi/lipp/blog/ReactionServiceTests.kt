@@ -66,6 +66,11 @@ class ReactionServiceTests : UnitTestBase() {
 
     @Test
     fun `test delete reaction`() {
+        // Generate invite code and register second test user
+        val inviteCode = userService.generateInviteCode(testUser.id)
+        userService.signUp(testUser2, inviteCode)
+        val user2 = findUserByLogin(testUser2.login)!!
+
         val name = "like"
         reactionService.createReaction(
             testUser.id,
@@ -75,6 +80,13 @@ class ReactionServiceTests : UnitTestBase() {
                 inputStream = avatarFile1.inputStream()
             )
         )
+
+        // Another user should not be able to delete the reaction
+        assertFailsWith<WrongUserException>("Should not allow deletion by non-creator") {
+            reactionService.deleteReaction(user2.id, name)
+        }
+
+        // Original creator should be able to delete the reaction
         reactionService.deleteReaction(testUser.id, name)
 
         // Verify the reaction was deleted by trying to get all reactions
