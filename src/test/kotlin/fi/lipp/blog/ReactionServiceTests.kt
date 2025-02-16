@@ -213,4 +213,45 @@ class ReactionServiceTests : UnitTestBase() {
             ))
         }
     }
+
+    @Test
+    fun `test search reactions by name`() {
+        // Create test reactions
+        val testReactions = listOf(
+            "like",
+            "superlike",
+            "dislike",
+            "heart"
+        )
+
+        testReactions.forEach { name ->
+            reactionService.createReaction(
+                testUser.id,
+                name,
+                FileUploadData(
+                    fullName = "reaction.png",
+                    inputStream = avatarFile1.inputStream()
+                )
+            )
+        }
+
+        // Test partial match with complete word
+        val completeMatch = reactionService.searchReactionsByName("like")
+        assertEquals(3, completeMatch.size)
+        assertTrue(completeMatch.map { it.name }.containsAll(listOf("like", "superlike", "dislike")))
+
+        // Test partial match at start
+        val startMatch = reactionService.searchReactionsByName("super")
+        assertEquals(1, startMatch.size)
+        assertEquals("superlike", startMatch.first().name)
+
+        // Test partial match in middle
+        val middleMatch = reactionService.searchReactionsByName("lik")
+        assertEquals(3, middleMatch.size)
+        assertTrue(middleMatch.map { it.name }.containsAll(listOf("like", "superlike", "dislike")))
+
+        // Test no match
+        val noMatch = reactionService.searchReactionsByName("xyz")
+        assertTrue(noMatch.isEmpty())
+    }
 }

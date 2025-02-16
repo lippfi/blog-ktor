@@ -111,7 +111,12 @@ fun Route.postRoutes(postService: PostService, reactionService: ReactionService)
 
             // Reaction management endpoints
             get("/reactions") {
-                val reactions = reactionService.getReactions()
+                val namePattern = call.request.queryParameters["name"]
+                val reactions = if (namePattern != null) {
+                    reactionService.searchReactionsByName(namePattern)
+                } else {
+                    reactionService.getReactions()
+                }
                 call.respond(reactions)
             }
 

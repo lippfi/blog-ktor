@@ -137,4 +137,11 @@ class ReactionServiceImpl(
     private fun findDiaryByLogin(login: String): DiaryEntity {
         return DiaryEntity.find { Diaries.login eq login }.singleOrNull() ?: throw DiaryNotFoundException()
     }
+
+    override fun searchReactionsByName(namePattern: String): List<ReactionDto.View> {
+        return transaction {
+            ReactionEntity.find { Reactions.name like "%${namePattern}%" }
+                .map { toReactionView(it) }
+        }
+    }
 }
