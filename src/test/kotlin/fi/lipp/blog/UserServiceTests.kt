@@ -7,6 +7,7 @@ import fi.lipp.blog.domain.PasswordResetCodeEntity
 import fi.lipp.blog.domain.UserEntity
 import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.repository.*
+import fi.lipp.blog.stubs.ApplicationPropertiesStub
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -32,7 +33,7 @@ class UserServiceTests : UnitTestBase() {
         @JvmStatic
         @AfterClass
         fun tearDown() {
-            File(properties.basePath.toString()).deleteRecursively()
+            File((properties as ApplicationPropertiesStub).basePath.toString()).deleteRecursively()
         }
     }
 

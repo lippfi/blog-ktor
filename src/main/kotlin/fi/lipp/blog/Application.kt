@@ -15,7 +15,6 @@ import org.koin.logger.slf4jLogger
 // Cascade delete and stuff
 // TODO API documentation
 // TODO Integration tests
-// TODO setup Koin in test
 // TODO Cors
 
 // SECOND ITERATION

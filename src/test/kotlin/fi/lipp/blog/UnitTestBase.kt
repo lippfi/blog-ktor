@@ -5,47 +5,118 @@ import fi.lipp.blog.data.UserDto
 import fi.lipp.blog.domain.DiaryEntity
 import fi.lipp.blog.domain.UserEntity
 import fi.lipp.blog.repository.*
-import fi.lipp.blog.service.MailService
+import fi.lipp.blog.service.*
 import fi.lipp.blog.service.implementations.AccessGroupServiceImpl
 import fi.lipp.blog.service.implementations.StorageServiceImpl
 import fi.lipp.blog.service.implementations.UserServiceImpl
 import fi.lipp.blog.stubs.ApplicationPropertiesStub
 import fi.lipp.blog.stubs.PasswordEncoderStub
+import org.koin.core.context.startKoin
+import org.koin.core.context.stopKoin
+import org.koin.dsl.module
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.toJavaLocalDateTime
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.mockito.Mockito.mock
+import org.mockito.kotlin.*
 import java.io.File
 import kotlin.io.path.Path
 import kotlin.test.assertTrue
+import io.ktor.server.application.*
+import io.ktor.server.config.*
+import org.slf4j.Logger
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
+import org.junit.After
+import org.junit.AfterClass
+import org.junit.Before
+import org.junit.BeforeClass
 
 abstract class UnitTestBase {
     companion object {
-        init {
+        private val mockConfig = MapApplicationConfig().apply {
+            put("jwt.issuer", "test-issuer")
+            put("jwt.audience", "test-audience")
+            put("jwt.realm", "test-realm")
+            put("jwt.secret", "test-secret")
+        }
+
+        private val mockEnvironment = object : ApplicationEnvironment {
+            override val config = mockConfig
+            override val log = mock<Logger>()
+            override val monitor = mock<ApplicationEvents>()
+            override val classLoader = this::class.java.classLoader
+            override val rootPath = ""
+            override val developmentMode = false
+            override val parentCoroutineContext: CoroutineContext = EmptyCoroutineContext
+        }
+
+        @JvmStatic
+        @BeforeClass
+        fun setUpClass() {
             Database.connect("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;", driver = "org.h2.Driver")
             transaction {
                 SchemaUtils.create(
-                    Users, Diaries, InviteCodes, PasswordResets, Files, UserAvatars, Tags, Posts,
-                    PostDislikes, AnonymousPostDislikes, PostTags, AccessGroups, CustomGroupUsers, Comments,
-                    Reactions, ReactionLocalizations, PostReactions, AnonymousPostReactions
+                    Users,
+                    Files,
+                    UserAvatars,
+                    Tags,
+                    Diaries,
+                    AccessGroups,
+                    CustomGroupUsers,
+                    InviteCodes,
+                    PasswordResets,
+                    Posts,
+                    PostDislikes,
+                    AnonymousPostDislikes,
+                    PostTags,
+                    Comments,
+                    Reactions,
+                    ReactionLocalizations,
+                    PostReactions,
+                    AnonymousPostReactions
                 )
+            }
+            startKoin {
+                modules(module {
+                    single<ApplicationEnvironment> { mockEnvironment }
+                    single<ApplicationProperties> { ApplicationPropertiesStub() }
+                    single<PasswordEncoder> { PasswordEncoderStub() }
+                    single<MailService> { mock() }
+                    single<StorageService> { StorageServiceImpl(get()) }
+                    single<AccessGroupService> { AccessGroupServiceImpl() }
+                    single<UserService> { UserServiceImpl(get(), get(), get(), get()) }
+                })
+            }
+            // Initialize default access groups
+            val accessGroupService = org.koin.core.context.GlobalContext.get().get<AccessGroupService>()
+            transaction {
+                // Access these properties to trigger group creation
+                accessGroupService.everyoneGroupUUID
+                accessGroupService.registeredGroupUUID
+                accessGroupService.privateGroupUUID
             }
         }
 
         @JvmStatic
-        protected val properties = ApplicationPropertiesStub()
+        @AfterClass
+        fun tearDownClass() {
+            stopKoin()
+        }
+
         @JvmStatic
-        protected val encoder = PasswordEncoderStub()
+        protected val properties get() = org.koin.core.context.GlobalContext.get().get<ApplicationProperties>()
         @JvmStatic
-        protected val mailService = mock<MailService>()
+        protected val encoder get() = org.koin.core.context.GlobalContext.get().get<PasswordEncoder>()
         @JvmStatic
-        protected val storageService = StorageServiceImpl(properties)
+        protected val mailService get() = org.koin.core.context.GlobalContext.get().get<MailService>()
         @JvmStatic
-        protected val groupService = AccessGroupServiceImpl()
+        protected val storageService get() = org.koin.core.context.GlobalContext.get().get<StorageService>()
         @JvmStatic
-        protected val userService = UserServiceImpl(encoder, mailService, storageService, groupService)
+        protected val groupService get() = org.koin.core.context.GlobalContext.get().get<AccessGroupService>()
+        @JvmStatic
+        protected val userService get() = org.koin.core.context.GlobalContext.get().get<UserService>()
 
         @JvmStatic
         protected val testUser = UserDto.Registration(
