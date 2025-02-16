@@ -9,6 +9,7 @@ interface ReactionService {
     fun deleteReaction(userId: UUID, name: String)
     fun getReactions(): List<ReactionDto.View>
     fun searchReactionsByName(namePattern: String): List<ReactionDto.View>
+    fun getUserRecentReactions(userId: UUID, limit: Int = 50): List<ReactionDto.View>
 
     fun addReaction(viewer: Viewer, diaryLogin: String, uri: String, reactionId: UUID)
     fun removeReaction(viewer: Viewer, diaryLogin: String, uri: String, reactionId: UUID)

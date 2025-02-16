@@ -4,6 +4,7 @@ import fi.lipp.blog.data.UserDto
 import fi.lipp.blog.data.toFileUploadDatas
 import fi.lipp.blog.plugins.userId
 import fi.lipp.blog.service.DiaryService
+import fi.lipp.blog.service.ReactionService
 import fi.lipp.blog.service.UserService
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -14,7 +15,7 @@ import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import java.util.*
 
-fun Route.userRoutes(userService: UserService) {
+fun Route.userRoutes(userService: UserService, reactionService: ReactionService) {
     route("/user") {
         post("/sign-up") {
             val user = call.receive<UserDto.Registration>()
@@ -52,13 +53,13 @@ fun Route.userRoutes(userService: UserService) {
                 val code = userService.generateInviteCode(userId)
                 call.respondText(code)
             }
-            
+
             post("/update") {
                 val (user, oldPassword) = call.receive<UpdateUserRequest>()
                 userService.update(userId, user, oldPassword)
                 call.respondText("User updated successfully")
             }
-            
+
             post("/update-additional-info") {
                 val info = call.receive<UserDto.AdditionalInfo>()
                 userService.updateAdditionalInfo(userId, info)
@@ -104,6 +105,12 @@ fun Route.userRoutes(userService: UserService) {
                 }
                 userService.deleteAvatar(userId, avatarUri)
                 call.respondText("Avatar deleted successfully")
+            }
+
+            get("/recent-reactions") {
+                val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 50
+                val reactions = reactionService.getUserRecentReactions(userId, limit)
+                call.respond(reactions)
             }
         }
     }

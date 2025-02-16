@@ -33,11 +33,11 @@ class ReactionServiceTests : UnitTestBase() {
         }
     }
 
-    private fun createTestPost(userId: UUID): PostDto.View {
+    private fun createTestPost(userId: UUID, uri: String = "test-post-${UUID.randomUUID()}"): PostDto.View {
         return transaction {
             postService.addPost(userId, PostDto.Create(
                 title = "Test Post",
-                uri = "test-post",
+                uri = uri,
                 text = "Test content",
                 tags = setOf(),
                 readGroupId = groupService.everyoneGroupUUID,
@@ -47,7 +47,7 @@ class ReactionServiceTests : UnitTestBase() {
                 classes = "",
                 avatar = ""
             ))
-            postService.getPost(Viewer.Registered(userId), testUser.login, "test-post")
+            postService.getPost(Viewer.Registered(userId), testUser.login, uri)
         }
     }
 
@@ -253,5 +253,44 @@ class ReactionServiceTests : UnitTestBase() {
         // Test no match
         val noMatch = reactionService.searchReactionsByName("xyz")
         assertTrue(noMatch.isEmpty())
+    }
+
+    @Test
+    fun `test get user recent reactions`() {
+        // Create test reactions
+        val testReactions = listOf("happy", "sad", "love")
+
+        val createdReactions = testReactions.map { name ->
+            reactionService.createReaction(
+                testUser.id,
+                name,
+                FileUploadData(
+                    fullName = "reaction.png",
+                    inputStream = avatarFile1.inputStream()
+                )
+            )
+        }
+
+        // Create test posts
+        val posts = (1..3).map { createTestPost(testUser.id) }
+
+        // Add reactions in specific order to test timestamp-based ordering
+        reactionService.addReaction(Viewer.Registered(testUser.id), posts[0].authorLogin, posts[0].uri, createdReactions[0].id)
+        reactionService.addReaction(Viewer.Registered(testUser.id), posts[1].authorLogin, posts[1].uri, createdReactions[1].id)
+        reactionService.addReaction(Viewer.Registered(testUser.id), posts[2].authorLogin, posts[2].uri, createdReactions[2].id)
+        reactionService.addReaction(Viewer.Registered(testUser.id), posts[0].authorLogin, posts[0].uri, createdReactions[1].id)
+
+        // Test getting recent reactions with default limit
+        val recentReactions = reactionService.getUserRecentReactions(testUser.id)
+        assertEquals(3, recentReactions.size)
+        assertEquals(createdReactions[1].id, recentReactions[0].id) // Most recent (sad)
+        assertEquals(createdReactions[2].id, recentReactions[1].id) // Second recent (love)
+        assertEquals(createdReactions[0].id, recentReactions[2].id) // Least recent (happy)
+
+        // Test with custom limit
+        val limitedReactions = reactionService.getUserRecentReactions(testUser.id, 2)
+        assertEquals(2, limitedReactions.size)
+        assertEquals(createdReactions[1].id, limitedReactions[0].id)
+        assertEquals(createdReactions[2].id, limitedReactions[1].id)
     }
 }

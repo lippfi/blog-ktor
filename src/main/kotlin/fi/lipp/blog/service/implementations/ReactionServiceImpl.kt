@@ -144,4 +144,17 @@ class ReactionServiceImpl(
                 .map { toReactionView(it) }
         }
     }
+
+    override fun getUserRecentReactions(userId: UUID, limit: Int): List<ReactionDto.View> {
+        return transaction {
+            (PostReactions innerJoin Reactions)
+                .slice(Reactions.columns)
+                .select { PostReactions.user eq userId }
+                .orderBy(PostReactions.timestamp to SortOrder.DESC)
+                .limit(limit)
+                .map { ReactionEntity.wrapRow(it) }
+                .map { toReactionView(it) }
+                .distinct()
+        }
+    }
 }
