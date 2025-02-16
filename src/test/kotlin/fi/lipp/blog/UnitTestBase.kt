@@ -16,7 +16,7 @@ import org.koin.core.context.stopKoin
 import org.koin.dsl.module
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.toJavaLocalDateTime
-import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.mockito.kotlin.*
@@ -168,5 +168,30 @@ abstract class UnitTestBase {
         val javaDateTime = dateTime.toJavaLocalDateTime()
         assertTrue(javaDateTime.isAfter(java.time.LocalDateTime.now().minusSeconds(20)))
         assertTrue(javaDateTime.isBefore(java.time.LocalDateTime.now()))
+    }
+
+    @Before
+    fun cleanDatabase() {
+        transaction {
+            // Delete all data except access groups in the correct order to handle dependencies
+            exec("DELETE FROM ${AnonymousPostReactions.tableName}")
+            exec("DELETE FROM ${PostReactions.tableName}")
+            exec("DELETE FROM ${ReactionLocalizations.tableName}")
+            exec("DELETE FROM ${Reactions.tableName}")
+            exec("DELETE FROM ${Comments.tableName}")
+            exec("DELETE FROM ${PostTags.tableName}")
+            exec("DELETE FROM ${AnonymousPostDislikes.tableName}")
+            exec("DELETE FROM ${PostDislikes.tableName}")
+            exec("DELETE FROM ${Posts.tableName}")
+            exec("DELETE FROM ${PasswordResets.tableName}")
+            exec("DELETE FROM ${InviteCodes.tableName}")
+            exec("DELETE FROM ${CustomGroupUsers.tableName}")
+            exec("DELETE FROM ${UserAvatars.tableName}")
+            exec("DELETE FROM ${Files.tableName}")
+            exec("DELETE FROM ${Diaries.tableName}")
+            exec("DELETE FROM ${Users.tableName}")
+            // Don't delete AccessGroups as they are required for the system to work
+            commit()
+        }
     }
 }
