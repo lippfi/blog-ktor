@@ -461,6 +461,41 @@ class UserServiceTests : UnitTestBase() {
     }
 
     @Test
+    fun `adding avatar larger than 1MB`() {
+        transaction {
+            // Create a large image that's over 1MB
+            val width = 1000
+            val height = 1000
+            val image = java.awt.image.BufferedImage(width, height, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+            val g = image.createGraphics()
+            // Fill with random colors to ensure file size is large
+            for (x in 0 until width) {
+                for (y in 0 until height) {
+                    g.color = java.awt.Color((Math.random() * 0xFFFFFF).toInt())
+                    g.fillRect(x, y, 1, 1)
+                }
+            }
+            g.dispose()
+
+            val outputStream = java.io.ByteArrayOutputStream()
+            ImageIO.write(image, "png", outputStream)
+            val largeFileData = FileUploadData("large_avatar.png", java.io.ByteArrayInputStream(outputStream.toByteArray()))
+
+            userService.signUp(testUser, "")
+            val foundUser = findUserByLogin(testUser.login)!!
+            val userId = foundUser.id
+
+            assertThrows(InvalidAvatarSizeException::class.java) {
+                userService.addAvatar(userId, listOf(largeFileData))
+            }
+            val avatars = userService.getAvatars(userId)
+            assertEquals(0, avatars.size)
+
+            rollback()
+        }
+    }
+
+    @Test
     fun `adding avatar with wrong extension`() {
         transaction {
             val avatarUploadTxt = FileUploadData(avatarFileTxt.name, avatarFileTxt.inputStream())

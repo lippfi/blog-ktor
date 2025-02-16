@@ -18,8 +18,6 @@ import org.koin.logger.slf4jLogger
 // TODO Cors
 
 // SECOND ITERATION
-// Avatar validation
-// File size limits
 // Create dirs when store file
 // Clear dirs after running tests
 // Friends

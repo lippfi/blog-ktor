@@ -12,6 +12,7 @@ import fi.lipp.blog.model.exceptions.DailyUploadLimitExceededException
 import fi.lipp.blog.model.exceptions.InternalServerError
 import fi.lipp.blog.model.exceptions.InvalidAvatarExtensionException
 import fi.lipp.blog.model.exceptions.InvalidAvatarDimensionsException
+import fi.lipp.blog.model.exceptions.InvalidAvatarSizeException
 import fi.lipp.blog.model.exceptions.InvalidReactionImageException
 import javax.imageio.ImageIO
 import fi.lipp.blog.repository.UserUploads
@@ -63,6 +64,12 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
 
         // Read the entire input stream into a byte array
         val bytes = file.inputStream.readAllBytes()
+
+        // Check if file size is less than 1MB
+        if (bytes.size > 1_048_576) {
+            throw InvalidAvatarSizeException()
+        }
+
         val image = ImageIO.read(bytes.inputStream())
 
         if (image.width != 100 || image.height != 100) {
