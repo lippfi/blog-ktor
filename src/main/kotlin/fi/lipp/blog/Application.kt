@@ -18,14 +18,16 @@ import org.koin.logger.slf4jLogger
 // TODO Cors
 
 // SECOND ITERATION
-// Friends
-// Communities
 // Private messages
 // Reposts
 // follow diaries : 3
 // Friends, discussed now, subscribed feed
 
+// POST-FRONTEND
+// Communities
+
 // THIRD ITERATION
+// Review and localize all exceptions
 // Caches
 // Custom website design css
 // Multiple diary styles (switch between them)
@@ -78,7 +80,7 @@ fun KoinApplication.loadMyKoins(environment: ApplicationEnvironment): KoinApplic
         single<StorageService> { StorageServiceImpl(get()) }
         single<DiaryService> { DiaryServiceImpl(get()) }
         single<PasswordEncoder> { PasswordEncoderImpl() }
-        single<UserService> { UserServiceImpl(get(), get(), get(), get()) }
+        single<UserService> { UserServiceImpl(get(), get(), get(), get(), get<NotificationService>()) }
         single<AccessGroupService> { AccessGroupServiceImpl() }
         single<ReactionService> { ReactionServiceImpl(get<StorageService>(), get<AccessGroupService>(), get<NotificationService>(), get<ApplicationEnvironment>().config) }
         single<PostService> { PostServiceImpl(get<AccessGroupService>(), get<StorageService>(), get<ReactionService>(), get<NotificationService>()) }

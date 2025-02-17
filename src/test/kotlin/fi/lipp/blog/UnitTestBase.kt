@@ -4,23 +4,10 @@ import fi.lipp.blog.data.Language
 import fi.lipp.blog.data.UserDto
 import fi.lipp.blog.data.FileUploadData
 import fi.lipp.blog.domain.DiaryEntity
+import fi.lipp.blog.domain.NotificationEntity
 import fi.lipp.blog.domain.UserEntity
-import fi.lipp.blog.repository.AccessGroups
-import fi.lipp.blog.repository.AnonymousPostReactions
-import fi.lipp.blog.repository.Comments
-import fi.lipp.blog.repository.CustomGroupUsers
-import fi.lipp.blog.repository.Diaries
-import fi.lipp.blog.repository.Files
-import fi.lipp.blog.repository.InviteCodes
-import fi.lipp.blog.repository.PasswordResets
-import fi.lipp.blog.repository.PostReactions
-import fi.lipp.blog.repository.PostTags
-import fi.lipp.blog.repository.Posts
-import fi.lipp.blog.repository.Reactions
-import fi.lipp.blog.repository.Tags
-import fi.lipp.blog.repository.UserAvatars
-import fi.lipp.blog.repository.UserUploads
-import fi.lipp.blog.repository.Users
+import fi.lipp.blog.domain.Notifications
+import fi.lipp.blog.repository.*
 import fi.lipp.blog.service.*
 import fi.lipp.blog.service.implementations.AccessGroupServiceImpl
 import fi.lipp.blog.service.implementations.StorageServiceImpl
@@ -90,7 +77,11 @@ abstract class UnitTestBase {
                     Reactions,
                     PostReactions,
                     AnonymousPostReactions,
-                    UserUploads
+                    UserUploads,
+                    FriendRequests,
+                    Friends,
+                    FriendLabels,
+                    Notifications,
                 )
             }
             startKoin {
@@ -101,7 +92,8 @@ abstract class UnitTestBase {
                     single<MailService> { mock() }
                     single<StorageService> { StorageServiceImpl(get()) }
                     single<AccessGroupService> { AccessGroupServiceImpl() }
-                    single<UserService> { UserServiceImpl(get(), get(), get(), get()) }
+                    single<NotificationService> { mock() }
+                    single<UserService> { UserServiceImpl(get(), get(), get(), get(), get()) }
                 })
             }
             // Initialize default access groups
@@ -132,6 +124,9 @@ abstract class UnitTestBase {
         protected val groupService get() = org.koin.core.context.GlobalContext.get().get<AccessGroupService>()
         @JvmStatic
         protected val userService get() = org.koin.core.context.GlobalContext.get().get<UserService>()
+
+        @JvmStatic
+        protected val notificationService get() = org.koin.core.context.GlobalContext.get().get<NotificationService>()
 
         @JvmStatic
         protected val testUser = UserDto.Registration(

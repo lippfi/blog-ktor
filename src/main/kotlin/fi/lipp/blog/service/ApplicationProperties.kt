@@ -17,13 +17,13 @@ interface ApplicationProperties {
     fun otherDirectory(userLogin: String): Path
     fun reactionsDirectory(userLogin: String): Path
 
-    val avatarsUrl: String
-    val imagesUrl: String
-    val videosUrl: String
-    val audiosUrl: String
-    val stylesUrl: String
-    val otherUrl: String
-    val reactionsUrl: String
+    fun avatarsUrl(userLogin: String): String
+    fun imagesUrl(userLogin: String): String
+    fun videosUrl(userLogin: String): String
+    fun audiosUrl(userLogin: String): String
+    fun stylesUrl(userLogin: String): String
+    fun otherUrl(userLogin: String): String
+    fun reactionsUrl(userLogin: String): String
 
     /**
      * Get storage quota limit in bytes for the specified quota tier

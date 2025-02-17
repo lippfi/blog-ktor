@@ -23,13 +23,13 @@ class ApplicationPropertiesStub : ApplicationProperties {
 
     val baseUrl = "https://blog.com"
 
-    override val avatarsUrl = "$baseUrl/avatars"
-    override val imagesUrl = "$baseUrl/images"
-    override val videosUrl = "$baseUrl/videos"
-    override val audiosUrl = "$baseUrl/audios"
-    override val stylesUrl = "$baseUrl/styles"
-    override val otherUrl = "$baseUrl/other"
-    override val reactionsUrl = "$baseUrl/reactions"
+    override fun avatarsUrl(userLogin: String) = "$baseUrl/$userLogin/avatars"
+    override fun imagesUrl(userLogin: String) = "$baseUrl/$userLogin/images"
+    override fun videosUrl(userLogin: String) = "$baseUrl/$userLogin/videos"
+    override fun audiosUrl(userLogin: String) = "$baseUrl/$userLogin/audios"
+    override fun stylesUrl(userLogin: String) = "$baseUrl/$userLogin/styles"
+    override fun otherUrl(userLogin: String) = "$baseUrl/$userLogin/other"
+    override fun reactionsUrl(userLogin: String) = "$baseUrl/$userLogin/reactions"
 
     override fun getQuotaLimit(quota: StorageQuota): Long? = when (quota) {
         StorageQuota.BASIC -> 10L * 1024 * 1024     // 10MB

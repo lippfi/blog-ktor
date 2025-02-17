@@ -1,5 +1,6 @@
 package fi.lipp.blog.routes
 
+import fi.lipp.blog.data.FriendRequestDto
 import fi.lipp.blog.data.NotificationSettings
 import fi.lipp.blog.data.UserDto
 import fi.lipp.blog.data.toFileUploadDatas
@@ -118,6 +119,53 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService)
                 val settings = call.receive<NotificationSettings>()
                 userService.updateNotificationSettings(userId, settings)
                 call.respondText("Notification settings updated successfully")
+            }
+
+            // Friend-related routes
+            post("/friend-request") {
+                val request = call.receive<FriendRequestDto.Create>()
+                userService.sendFriendRequest(userId, request)
+                call.respondText("Friend request sent successfully")
+            }
+
+            post("/friend-request/{requestId}/accept") {
+                val requestId = UUID.fromString(call.parameters["requestId"]!!)
+                val label = call.parameters["label"]
+                userService.acceptFriendRequest(userId, requestId, label)
+                call.respondText("Friend request accepted")
+            }
+
+            post("/friend-request/{requestId}/decline") {
+                val requestId = UUID.fromString(call.parameters["requestId"]!!)
+                userService.declineFriendRequest(userId, requestId)
+                call.respondText("Friend request declined")
+            }
+
+            delete("/friend-request/{requestId}") {
+                val requestId = UUID.fromString(call.parameters["requestId"]!!)
+                userService.cancelFriendRequest(userId, requestId)
+                call.respondText("Friend request cancelled")
+            }
+
+            get("/friend-requests/sent") {
+                val requests = userService.getSentFriendRequests(userId)
+                call.respond(requests)
+            }
+
+            get("/friend-requests/received") {
+                val requests = userService.getReceivedFriendRequests(userId)
+                call.respond(requests)
+            }
+
+            get("/friends") {
+                val friends = userService.getFriends(userId)
+                call.respond(friends)
+            }
+
+            delete("/friends/{friendId}") {
+                val friendLogin = call.parameters["login"] ?: throw IllegalArgumentException("Missing friendLogin parameter")
+                userService.removeFriend(userId, friendLogin)
+                call.respondText("Friend removed successfully")
             }
         }
     }

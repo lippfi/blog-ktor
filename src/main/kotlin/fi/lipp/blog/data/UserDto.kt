@@ -61,6 +61,13 @@ sealed interface UserDto {
         @Serializable(with = UUIDSerializer::class)
         val defaultCommentGroup: UUID
     )
+
+    @Serializable
+    data class View(
+        val login: String,
+        val nickname: String,
+        val avatarUri: String?,
+    ) : UserDto
 }
 
 enum class Sex {

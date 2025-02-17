@@ -18,6 +18,7 @@ object Notifications : UUIDTable() {
     val relatedPost = reference("related_post", Posts).nullable()
     val relatedComment = reference("related_comment", Comments).nullable()
     val relatedReaction = reference("related_reaction", Reactions).nullable()
+    val relatedRequest = reference("related_request", FriendRequests).nullable()
     val isRead = bool("is_read").default(false)
     val createdAt = datetime("created_at").clientDefault { LocalDateTime.now().toKotlinLocalDateTime() }
 }
@@ -31,6 +32,7 @@ class NotificationEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var relatedPost by PostEntity.optionalReferencedOn(Notifications.relatedPost)
     var relatedComment by CommentEntity.optionalReferencedOn(Notifications.relatedComment)
     var relatedReaction by ReactionEntity.optionalReferencedOn(Notifications.relatedReaction)
+    var relatedRequest by FriendRequestEntity.optionalReferencedOn(Notifications.relatedRequest)
     var isRead by Notifications.isRead
     var createdAt by Notifications.createdAt
 }

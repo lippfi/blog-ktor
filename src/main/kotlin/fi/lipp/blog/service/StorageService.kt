@@ -2,6 +2,7 @@ package fi.lipp.blog.service
 
 import fi.lipp.blog.data.BlogFile
 import fi.lipp.blog.data.FileUploadData
+import fi.lipp.blog.data.UserDto
 import java.io.File
 import java.util.*
 

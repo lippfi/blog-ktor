@@ -34,4 +34,5 @@ class UserEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var notifyAboutPrivateMessages: Boolean by Users.notifyAboutPrivateMessages
     var notifyAboutMentions: Boolean by Users.notifyAboutMentions
     var storageQuota: StorageQuota by Users.storageQuota
+    var primaryAvatar: EntityID<UUID>? by Users.primaryAvatar
 }

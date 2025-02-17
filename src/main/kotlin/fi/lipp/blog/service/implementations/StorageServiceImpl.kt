@@ -14,14 +14,11 @@ import fi.lipp.blog.model.exceptions.InvalidAvatarExtensionException
 import fi.lipp.blog.model.exceptions.InvalidAvatarDimensionsException
 import fi.lipp.blog.model.exceptions.InvalidAvatarSizeException
 import fi.lipp.blog.model.exceptions.InvalidReactionImageException
+import fi.lipp.blog.repository.*
 import javax.imageio.ImageIO
-import fi.lipp.blog.repository.UserUploads
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import fi.lipp.blog.repository.Diaries
-import fi.lipp.blog.repository.Files
-import fi.lipp.blog.repository.Users
 import fi.lipp.blog.service.ApplicationProperties
 import fi.lipp.blog.service.StorageService
 import org.jetbrains.exposed.dao.id.EntityID
@@ -184,14 +181,19 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
     }
 
     override fun getFileURL(file: BlogFile): String {
+        val userLogin = transaction {
+            val fileEntity = FileEntity.findById(file.id) ?: throw InternalServerError()
+            DiaryEntity.find { (Diaries.owner eq fileEntity.owner.value) and (Diaries.type eq DiaryType.PERSONAL) }
+                .singleOrNull()?.login ?: throw InternalServerError()
+        }
         val url = when (file.type) {
-            FileType.AVATAR -> properties.avatarsUrl
-            FileType.IMAGE -> properties.imagesUrl
-            FileType.VIDEO -> properties.videosUrl
-            FileType.AUDIO -> properties.audiosUrl
-            FileType.STYLE -> properties.stylesUrl
-            FileType.OTHER -> properties.otherUrl
-            FileType.REACTION -> properties.reactionsUrl
+            FileType.AVATAR -> properties.avatarsUrl(userLogin)
+            FileType.IMAGE -> properties.imagesUrl(userLogin)
+            FileType.VIDEO -> properties.videosUrl(userLogin)
+            FileType.AUDIO -> properties.audiosUrl(userLogin)
+            FileType.STYLE -> properties.stylesUrl(userLogin)
+            FileType.OTHER -> properties.otherUrl(userLogin)
+            FileType.REACTION -> properties.reactionsUrl(userLogin)
         }
         return "$url/${file.name}"
     }

@@ -1,8 +1,10 @@
 package fi.lipp.blog
 
 import fi.lipp.blog.data.FileUploadData
+import fi.lipp.blog.data.FriendRequestDto
 import fi.lipp.blog.data.Language
 import fi.lipp.blog.data.UserDto
+import fi.lipp.blog.domain.FriendLabelEntity
 import fi.lipp.blog.domain.PasswordResetCodeEntity
 import fi.lipp.blog.domain.UserEntity
 import fi.lipp.blog.model.exceptions.*
@@ -10,6 +12,9 @@ import fi.lipp.blog.repository.*
 import fi.lipp.blog.stubs.ApplicationPropertiesStub
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.junit.AfterClass
 import org.junit.Assert.assertThrows
@@ -205,28 +210,6 @@ class UserServiceTests : UnitTestBase() {
         }
     }
 
-    @Ignore // login can't be updated to avoid chaos
-    @Test
-    fun `updating only login`() {
-        transaction {
-            userService.signUp(testUser, "")
-
-            val userEntity = findUserByLogin(testUser.login)!!
-            val registrationTime = userEntity.registrationTime
-            val newUser = UserDto.Registration("new" + testUser.login, testUser.email, testUser.password, testUser.nickname, language = Language.EN, timezone = "Asia/Seoul")
-            userService.update(userEntity.id, newUser, testUser.password)
-
-            val updatedUser = findUserByLogin(newUser.login)!!
-            assertEquals(newUser.login, updatedUser.login)
-            assertEquals(newUser.email, updatedUser.email)
-            assertEquals(newUser.nickname, updatedUser.nickname)
-            assertTrue(encoder.matches(newUser.password, updatedUser.password))
-            assertEquals(registrationTime, updatedUser.registrationTime)
-
-            rollback()
-        }
-    }
-
     @Test
     fun `updating only email`() {
         transaction {
@@ -287,26 +270,6 @@ class UserServiceTests : UnitTestBase() {
             assertEquals(testUser.nickname, updatedUser.nickname)
             assertTrue(encoder.matches(testUser.password, updatedUser.password))
             assertEquals(registrationTime, updatedUser.registrationTime)
-
-            rollback()
-        }
-    }
-
-    @Ignore // login can't be changed
-    @Test
-    fun `updating user with busy login`() {
-        transaction {
-            userService.signUp(testUser, "")
-            val foundUser = findUserByLogin(testUser.login)!!
-            val inviteCode = userService.generateInviteCode(foundUser.id)
-
-            userService.signUp(testUser2, inviteCode)
-
-            val userEntity = findUserByLogin(testUser.login)!!
-            val updatedUser = UserDto.Registration(testUser2.login, testUser.email, testUser.password, testUser.nickname, language = Language.EN, timezone = "Asia/Seoul")
-            assertThrows(LoginIsBusyException::class.java) {
-                userService.update(userEntity.id, updatedUser, testUser.password)
-            }
 
             rollback()
         }
@@ -769,6 +732,554 @@ class UserServiceTests : UnitTestBase() {
             assertThrows(WrongUserException::class.java) {
                 userService.reorderAvatars(userId1, avatars.map { it.id } + storedFileUUID)
             }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `first avatar becomes primary`() {
+        transaction {
+            userService.signUp(testUser, "")
+            val userId = findUserByLogin(testUser.login)!!.id
+
+            // Add first avatar
+            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
+            userService.addAvatar(userId, listOf(avatarUpload1))
+            val avatars1 = userService.getAvatars(userId)
+            assertEquals(1, avatars1.size)
+
+            // Verify it became primary
+            val user = UserEntity.findById(userId)!!
+            assertNotNull(user.primaryAvatar)
+            assertEquals(avatars1[0].id, user.primaryAvatar!!.value)
+
+            // Add second avatar
+            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
+            userService.addAvatar(userId, listOf(avatarUpload2))
+            val avatars2 = userService.getAvatars(userId)
+            assertEquals(2, avatars2.size)
+
+            // Verify first avatar is still primary
+            assertEquals(avatars1[0].id, user.primaryAvatar!!.value)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `change primary avatar`() {
+        transaction {
+            userService.signUp(testUser, "")
+            val userId = findUserByLogin(testUser.login)!!.id
+
+            // Add two avatars
+            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
+            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
+            userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2))
+            val avatars = userService.getAvatars(userId)
+            assertEquals(2, avatars.size)
+
+            // Change primary avatar to the second one
+            val user = UserEntity.findById(userId)!!
+            val firstPrimaryId = user.primaryAvatar!!.value
+            val secondAvatarUrl = storageService.getFileURL(avatars[1])
+            userService.changePrimaryAvatar(userId, secondAvatarUrl)
+
+            // Verify primary avatar changed
+            assertNotEquals(firstPrimaryId, user.primaryAvatar!!.value)
+            assertEquals(avatars[1].id, user.primaryAvatar!!.value)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `upload existing avatar file`() {
+        transaction {
+            // Create two users
+            userService.signUp(testUser, "")
+            val userId1 = findUserByLogin(testUser.login)!!.id
+            val inviteCode = userService.generateInviteCode(userId1)
+            userService.signUp(testUser2, inviteCode)
+            val userId2 = findUserByLogin(testUser2.login)!!.id
+
+            // Add avatar to first user
+            val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
+            userService.addAvatar(userId1, listOf(avatarUpload))
+            val avatars1 = userService.getAvatars(userId1)
+            assertEquals(1, avatars1.size)
+
+            // Upload the same avatar for second user
+            val avatarUrl = storageService.getFileURL(avatars1[0])
+            userService.uploadAvatar(userId2, avatarUrl)
+
+            // Verify that the same avatar was added to second user
+            val avatars2 = userService.getAvatars(userId2)
+            assertEquals(1, avatars2.size)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `upload non-avatar file as avatar`() {
+        transaction {
+            userService.signUp(testUser, "")
+            val userId = findUserByLogin(testUser.login)!!.id
+
+            // Upload a non-avatar file
+            val fileUpload = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
+            val files = storageService.store(userId, listOf(fileUpload))
+            assertEquals(1, files.size)
+
+            // Try to use it as avatar
+            val fileUrl = storageService.getFileURL(files[0])
+            userService.uploadAvatar(userId, fileUrl)
+
+            // Verify that a new avatar was created
+            val avatars = userService.getAvatars(userId)
+            assertEquals(1, avatars.size)
+            assertNotEquals(files[0].id, avatars[0].id)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `change primary avatar to other user avatar`() {
+        transaction {
+            // Create two users
+            userService.signUp(testUser, "")
+            val userId1 = findUserByLogin(testUser.login)!!.id
+            val inviteCode = userService.generateInviteCode(userId1)
+            userService.signUp(testUser2, inviteCode)
+            val userId2 = findUserByLogin(testUser2.login)!!.id
+
+            // Add avatar to first user
+            val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
+            userService.addAvatar(userId1, listOf(avatarUpload))
+            val avatars1 = userService.getAvatars(userId1)
+            assertEquals(1, avatars1.size)
+
+            // Try to set first user's avatar as primary for second user
+            val avatarUrl = storageService.getFileURL(avatars1[0])
+            userService.changePrimaryAvatar(userId2, avatarUrl)
+
+            // Verify that a new copy of the avatar was created
+            val avatars2 = userService.getAvatars(userId2)
+            assertEquals(1, avatars2.size)
+            assertNotEquals(avatars1[0].id, avatars2[0].id)
+
+            // Verify it was set as primary
+            val user2 = UserEntity.findById(userId2)!!
+            assertNotNull(user2.primaryAvatar)
+            assertEquals(avatars2[0].id, user2.primaryAvatar!!.value)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `delete primary avatar`() {
+        transaction {
+            userService.signUp(testUser, "")
+            val userId = findUserByLogin(testUser.login)!!.id
+
+            // Add two avatars
+            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
+            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
+            userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2))
+            val avatars = userService.getAvatars(userId)
+            assertEquals(2, avatars.size)
+
+            // Delete primary avatar
+            val user = UserEntity.findById(userId)!!
+            val firstPrimaryId = user.primaryAvatar!!.value
+            val firstAvatarUrl = storageService.getFileURL(avatars[0])
+            userService.deleteAvatar(userId, firstAvatarUrl)
+
+            // Verify second avatar became primary
+            assertNotEquals(firstPrimaryId, user.primaryAvatar!!.value)
+            assertEquals(avatars[1].id, user.primaryAvatar!!.value)
+
+            // Delete last avatar
+            val secondAvatarUrl = storageService.getFileURL(avatars[1])
+            userService.deleteAvatar(userId, secondAvatarUrl)
+
+            // Verify no primary avatar
+            assertNull(user.primaryAvatar)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `send friend request successfully`() {
+        transaction {
+            userService.signUp(testUser, "")
+            val userId1 = findUserByLogin(testUser.login)!!.id
+            val inviteCode = userService.generateInviteCode(userId1)
+            userService.signUp(testUser2, inviteCode)
+            val userId2 = findUserByLogin(testUser2.login)!!.id
+
+            val request = FriendRequestDto.Create("bigbabyboy", "Let's be friends!", "coworker")
+            userService.sendFriendRequest(userId1, request)
+
+            val sentRequests = userService.getSentFriendRequests(userId1)
+            assertEquals(1, sentRequests.size)
+            assertEquals(request.message, sentRequests[0].message)
+            assertEquals(request.label, sentRequests[0].label)
+            assertEquals(testUser2.login, sentRequests[0].user.login)
+
+            val receivedRequests = userService.getReceivedFriendRequests(userId2)
+            assertEquals(1, receivedRequests.size)
+            assertEquals(sentRequests[0].id, receivedRequests[0].id)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `send friend request to nonexistent user`() {
+        transaction {
+            userService.signUp(testUser, "")
+            val userId1 = findUserByLogin(testUser.login)!!.id
+
+            val request = FriendRequestDto.Create("nonexistent_user", "Let's be friends!", null)
+            assertThrows(UserNotFoundException::class.java) {
+                userService.sendFriendRequest(userId1, request)
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `send friend request when already friends`() {
+        transaction {
+            userService.signUp(testUser, "")
+            val userId1 = findUserByLogin(testUser.login)!!.id
+            val inviteCode = userService.generateInviteCode(userId1)
+            userService.signUp(testUser2, inviteCode)
+            val userId2 = findUserByLogin(testUser2.login)!!.id
+
+            val request = FriendRequestDto.Create("bigbabyboy", "Let's be friends!", null)
+            userService.sendFriendRequest(userId1, request)
+            userService.acceptFriendRequest(userId2, userService.getReceivedFriendRequests(userId2)[0].id, null)
+
+            assertThrows(AlreadyFriendsException::class.java) {
+                userService.sendFriendRequest(userId1, request)
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `send duplicate friend request`() {
+        transaction {
+            userService.signUp(testUser, "")
+            val userId1 = findUserByLogin(testUser.login)!!.id
+            val inviteCode = userService.generateInviteCode(userId1)
+            userService.signUp(testUser2, inviteCode)
+            val userId2 = findUserByLogin(testUser2.login)!!.id
+
+            val request = FriendRequestDto.Create("bigbabyboy", "Let's be friends!", null)
+            userService.sendFriendRequest(userId1, request)
+
+            assertThrows(FriendRequestAlreadyExistsException::class.java) {
+                userService.sendFriendRequest(userId1, request)
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `accept friend request successfully`() {
+        transaction {
+            userService.signUp(testUser, "")
+            val userId1 = findUserByLogin(testUser.login)!!.id
+            val inviteCode = userService.generateInviteCode(userId1)
+            userService.signUp(testUser2, inviteCode)
+            val userId2 = findUserByLogin(testUser2.login)!!.id
+
+            val request = FriendRequestDto.Create("bigbabyboy", "Let's be friends!", "coworker")
+            userService.sendFriendRequest(userId1, request)
+            val requestId = userService.getReceivedFriendRequests(userId2)[0].id
+
+            // Accept with a different label
+            userService.acceptFriendRequest(userId2, requestId, "classmate")
+
+            // Request should be removed
+            assertEquals(0, userService.getSentFriendRequests(userId1).size)
+            assertEquals(0, userService.getReceivedFriendRequests(userId2).size)
+
+            // Both users should be friends
+            val user1Friends = userService.getFriends(userId1)
+            val user2Friends = userService.getFriends(userId2)
+            assertEquals(1, user1Friends.size)
+            assertEquals(1, user2Friends.size)
+            assertEquals(testUser2.login, user1Friends[0].login)
+            assertEquals(testUser.login, user2Friends[0].login)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `accept nonexistent friend request`() {
+        transaction {
+            userService.signUp(testUser, "")
+            val userId = findUserByLogin(testUser.login)!!.id
+
+            assertThrows(FriendRequestNotFoundException::class.java) {
+                userService.acceptFriendRequest(userId, UUID.randomUUID(), null)
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `accept friend request as non-recipient`() {
+        transaction {
+            userService.signUp(testUser, "")
+            val userId1 = findUserByLogin(testUser.login)!!.id
+            val inviteCode = userService.generateInviteCode(userId1)
+            userService.signUp(testUser2, inviteCode)
+            val userId2 = findUserByLogin(testUser2.login)!!.id
+
+            val request = FriendRequestDto.Create("bigbabyboy", "Let's be friends!", null)
+            userService.sendFriendRequest(userId1, request)
+            val requestId = userService.getReceivedFriendRequests(userId2)[0].id
+
+            assertThrows(NotRequestRecipientException::class.java) {
+                userService.acceptFriendRequest(userId1, requestId, null)
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `decline friend request successfully`() {
+        transaction {
+            userService.signUp(testUser, "")
+            val userId1 = findUserByLogin(testUser.login)!!.id
+            val inviteCode = userService.generateInviteCode(userId1)
+            userService.signUp(testUser2, inviteCode)
+            val userId2 = findUserByLogin(testUser2.login)!!.id
+
+            val request = FriendRequestDto.Create("bigbabyboy", "Let's be friends!", null)
+            userService.sendFriendRequest(userId1, request)
+            val requestId = userService.getReceivedFriendRequests(userId2)[0].id
+
+            userService.declineFriendRequest(userId2, requestId)
+
+            // Request should be removed
+            assertEquals(0, userService.getSentFriendRequests(userId1).size)
+            assertEquals(0, userService.getReceivedFriendRequests(userId2).size)
+
+            // Users should not be friends
+            assertEquals(0, userService.getFriends(userId1).size)
+            assertEquals(0, userService.getFriends(userId2).size)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `cancel friend request successfully`() {
+        transaction {
+            userService.signUp(testUser, "")
+            val userId1 = findUserByLogin(testUser.login)!!.id
+            val inviteCode = userService.generateInviteCode(userId1)
+            userService.signUp(testUser2, inviteCode)
+            val userId2 = findUserByLogin(testUser2.login)!!.id
+
+            val request = FriendRequestDto.Create("bigbabyboy", "Let's be friends!", null)
+            userService.sendFriendRequest(userId1, request)
+            val requestId = userService.getSentFriendRequests(userId1)[0].id
+
+            userService.cancelFriendRequest(userId1, requestId)
+
+            // Request should be removed
+            assertEquals(0, userService.getSentFriendRequests(userId1).size)
+            assertEquals(0, userService.getReceivedFriendRequests(userId2).size)
+
+            // Users should not be friends
+            assertEquals(0, userService.getFriends(userId1).size)
+            assertEquals(0, userService.getFriends(userId2).size)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `cancel nonexistent friend request`() {
+        transaction {
+            userService.signUp(testUser, "")
+            val userId1 = findUserByLogin(testUser.login)!!.id
+
+            assertThrows(FriendRequestNotFoundException::class.java) {
+                userService.cancelFriendRequest(userId1, UUID.randomUUID())
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `cancel friend request as non-sender`() {
+        transaction {
+            userService.signUp(testUser, "")
+            val userId1 = findUserByLogin(testUser.login)!!.id
+            val inviteCode = userService.generateInviteCode(userId1)
+            userService.signUp(testUser2, inviteCode)
+            val userId2 = findUserByLogin(testUser2.login)!!.id
+
+            val request = FriendRequestDto.Create("bigbabyboy", "Let's be friends!", null)
+            userService.sendFriendRequest(userId1, request)
+            val requestId = userService.getSentFriendRequests(userId1)[0].id
+
+            assertThrows(NotRequestSenderException::class.java) {
+                userService.cancelFriendRequest(userId2, requestId)
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `remove friend successfully`() {
+        transaction {
+            userService.signUp(testUser, "")
+            val userId1 = findUserByLogin(testUser.login)!!.id
+            val inviteCode = userService.generateInviteCode(userId1)
+            userService.signUp(testUser2, inviteCode)
+            val userId2 = findUserByLogin(testUser2.login)!!.id
+
+            val request = FriendRequestDto.Create("bigbabyboy", "Let's be friends!", null)
+            userService.sendFriendRequest(userId1, request)
+            userService.acceptFriendRequest(userId2, userService.getReceivedFriendRequests(userId2)[0].id, null)
+
+            assertEquals(1, userService.getFriends(userId1).size)
+            assertEquals(1, userService.getFriends(userId2).size)
+
+            userService.removeFriend(userId1, testUser2.login)
+
+            assertEquals(0, userService.getFriends(userId1).size)
+            assertEquals(0, userService.getFriends(userId2).size)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `remove nonexistent friend`() {
+        transaction {
+            userService.signUp(testUser, "")
+            val userId1 = findUserByLogin(testUser.login)!!.id
+            val inviteCode = userService.generateInviteCode(userId1)
+            userService.signUp(testUser2, inviteCode)
+            val userId2 = findUserByLogin(testUser2.login)!!.id
+
+            assertThrows(NotFriendsException::class.java) {
+                userService.removeFriend(userId1, testUser2.login)
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `verify friend labels after accepting request`() {
+        transaction {
+            userService.signUp(testUser, "")
+            val userId1 = findUserByLogin(testUser.login)!!.id
+            val inviteCode = userService.generateInviteCode(userId1)
+            userService.signUp(testUser2, inviteCode)
+            val userId2 = findUserByLogin(testUser2.login)!!.id
+
+            // Send friend request with label "coworker"
+            val request = FriendRequestDto.Create("bigbabyboy", "Let's be friends!", "coworker")
+            userService.sendFriendRequest(userId1, request)
+            val requestId = userService.getReceivedFriendRequests(userId2)[0].id
+
+            // Accept with a different label "classmate"
+            userService.acceptFriendRequest(userId2, requestId, "classmate")
+
+            // Verify that both users have their respective labels
+            val user1Friends = userService.getFriends(userId1)
+            val user2Friends = userService.getFriends(userId2)
+
+            assertEquals("coworker", FriendLabelEntity.find {
+                FriendLabels.user eq userId1 and (FriendLabels.friend eq userId2)
+            }.first().label)
+
+            assertEquals("classmate", FriendLabelEntity.find {
+                FriendLabels.user eq userId2 and (FriendLabels.friend eq userId1)
+            }.first().label)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `update friend label`() {
+        transaction {
+            userService.signUp(testUser, "")
+            val userId1 = findUserByLogin(testUser.login)!!.id
+            val inviteCode = userService.generateInviteCode(userId1)
+            userService.signUp(testUser2, inviteCode)
+            val userId2 = findUserByLogin(testUser2.login)!!.id
+
+            // Become friends first
+            val request = FriendRequestDto.Create("bigbabyboy", "Let's be friends!", "coworker")
+            userService.sendFriendRequest(userId1, request)
+            userService.acceptFriendRequest(userId2, userService.getReceivedFriendRequests(userId2)[0].id, "classmate")
+
+            // Update label
+            userService.updateFriendLabel(userId1, testUser2.login, "best friend")
+
+            // Verify label is updated
+            assertEquals("best friend", FriendLabelEntity.find {
+                FriendLabels.user eq userId1 and (FriendLabels.friend eq userId2)
+            }.first().label)
+
+            // Other user's label should remain unchanged
+            assertEquals("classmate", FriendLabelEntity.find {
+                FriendLabels.user eq userId2 and (FriendLabels.friend eq userId1)
+            }.first().label)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `remove friend with labels`() {
+        transaction {
+            userService.signUp(testUser, "")
+            val userId1 = findUserByLogin(testUser.login)!!.id
+            val inviteCode = userService.generateInviteCode(userId1)
+            userService.signUp(testUser2, inviteCode)
+            val userId2 = findUserByLogin(testUser2.login)!!.id
+
+            // Become friends with labels
+            val request = FriendRequestDto.Create("bigbabyboy", "Let's be friends!", "coworker")
+            userService.sendFriendRequest(userId1, request)
+            userService.acceptFriendRequest(userId2, userService.getReceivedFriendRequests(userId2)[0].id, "classmate")
+
+            // Remove friendship
+            userService.removeFriend(userId1, testUser2.login)
+
+            // Verify labels are removed
+            assertEquals(0, FriendLabelEntity.find {
+                (FriendLabels.user eq userId1 and (FriendLabels.friend eq userId2)) or
+                (FriendLabels.user eq userId2 and (FriendLabels.friend eq userId1))
+            }.count())
 
             rollback()
         }

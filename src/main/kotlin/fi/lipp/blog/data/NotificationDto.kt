@@ -58,4 +58,15 @@ sealed interface NotificationDto {
     ) : NotificationDto {
         override val type: NotificationType = NotificationType.COMMENT_REACTION
     }
+
+    @Serializable
+    data class FriendRequest(
+        @Serializable(with = UUIDSerializer::class)
+        override val id: UUID,
+        val senderLogin: String,
+        @Serializable(with = UUIDSerializer::class)
+        val requestId: UUID,
+    ) : NotificationDto {
+        override val type: NotificationType = NotificationType.FRIEND_REQUEST
+    }
 }

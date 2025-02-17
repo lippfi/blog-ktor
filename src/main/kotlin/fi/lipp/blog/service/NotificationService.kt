@@ -70,4 +70,19 @@ interface NotificationService {
     fun isSubscribedToComments(userId: UUID, postId: UUID): Boolean
 
     fun readAllPostNotifications(userId: UUID, postId: UUID)
+
+    /**
+     * Notify user about a friend request
+     */
+    fun notifyAboutFriendRequest(recipientId: UUID, requestId: UUID, senderLogin: String)
+
+    /**
+     * Mark all friend request notifications as read for a user
+     */
+    fun readAllFriendRequestNotifications(userId: UUID)
+
+    /**
+     * Mark friend request notification as read for a specific request
+     */
+    fun markFriendRequestNotificationAsRead(userId: UUID, requestId: UUID)
 }

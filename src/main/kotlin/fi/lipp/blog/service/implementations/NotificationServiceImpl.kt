@@ -177,6 +177,15 @@ class NotificationServiceImpl : NotificationService {
                 diaryLogin = diaryLogin!!,
                 postUri = postUri!!,
             )
+            NotificationType.FRIEND_REQUEST -> {
+                val requestId = row[Notifications.relatedRequest]?.value ?: throw IllegalStateException("Friend request notification without request ID")
+                val senderDiary = DiaryEntity.find { Diaries.owner eq row[Notifications.sender] }.single()
+                NotificationDto.FriendRequest(
+                    id = row[Notifications.id].value,
+                    senderLogin = senderDiary.login,
+                    requestId = requestId,
+                )
+            }
             else -> TODO()
         }
     }
@@ -212,6 +221,15 @@ class NotificationServiceImpl : NotificationService {
                 diaryLogin = diaryLogin!!,
                 postUri = postUri!!,
             )
+            NotificationType.FRIEND_REQUEST -> {
+                val requestId = notification.relatedRequest?.id?.value ?: throw IllegalStateException("Friend request notification without request ID")
+                val senderDiary = DiaryEntity.find { Diaries.owner eq notification.sender.id }.single()
+                NotificationDto.FriendRequest(
+                    id = notification.id.value,
+                    senderLogin = senderDiary.login,
+                    requestId = requestId,
+                )
+            }
             else -> TODO()
         }
     }
@@ -246,6 +264,38 @@ class NotificationServiceImpl : NotificationService {
     override fun readAllPostNotifications(userId: UUID, postId: UUID) {
         transaction {
             Notifications.update({ (Notifications.relatedPost eq postId) and (Notifications.recipient eq userId) }) {
+                it[isRead] = true
+            }
+        }
+    }
+
+    override fun notifyAboutFriendRequest(recipientId: UUID, requestId: UUID, senderLogin: String) {
+        transaction {
+            val senderDiary = DiaryEntity.find { Diaries.login eq senderLogin }.single()
+            Notifications.insert {
+                it[type] = NotificationType.FRIEND_REQUEST
+                it[sender] = senderDiary.owner
+                it[recipient] = recipientId
+                it[relatedRequest] = requestId
+            }
+        }
+    }
+
+    override fun readAllFriendRequestNotifications(userId: UUID) {
+        transaction {
+            Notifications.update({ (Notifications.type eq NotificationType.FRIEND_REQUEST) and (Notifications.recipient eq userId) }) {
+                it[isRead] = true
+            }
+        }
+    }
+
+    override fun markFriendRequestNotificationAsRead(userId: UUID, requestId: UUID) {
+        transaction {
+            Notifications.update({ 
+                (Notifications.type eq NotificationType.FRIEND_REQUEST) and 
+                (Notifications.recipient eq userId) and 
+                (Notifications.relatedRequest eq requestId)
+            }) {
                 it[isRead] = true
             }
         }

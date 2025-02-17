@@ -12,4 +12,5 @@ enum class NotificationType {
     POST_MENTION,
     COMMENT_MENTION,
     PRIVATE_MESSAGE,
+    FRIEND_REQUEST,
 }

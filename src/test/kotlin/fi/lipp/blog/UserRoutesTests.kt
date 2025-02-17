@@ -3,6 +3,7 @@ package fi.lipp.blog
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import fi.lipp.blog.data.*
+import fi.lipp.blog.data.FriendRequestDto
 import fi.lipp.blog.plugins.USER_ID
 import fi.lipp.blog.plugins.configureRouting
 import fi.lipp.blog.plugins.configureSecurity
@@ -156,6 +157,195 @@ class UserRoutesTests {
         }
 
         client.get("/user/recent-reactions").apply {
+            assertEquals(HttpStatusCode.Unauthorized, status)
+        }
+    }
+
+    @Test
+    fun `test send friend request - authenticated`() = testApplication {
+        environment {
+            config = MapApplicationConfig(
+                "jwt.secret" to jwtSecret,
+                "jwt.issuer" to jwtIssuer,
+                "jwt.audience" to jwtAudience,
+                "jwt.realm" to "test-realm"
+            )
+        }
+
+        application {
+            configureSerialization()
+            configureSecurity()
+            configureRouting()
+        }
+
+        val request = FriendRequestDto.Create("somelogin", "Let's be friends!", "coworker")
+        client.post("/user/friend-request") {
+            header(HttpHeaders.Authorization, "Bearer $testToken")
+            contentType(ContentType.Application.Json)
+            setBody(json.encodeToString(FriendRequestDto.Create.serializer(), request))
+        }.apply {
+            assertEquals(HttpStatusCode.OK, status)
+            assertEquals("Friend request sent successfully", bodyAsText())
+        }
+    }
+
+    @Test
+    fun `test accept friend request - authenticated`() = testApplication {
+        environment {
+            config = MapApplicationConfig(
+                "jwt.secret" to jwtSecret,
+                "jwt.issuer" to jwtIssuer,
+                "jwt.audience" to jwtAudience,
+                "jwt.realm" to "test-realm"
+            )
+        }
+
+        application {
+            configureSerialization()
+            configureSecurity()
+            configureRouting()
+        }
+
+        val requestId = UUID.randomUUID()
+        client.post("/user/friend-request/$requestId/accept") {
+            header(HttpHeaders.Authorization, "Bearer $testToken")
+        }.apply {
+            assertEquals(HttpStatusCode.OK, status)
+            assertEquals("Friend request accepted", bodyAsText())
+        }
+    }
+
+    @Test
+    fun `test decline friend request - authenticated`() = testApplication {
+        environment {
+            config = MapApplicationConfig(
+                "jwt.secret" to jwtSecret,
+                "jwt.issuer" to jwtIssuer,
+                "jwt.audience" to jwtAudience,
+                "jwt.realm" to "test-realm"
+            )
+        }
+
+        application {
+            configureSerialization()
+            configureSecurity()
+            configureRouting()
+        }
+
+        val requestId = UUID.randomUUID()
+        client.post("/user/friend-request/$requestId/decline") {
+            header(HttpHeaders.Authorization, "Bearer $testToken")
+        }.apply {
+            assertEquals(HttpStatusCode.OK, status)
+            assertEquals("Friend request declined", bodyAsText())
+        }
+    }
+
+    @Test
+    fun `test get friends - authenticated`() = testApplication {
+        environment {
+            config = MapApplicationConfig(
+                "jwt.secret" to jwtSecret,
+                "jwt.issuer" to jwtIssuer,
+                "jwt.audience" to jwtAudience,
+                "jwt.realm" to "test-realm"
+            )
+        }
+
+        application {
+            configureSerialization()
+            configureSecurity()
+            configureRouting()
+        }
+
+        val mockFriends = listOf(
+            UserDto.View(
+                login = "friend1",
+                nickname = "Friend One",
+                avatarUri = null
+            )
+        )
+        `when`(userService.getFriends(testUserId)).thenReturn(mockFriends)
+
+        client.get("/user/friends") {
+            header(HttpHeaders.Authorization, "Bearer $testToken")
+        }.apply {
+            assertEquals(HttpStatusCode.OK, status)
+            val response = json.decodeFromString<List<UserDto.View>>(bodyAsText())
+            assertEquals(1, response.size)
+            assertEquals(mockFriends[0].login, response[0].login)
+            assertEquals(mockFriends[0].nickname, response[0].nickname)
+        }
+    }
+
+    @Test
+    fun `test remove friend - authenticated`() = testApplication {
+        environment {
+            config = MapApplicationConfig(
+                "jwt.secret" to jwtSecret,
+                "jwt.issuer" to jwtIssuer,
+                "jwt.audience" to jwtAudience,
+                "jwt.realm" to "test-realm"
+            )
+        }
+
+        application {
+            configureSerialization()
+            configureSecurity()
+            configureRouting()
+        }
+
+        val friendId = UUID.randomUUID()
+        client.delete("/user/friends/$friendId") {
+            header(HttpHeaders.Authorization, "Bearer $testToken")
+        }.apply {
+            assertEquals(HttpStatusCode.OK, status)
+            assertEquals("Friend removed successfully", bodyAsText())
+        }
+    }
+
+    @Test
+    fun `test friend operations - unauthenticated`() = testApplication {
+        environment {
+            config = MapApplicationConfig(
+                "jwt.secret" to jwtSecret,
+                "jwt.issuer" to jwtIssuer,
+                "jwt.audience" to jwtAudience,
+                "jwt.realm" to "test-realm"
+            )
+        }
+
+        application {
+            configureSerialization()
+            configureSecurity()
+            configureRouting()
+        }
+
+        // Test send friend request
+        client.post("/user/friend-request") {
+            contentType(ContentType.Application.Json)
+            setBody("{}")
+        }.apply {
+            assertEquals(HttpStatusCode.Unauthorized, status)
+        }
+
+        // Test accept friend request
+        client.post("/user/friend-request/${UUID.randomUUID()}/accept").apply {
+            assertEquals(HttpStatusCode.Unauthorized, status)
+        }
+
+        // Test decline friend request
+        client.post("/user/friend-request/${UUID.randomUUID()}/decline").apply {
+            assertEquals(HttpStatusCode.Unauthorized, status)
+        }
+
+        // Test get friends
+        client.get("/user/friends").apply {
+            assertEquals(HttpStatusCode.Unauthorized, status)
+        }
+
+        // Test remove friend
+        client.delete("/user/friends/${UUID.randomUUID()}").apply {
             assertEquals(HttpStatusCode.Unauthorized, status)
         }
     }
