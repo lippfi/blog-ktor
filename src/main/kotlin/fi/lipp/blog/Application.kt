@@ -85,6 +85,7 @@ fun KoinApplication.loadMyKoins(environment: ApplicationEnvironment): KoinApplic
         single<ReactionService> { ReactionServiceImpl(get<StorageService>(), get<AccessGroupService>(), get<NotificationService>(), get<ApplicationEnvironment>().config) }
         single<PostService> { PostServiceImpl(get<AccessGroupService>(), get<StorageService>(), get<ReactionService>(), get<NotificationService>()) }
         single<NotificationService> { NotificationServiceImpl() }
+        single<DialogService> { DialogServiceImpl(get<UserService>(), get<NotificationService>()) }
     }
     return modules(appModules)
 }

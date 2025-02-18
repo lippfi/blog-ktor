@@ -107,4 +107,11 @@ interface UserService {
      */
     @Throws(NotFriendsException::class)
     fun removeFriend(userId: UUID, friendLogin: String)
+
+    /**
+     * Get basic user information for display
+     * @param userId ID of the user
+     * @return User view with basic information
+     */
+    fun getUserView(userId: UUID): UserDto.View
 }

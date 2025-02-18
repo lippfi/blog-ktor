@@ -52,6 +52,7 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
 
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.3.1")
+    testImplementation("io.mockk:mockk:1.13.10")
 
     implementation("at.favre.lib:bcrypt:0.10.2")
 }

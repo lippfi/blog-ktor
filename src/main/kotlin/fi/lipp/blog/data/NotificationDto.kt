@@ -69,4 +69,15 @@ sealed interface NotificationDto {
     ) : NotificationDto {
         override val type: NotificationType = NotificationType.FRIEND_REQUEST
     }
+
+    @Serializable
+    data class PrivateMessage(
+        @Serializable(with = UUIDSerializer::class)
+        override val id: UUID,
+        val senderLogin: String,
+        @Serializable(with = UUIDSerializer::class)
+        val dialogId: UUID,
+    ) : NotificationDto {
+        override val type: NotificationType = NotificationType.PRIVATE_MESSAGE
+    }
 }

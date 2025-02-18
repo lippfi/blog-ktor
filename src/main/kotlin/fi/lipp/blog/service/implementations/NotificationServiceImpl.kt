@@ -9,6 +9,7 @@ import fi.lipp.blog.repository.*
 import fi.lipp.blog.service.NotificationService
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.*
 
@@ -186,6 +187,15 @@ class NotificationServiceImpl : NotificationService {
                     requestId = requestId,
                 )
             }
+            NotificationType.PRIVATE_MESSAGE -> {
+                val dialogId = row[Notifications.relatedDialog]?.value ?: throw IllegalStateException("Private message notification without dialog ID")
+                val senderDiary = DiaryEntity.find { Diaries.owner eq row[Notifications.sender] }.single()
+                NotificationDto.PrivateMessage(
+                    id = row[Notifications.id].value,
+                    senderLogin = senderDiary.login,
+                    dialogId = dialogId,
+                )
+            }
             else -> TODO()
         }
     }
@@ -230,7 +240,42 @@ class NotificationServiceImpl : NotificationService {
                     requestId = requestId,
                 )
             }
+            NotificationType.PRIVATE_MESSAGE -> {
+                val senderDiary = DiaryEntity.find { Diaries.owner eq notification.sender.id }.single()
+                NotificationDto.PrivateMessage(
+                    id = notification.id.value,
+                    senderLogin = senderDiary.login,
+                    dialogId = notification.relatedDialog!!.id.value,
+                )
+            }
             else -> TODO()
+        }
+    }
+
+    override fun notifyAboutPrivateMessage(recipientId: UUID, dialogId: UUID) {
+        transaction {
+            val dialog = DialogEntity.findById(dialogId) ?: throw IllegalArgumentException("Dialog not found")
+            val senderId = if (dialog.user1.id.value == recipientId) dialog.user2.id.value else dialog.user1.id.value
+
+            // Check if there's already an unread notification from this sender
+            val existingUnreadNotification = Notifications
+                .select {
+                    (Notifications.recipient eq recipientId) and
+                    (Notifications.relatedDialog eq dialogId) and
+                    (Notifications.type eq NotificationType.PRIVATE_MESSAGE) and
+                    (Notifications.isRead eq false)
+                }
+                .firstOrNull()
+
+            // If there's no unread notification from this sender, create a new one
+            if (existingUnreadNotification == null) {
+                Notifications.insert {
+                    it[type] = NotificationType.PRIVATE_MESSAGE
+                    it[sender] = senderId
+                    it[recipient] = recipientId
+                    it[relatedDialog] = dialog.id
+                }
+            }
         }
     }
 
@@ -297,6 +342,16 @@ class NotificationServiceImpl : NotificationService {
                 (Notifications.relatedRequest eq requestId)
             }) {
                 it[isRead] = true
+            }
+        }
+    }
+
+    override fun removePrivateMessageNotification(recipientId: UUID, dialogId: UUID) {
+        transaction {
+            Notifications.deleteWhere {
+                (Notifications.type eq NotificationType.PRIVATE_MESSAGE) and
+                (Notifications.recipient eq recipientId) and
+                (Notifications.relatedDialog eq dialogId)
             }
         }
     }

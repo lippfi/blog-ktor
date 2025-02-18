@@ -10,6 +10,7 @@ import fi.lipp.blog.domain.Notifications
 import fi.lipp.blog.repository.*
 import fi.lipp.blog.service.*
 import fi.lipp.blog.service.implementations.AccessGroupServiceImpl
+import fi.lipp.blog.service.implementations.DialogServiceImpl
 import fi.lipp.blog.service.implementations.StorageServiceImpl
 import fi.lipp.blog.service.implementations.UserServiceImpl
 import fi.lipp.blog.stubs.ApplicationPropertiesStub
@@ -82,6 +83,9 @@ abstract class UnitTestBase {
                     Friends,
                     FriendLabels,
                     Notifications,
+                    Dialogs,
+                    Messages,
+                    HiddenDialogs,
                 )
             }
             startKoin {
@@ -94,6 +98,7 @@ abstract class UnitTestBase {
                     single<AccessGroupService> { AccessGroupServiceImpl() }
                     single<NotificationService> { mock() }
                     single<UserService> { UserServiceImpl(get(), get(), get(), get(), get()) }
+                    single<DialogService> { DialogServiceImpl(get(), get()) }
                 })
             }
             // Initialize default access groups
@@ -127,6 +132,9 @@ abstract class UnitTestBase {
 
         @JvmStatic
         protected val notificationService get() = org.koin.core.context.GlobalContext.get().get<NotificationService>()
+
+        @JvmStatic
+        protected val dialogService get() = org.koin.core.context.GlobalContext.get().get<DialogService>()
 
         @JvmStatic
         protected val testUser = UserDto.Registration(

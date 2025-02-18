@@ -106,7 +106,7 @@ class UserServiceImpl(
         }
     }
 
-    private fun getUserView(userId: UUID): UserDto.View {
+    override fun getUserView(userId: UUID): UserDto.View {
         return transaction {
             val userEntity = UserEntity.findById(userId) ?: throw UserNotFoundException()
             val userDiary = DiaryEntity.find { (Diaries.owner eq userId) and (Diaries.type eq DiaryType.PERSONAL) }.singleOrNull() ?: throw DiaryNotFoundException()

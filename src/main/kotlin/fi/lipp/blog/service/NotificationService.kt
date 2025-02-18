@@ -85,4 +85,23 @@ interface NotificationService {
      * Mark friend request notification as read for a specific request
      */
     fun markFriendRequestNotificationAsRead(userId: UUID, requestId: UUID)
+
+    /**
+     * Notify user about a new private message.
+     * If there is already an unread notification about new message from the same user,
+     * do not send another notification.
+     *
+     * @param recipientId ID of the message recipient
+     * @param messageId ID of the new message
+     */
+    fun notifyAboutPrivateMessage(recipientId: UUID, dialogId: UUID)
+
+    /**
+     * Remove private message notification for a specific dialog.
+     * This should be called when there are no more unread messages in the dialog.
+     *
+     * @param recipientId ID of the notification recipient
+     * @param dialogId ID of the dialog
+     */
+    fun removePrivateMessageNotification(recipientId: UUID, dialogId: UUID)
 }

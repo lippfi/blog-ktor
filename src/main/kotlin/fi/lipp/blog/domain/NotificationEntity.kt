@@ -1,6 +1,8 @@
 package fi.lipp.blog.domain
 
 import fi.lipp.blog.repository.*
+import fi.lipp.blog.repository.Messages
+import fi.lipp.blog.domain.MessageEntity
 import kotlinx.datetime.toKotlinLocalDateTime
 import org.jetbrains.exposed.dao.UUIDEntity
 import org.jetbrains.exposed.dao.UUIDEntityClass
@@ -19,6 +21,7 @@ object Notifications : UUIDTable() {
     val relatedComment = reference("related_comment", Comments).nullable()
     val relatedReaction = reference("related_reaction", Reactions).nullable()
     val relatedRequest = reference("related_request", FriendRequests).nullable()
+    val relatedDialog = reference("related_dialog", Dialogs).nullable()
     val isRead = bool("is_read").default(false)
     val createdAt = datetime("created_at").clientDefault { LocalDateTime.now().toKotlinLocalDateTime() }
 }
@@ -33,6 +36,7 @@ class NotificationEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var relatedComment by CommentEntity.optionalReferencedOn(Notifications.relatedComment)
     var relatedReaction by ReactionEntity.optionalReferencedOn(Notifications.relatedReaction)
     var relatedRequest by FriendRequestEntity.optionalReferencedOn(Notifications.relatedRequest)
+    var relatedDialog by DialogEntity.optionalReferencedOn(Notifications.relatedDialog)
     var isRead by Notifications.isRead
     var createdAt by Notifications.createdAt
 }
