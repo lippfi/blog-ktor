@@ -13,6 +13,8 @@ import fi.lipp.blog.service.implementations.AccessGroupServiceImpl
 import fi.lipp.blog.service.implementations.DialogServiceImpl
 import fi.lipp.blog.service.implementations.StorageServiceImpl
 import fi.lipp.blog.service.implementations.UserServiceImpl
+import fi.lipp.blog.service.implementations.ReactionServiceImpl
+import fi.lipp.blog.service.implementations.PostServiceImpl
 import fi.lipp.blog.stubs.ApplicationPropertiesStub
 import fi.lipp.blog.stubs.PasswordEncoderStub
 import org.koin.core.context.startKoin
@@ -86,6 +88,7 @@ abstract class UnitTestBase {
                     Dialogs,
                     Messages,
                     HiddenDialogs,
+                    UserFollows,
                 )
             }
             startKoin {
@@ -97,7 +100,19 @@ abstract class UnitTestBase {
                     single<StorageService> { StorageServiceImpl(get()) }
                     single<AccessGroupService> { AccessGroupServiceImpl() }
                     single<NotificationService> { mock() }
+                    single<ReactionService> { ReactionServiceImpl(
+                        storageService = get(),
+                        accessGroupService = get(),
+                        notificationService = get(),
+                        config = get<ApplicationEnvironment>().config
+                    ) }
                     single<UserService> { UserServiceImpl(get(), get(), get(), get(), get()) }
+                    single<PostService> { PostServiceImpl(
+                        accessGroupService = get(),
+                        storageService = get(),
+                        reactionService = get(),
+                        notificationService = get()
+                    ) }
                     single<DialogService> { DialogServiceImpl(get(), get()) }
                 })
             }

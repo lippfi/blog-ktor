@@ -114,4 +114,29 @@ interface UserService {
      * @return User view with basic information
      */
     fun getUserView(userId: UUID): UserDto.View
+
+    /**
+     * Follow another user
+     * @throws UserNotFoundException if target user doesn't exist
+     * @throws AlreadyFollowingException if already following the user
+     */
+    @Throws(UserNotFoundException::class, AlreadyFollowingException::class)
+    fun followUser(userId: UUID, targetLogin: String)
+
+    /**
+     * Unfollow a user
+     * @throws NotFollowingException if not following the user
+     */
+    @Throws(NotFollowingException::class)
+    fun unfollowUser(userId: UUID, targetLogin: String)
+
+    /**
+     * Get list of users that the specified user is following
+     */
+    fun getFollowing(userId: UUID): List<UserDto.View>
+
+    /**
+     * Get list of users that follow the specified user
+     */
+    fun getFollowers(userId: UUID): List<UserDto.View>
 }

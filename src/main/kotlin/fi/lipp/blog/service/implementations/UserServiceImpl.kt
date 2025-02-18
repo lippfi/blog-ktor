@@ -667,4 +667,67 @@ class UserServiceImpl(
             }
         }
     }
+
+    override fun followUser(userId: UUID, targetLogin: String) {
+        transaction {
+            val targetUser = getUserByLogin(targetLogin) ?: throw UserNotFoundException()
+
+            val alreadyFollowing = UserFollows
+                .select { (UserFollows.follower eq userId) and (UserFollows.following eq targetUser.id) }
+                .count() > 0
+
+            if (alreadyFollowing) {
+                throw AlreadyFollowingException()
+            }
+
+            UserFollowEntity.new {
+                follower = UserEntity[userId]
+                following = targetUser
+            }
+        }
+    }
+
+    override fun unfollowUser(userId: UUID, targetLogin: String) {
+        transaction {
+            val targetUser = getUserByLogin(targetLogin) ?: throw UserNotFoundException()
+
+            val followEntity = UserFollowEntity.find {
+                (UserFollows.follower eq userId) and (UserFollows.following eq targetUser.id)
+            }.firstOrNull() ?: throw NotFollowingException()
+
+            followEntity.delete()
+        }
+    }
+
+    override fun getFollowing(userId: UUID): List<UserDto.View> {
+        return transaction {
+            UserFollowEntity.find { UserFollows.follower eq userId }
+                .map { follow ->
+                    val user = follow.following
+                    UserDto.View(
+                        login = getDiaryByUserId(user.id.value)?.login ?: user.nickname,
+                        nickname = user.nickname,
+                        avatarUri = user.primaryAvatar?.let { avatarId ->
+                            storageService.getFileURL(BlogFile(avatarId.value, user.id.value, "jpg", FileType.AVATAR))
+                        }
+                    )
+                }
+        }
+    }
+
+    override fun getFollowers(userId: UUID): List<UserDto.View> {
+        return transaction {
+            UserFollowEntity.find { UserFollows.following eq userId }
+                .map { follow ->
+                    val user = follow.follower
+                    UserDto.View(
+                        login = getDiaryByUserId(user.id.value)?.login ?: user.nickname,
+                        nickname = user.nickname,
+                        avatarUri = user.primaryAvatar?.let { avatarId ->
+                            storageService.getFileURL(BlogFile(avatarId.value, user.id.value, "jpg", FileType.AVATAR))
+                        }
+                    )
+                }
+        }
+    }
 }

@@ -13,13 +13,15 @@ import fi.lipp.blog.service.PostService
 import fi.lipp.blog.service.ReactionService
 import fi.lipp.blog.service.StorageService
 import fi.lipp.blog.service.Viewer
+import kotlinx.datetime.*
 import org.jetbrains.exposed.sql.andWhere
-import kotlinx.datetime.LocalDateTime
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.SortOrder
+import org.jetbrains.exposed.sql.ResultRow
 import java.util.*
 import kotlin.math.ceil
 import kotlin.random.Random
@@ -169,6 +171,135 @@ class PostServiceImpl(
         addPostToDb(userId, post)
     }
 
+    override fun getPosts(viewer: Viewer, pageable: Pageable): Page<PostDto.View> {
+        return transaction {
+            val baseQuery = Posts
+                .innerJoin(Users, { Posts.author }, { Users.id })
+                .innerJoin(Diaries, { Posts.diary }, { Diaries.id })
+                .innerJoin(AccessGroups, { Posts.readGroup }, { AccessGroups.id })
+                .slice(Posts.columns + Users.id + Users.nickname + Diaries.login + AccessGroups.type)
+                .select {
+                    val accessCondition = when (viewer) {
+                        is Viewer.Anonymous -> {
+                            AccessGroups.type eq AccessGroupType.EVERYONE
+                        }
+                        is Viewer.Registered -> {
+                            val customAccessSubquery = CustomGroupUsers
+                                .slice(CustomGroupUsers.accessGroup)
+                                .select { CustomGroupUsers.member eq viewer.userId }
+
+                            (Posts.author eq viewer.userId) or // Owner can see all their posts
+                            (AccessGroups.type eq AccessGroupType.EVERYONE) or
+                            (AccessGroups.type eq AccessGroupType.REGISTERED_USERS) or
+                            (AccessGroups.type eq AccessGroupType.CUSTOM and Posts.readGroup.inSubQuery(customAccessSubquery))
+                        }
+                    }
+
+                    accessCondition and
+                    (Posts.isArchived eq false) and
+                    (Posts.isPreface eq false)
+                }
+
+            val total = baseQuery.count()
+            val totalPages = ceil(total.toDouble() / pageable.size).toInt()
+
+            val content = baseQuery
+                .orderBy(Posts.creationTime to SortOrder.DESC)
+                .limit(pageable.size, (pageable.page * pageable.size).toLong())
+                .map { row: ResultRow -> toPostView(viewer, row) }
+
+            Page(
+                content = content,
+                currentPage = pageable.page,
+                totalPages = totalPages
+            )
+        }
+    }
+
+    override fun getDiscussedPosts(viewer: Viewer, pageable: Pageable): Page<PostDto.View> {
+        return transaction {
+            val baseQuery = Posts
+                .innerJoin(Users, { Posts.author }, { Users.id })
+                .innerJoin(Diaries, { Posts.diary }, { Diaries.id })
+                .innerJoin(AccessGroups, { Posts.readGroup }, { AccessGroups.id })
+                .slice(Posts.columns + Users.id + Users.nickname + Diaries.login + AccessGroups.type)
+                .select {
+                    val accessCondition = when (viewer) {
+                        is Viewer.Anonymous -> {
+                            AccessGroups.type eq AccessGroupType.EVERYONE
+                        }
+                        is Viewer.Registered -> {
+                            val customAccessSubquery = CustomGroupUsers
+                                .slice(CustomGroupUsers.accessGroup)
+                                .select { CustomGroupUsers.member eq viewer.userId }
+
+                            (Posts.author eq viewer.userId) or // Owner can see all their posts
+                            (AccessGroups.type eq AccessGroupType.EVERYONE) or
+                            (AccessGroups.type eq AccessGroupType.REGISTERED_USERS) or
+                            (AccessGroups.type eq AccessGroupType.CUSTOM and Posts.readGroup.inSubQuery(customAccessSubquery))
+                        }
+                    }
+
+                    accessCondition and
+                    (Posts.isArchived eq false) and
+                    (Posts.isPreface eq false)
+                }
+
+            val total = baseQuery.count()
+            val totalPages = ceil(total.toDouble() / pageable.size).toInt()
+
+            val content = baseQuery
+                .orderBy(
+                    Posts.lastCommentTime to SortOrder.DESC_NULLS_LAST,
+                    Posts.creationTime to SortOrder.DESC
+                )
+                .limit(pageable.size, (pageable.page * pageable.size).toLong())
+                .map { row: ResultRow -> toPostView(viewer, row) }
+
+            Page(
+                content = content,
+                currentPage = pageable.page,
+                totalPages = totalPages
+            )
+        }
+    }
+
+    override fun getFollowedPosts(userId: UUID, pageable: Pageable): Page<PostDto.View> {
+        return transaction {
+            val query = Posts
+                .innerJoin(Diaries)
+                .innerJoin(Users, { Posts.author }, { Users.id })
+                .innerJoin(AccessGroups, { Posts.readGroup }, { AccessGroups.id })
+                .innerJoin(UserFollows, { Posts.author }, { UserFollows.following })
+                .slice(Posts.columns + Users.id + Users.nickname + Diaries.login + AccessGroups.type)
+                .select {
+                    val baseCondition = (Posts.isArchived eq false) and (Posts.isPreface eq false)
+                    val followingCondition = UserFollows.follower eq userId
+
+                    val customAccessSubquery = CustomGroupUsers
+                        .slice(CustomGroupUsers.accessGroup)
+                        .select { CustomGroupUsers.member eq userId }
+
+                    val accessCondition = (AccessGroups.type eq AccessGroupType.EVERYONE) or
+                            (AccessGroups.type eq AccessGroupType.REGISTERED_USERS) or
+                            (AccessGroups.type eq AccessGroupType.CUSTOM and Posts.readGroup.inSubQuery(customAccessSubquery))
+
+                    baseCondition and followingCondition and accessCondition
+                }
+                .orderBy(Posts.creationTime to pageable.direction)
+                .groupBy(Posts.id)
+
+            val totalCount = query.count()
+            val totalPages = ceil(totalCount / pageable.size.toDouble()).toInt()
+            val offset = (pageable.page - 1) * pageable.size
+
+            val results = query
+                .limit(pageable.size, offset.toLong())
+                .map { row -> toPostView(Viewer.Registered(userId), row) }
+            Page(results, pageable.page, totalPages)
+        }
+    }
+
     override fun updatePost(userId: UUID, post: PostDto.Update) {
         transaction {
             val postEntity = post.id.let { PostEntity.findById(it) } ?: throw PostNotFoundException()
@@ -276,6 +407,7 @@ class PostServiceImpl(
                 val parentComment = CommentEntity.findById(comment.parentCommentId) ?: throw InvalidParentComment()
                 if (parentComment.postId.value != comment.postId) throw InvalidParentComment()
             }
+            val now = java.time.LocalDateTime.now().toKotlinLocalDateTime()
             val commentId = Comments.insertAndGetId {
                 it[post] = postEntity.id
                 it[author] = userId
@@ -290,6 +422,10 @@ class PostServiceImpl(
                     }
                     groupEntity.id
                 } ?: postEntity.reactionGroupId
+            }
+
+            Posts.update({ Posts.id eq postEntity.id }) {
+                it[lastCommentTime] = now
             }
 
             val postId = postEntity.id.value
@@ -313,7 +449,20 @@ class PostServiceImpl(
         transaction {
             val commentEntity = CommentEntity.findById(commentId) ?: throw CommentNotFoundException()
             if (userId != commentEntity.authorId.value) throw WrongUserException()
+
+            val postId = commentEntity.postId
             commentEntity.delete()
+
+            // Find the most recent remaining comment for this post
+            val latestComment = CommentEntity
+                .find { Comments.post eq postId }
+                .orderBy(Comments.creationTime to SortOrder.DESC)
+                .firstOrNull()
+
+            // Update post's lastCommentTime
+            Posts.update({ Posts.id eq postId }) {
+                it[lastCommentTime] = latestComment?.creationTime
+            }
         }
     }
 

@@ -18,7 +18,8 @@ import fi.lipp.blog.service.implementations.StorageServiceImpl
 import fi.lipp.blog.service.implementations.UserServiceImpl
 import fi.lipp.blog.stubs.ApplicationPropertiesStub
 import fi.lipp.blog.stubs.PasswordEncoderStub
-import org.jetbrains.exposed.sql.SortOrder
+import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.junit.AfterClass
 import org.junit.Assert.assertNull
@@ -494,6 +495,190 @@ class PostServiceTests : UnitTestBase() {
     }
 
     @Test
+    fun `test get user posts with different access groups`() {
+        transaction {
+            val users = signUsersUp(3)
+            val (user1Id, user1Login) = users[0]
+            val (user2Id, user2Login) = users[1]
+            val (user3Id, _) = users[2]
+
+            // Create post with EVERYONE access
+            val post1 = createPostPostData(title = "post1")
+            postService.addPost(user1Id, post1)
+            Thread.sleep(10)
+
+            // Create post with REGISTERED_USERS access
+            val post2 = createPostPostData(title = "post2")
+            postService.addPost(user1Id, post2)
+            Thread.sleep(10)
+
+            // Create post with CUSTOM access
+            groupService.createAccessGroup(user1Id, user1Login, "Custom Group")
+            val customGroupUUID = groupService.getAccessGroups(user1Id, user1Login)
+                .find { it.first == "Custom Group" }!!.second
+
+            val post3 = createPostPostData(title = "post3", readGroup = customGroupUUID)
+            postService.addPost(user1Id, post3)
+            Thread.sleep(10)
+
+            // Add user2 to custom group
+            groupService.addUserToGroup(user1Id, user2Login, customGroupUUID)
+
+            // Create archived and preface posts
+            val post4 = createPostPostData(title = "post4", uri = "post4")
+            postService.addPost(user1Id, post4)
+            transaction {
+                Posts.update({ Posts.uri eq "post4" }) {
+                    it[isArchived] = true
+                }
+            }
+            Thread.sleep(10)
+
+            val post5 = createPostPostData(title = "post5", isPreface = true)
+            postService.addPost(user1Id, post5)
+
+            // Test access for user1 (owner)
+            var page = getPosts(Viewer.Registered(user1Id), pageable = Pageable(0, 10, SortOrder.DESC))
+            assertEquals(3, page.content.size)
+            assertEquals(listOf("post3", "post2", "post1"), page.content.map { it.title })
+
+            // Test access for user2 (has access to custom group)
+            page = getPosts(Viewer.Registered(user2Id), pageable = Pageable(0, 10, SortOrder.DESC))
+            assertEquals(3, page.content.size)
+            assertEquals(listOf("post3", "post2", "post1"), page.content.map { it.title })
+
+            // Test access for user3 (no access to custom group)
+            page = getPosts(Viewer.Registered(user3Id), pageable = Pageable(0, 10, SortOrder.DESC))
+            assertEquals(2, page.content.size)
+            assertEquals(listOf("post2", "post1"), page.content.map { it.title })
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `test get posts with access group filtering`() {
+        transaction {
+            val users = signUsersUp(4)
+            val (user1Id, user1Login) = users[0]
+            val (user2Id, user2Login) = users[1]
+            val (user3Id, _) = users[2]
+            val (user4Id, _) = users[3]
+
+            // Create custom groups
+            groupService.createAccessGroup(user1Id, user1Login, "Friends")
+            val friendsGroupUUID = groupService.getAccessGroups(user1Id, user1Login)
+                .find { it.first == "Friends" }!!.second
+
+            groupService.createAccessGroup(user1Id, user1Login, "Family")
+            val familyGroupUUID = groupService.getAccessGroups(user1Id, user1Login)
+                .find { it.first == "Family" }!!.second
+
+            // Add user2 to Friends group and user3 to Family group
+            groupService.addUserToGroup(user1Id, user2Login, friendsGroupUUID)
+            groupService.addUserToGroup(user1Id, users[2].second, familyGroupUUID)
+
+            // Create posts with different access groups
+            val post1 = createPostPostData(title = "everyone post") // Uses default everyoneGroupUUID
+            postService.addPost(user1Id, post1)
+            Thread.sleep(10)
+
+            val post2 = createPostPostData(title = "friends post", readGroup = friendsGroupUUID)
+            postService.addPost(user1Id, post2)
+            Thread.sleep(10)
+
+            val post3 = createPostPostData(title = "family post", readGroup = familyGroupUUID)
+            postService.addPost(user1Id, post3)
+
+            // Test owner access (user1) - can see all posts
+            var page = getPosts(Viewer.Registered(user1Id), pageable = Pageable(0, 10, SortOrder.DESC))
+            assertEquals(3, page.content.size)
+            assertEquals(listOf("family post", "friends post", "everyone post"), 
+                page.content.map { it.title })
+
+            // Test user2 access (in Friends group) - can see friends and everyone posts
+            page = getPosts(Viewer.Registered(user2Id), pageable = Pageable(0, 10, SortOrder.DESC))
+            assertEquals(2, page.content.size)
+            assertEquals(listOf("friends post", "everyone post"), 
+                page.content.map { it.title })
+
+            // Test user3 access (in Family group) - can see family and everyone posts
+            page = getPosts(Viewer.Registered(user3Id), pageable = Pageable(0, 10, SortOrder.DESC))
+            assertEquals(2, page.content.size)
+            assertEquals(listOf("family post", "everyone post"), 
+                page.content.map { it.title })
+
+            // Test user4 access (no custom groups) - can see only everyone posts
+            page = getPosts(Viewer.Registered(user4Id), pageable = Pageable(0, 10, SortOrder.DESC))
+            assertEquals(1, page.content.size)
+            assertEquals(listOf("everyone post"), 
+                page.content.map { it.title })
+
+            // Test anonymous access - can see only everyone posts
+            page = getPosts(Viewer.Anonymous("127.0.0.1", "test"), pageable = Pageable(0, 10, SortOrder.DESC))
+            assertEquals(1, page.content.size)
+            assertEquals(listOf("everyone post"), 
+                page.content.map { it.title })
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `test access group post hiding`() {
+        transaction {
+            val users = signUsersUp(3)
+            val (user1Id, user1Login) = users[0]
+            val (user2Id, user2Login) = users[1]
+            val (user3Id, _) = users[2]
+
+            // Create post with EVERYONE access (should be visible to all)
+            val post1 = createPostPostData(title = "everyone post")
+            postService.addPost(user1Id, post1)
+            Thread.sleep(10)
+
+            // Create post with REGISTERED_USERS access (should be visible only to registered users)
+            val post2 = createPostPostData(title = "registered post", readGroup = groupService.registeredGroupUUID)
+            postService.addPost(user1Id, post2)
+            Thread.sleep(10)
+
+            // Create post with CUSTOM access (should be visible only to group members)
+            groupService.createAccessGroup(user1Id, user1Login, "Custom Group")
+            val customGroupUUID = groupService.getAccessGroups(user1Id, user1Login)
+                .find { it.first == "Custom Group" }!!.second
+
+            val post3 = createPostPostData(title = "custom post", readGroup = customGroupUUID)
+            postService.addPost(user1Id, post3)
+            Thread.sleep(10)
+
+            // Add user2 to custom group
+            groupService.addUserToGroup(user1Id, user2Login, customGroupUUID)
+
+            // Test anonymous user access (should see only EVERYONE posts)
+            var page = getPosts(Viewer.Anonymous("127.0.0.1", "test"), pageable = Pageable(0, 10, SortOrder.DESC))
+            assertEquals(1, page.content.size)
+            assertEquals(listOf("everyone post"), page.content.map { it.title })
+
+            // Test owner access (should see all posts)
+            page = getPosts(Viewer.Registered(user1Id), pageable = Pageable(0, 10, SortOrder.DESC))
+            assertEquals(3, page.content.size)
+            assertEquals(listOf("custom post", "registered post", "everyone post"), page.content.map { it.title })
+
+            // Test user2 access (in custom group, should see all except CUSTOM posts)
+            page = getPosts(Viewer.Registered(user2Id), pageable = Pageable(0, 10, SortOrder.DESC))
+            assertEquals(3, page.content.size)
+            assertEquals(listOf("custom post", "registered post", "everyone post"), page.content.map { it.title })
+
+            // Test user3 access (registered but not in custom group, should see REGISTERED and EVERYONE posts)
+            page = getPosts(Viewer.Registered(user3Id), pageable = Pageable(0, 10, SortOrder.DESC))
+            assertEquals(2, page.content.size)
+            assertEquals(listOf("registered post", "everyone post"), page.content.map { it.title })
+
+            rollback()
+        }
+    }
+
+    @Test
     fun `test search by text`() {
         transaction {
             val (user1, _) = signUsersUp()
@@ -752,6 +937,86 @@ class PostServiceTests : UnitTestBase() {
         }
     }
 
+    @Test
+    fun `test get discussed posts`() {
+        transaction {
+            val (user1, user2) = signUsersUp()
+
+            // Create three posts: one with recent comment, one with old comment, one without comments
+            val post1 = createPostPostData(uri = "post1", title = "Post with recent comment")
+            val post2 = createPostPostData(uri = "post2", title = "Post with old comment")
+            val post3 = createPostPostData(uri = "post3", title = "Post without comments")
+
+            postService.addPost(user1, post1)
+            postService.addPost(user1, post2)
+            postService.addPost(user1, post3)
+
+            // Add comment to post2 (older comment)
+            val comment1 = CommentDto.Create(
+                postId = transaction { Posts.select { Posts.uri eq "post2" }.first()[Posts.id].value },
+                avatar = "avatar1",
+                text = "Old comment"
+            )
+            postService.addComment(user1, comment1)
+
+            Thread.sleep(100) // Ensure time difference
+
+            // Add comment to post1 (newer comment)
+            val comment2 = CommentDto.Create(
+                postId = transaction { Posts.select { Posts.uri eq "post1" }.first()[Posts.id].value },
+                avatar = "avatar2",
+                text = "Recent comment"
+            )
+            postService.addComment(user2, comment2)
+
+            // Test sorting for registered user
+            val discussedPosts = postService.getDiscussedPosts(Viewer.Registered(user1), Pageable(0, 10, SortOrder.DESC))
+            assertEquals(3, discussedPosts.content.size)
+            assertEquals("Post with recent comment", discussedPosts.content[0].title) // Most recent comment
+            assertEquals("Post with old comment", discussedPosts.content[1].title) // Older comment
+            assertEquals("Post without comments", discussedPosts.content[2].title) // No comments
+
+            // Test sorting for anonymous user (should only see posts with EVERYONE access)
+            val anonymousPosts = postService.getDiscussedPosts(
+                Viewer.Anonymous("127.0.0.1", "test-fingerprint"),
+                Pageable(0, 10, SortOrder.DESC)
+            )
+            assertEquals(3, anonymousPosts.content.size) // All posts are public by default
+            assertEquals("Post with recent comment", anonymousPosts.content[0].title)
+            assertEquals("Post with old comment", anonymousPosts.content[1].title)
+            assertEquals("Post without comments", anonymousPosts.content[2].title)
+
+            // Create a private post with a very recent comment
+            val privatePost = createPostPostData(
+                uri = "private",
+                title = "Private post with very recent comment",
+                readGroup = groupService.registeredGroupUUID
+            )
+            postService.addPost(user1, privatePost)
+            val privateComment = CommentDto.Create(
+                postId = transaction { Posts.select { Posts.uri eq "private" }.first()[Posts.id].value },
+                avatar = "avatar3",
+                text = "Very recent comment"
+            )
+            postService.addComment(user1, privateComment)
+
+            // Verify registered user can see the private post
+            val discussedPostsWithPrivate = postService.getDiscussedPosts(Viewer.Registered(user1), Pageable(0, 10, SortOrder.DESC))
+            assertEquals(4, discussedPostsWithPrivate.content.size)
+            assertEquals("Private post with very recent comment", discussedPostsWithPrivate.content[0].title)
+
+            // Verify anonymous user cannot see the private post
+            val anonymousPostsAfterPrivate = postService.getDiscussedPosts(
+                Viewer.Anonymous("127.0.0.1", "test-fingerprint"),
+                Pageable(0, 10, SortOrder.DESC)
+            )
+            assertEquals(3, anonymousPostsAfterPrivate.content.size)
+            assertNotEquals("Private post with very recent comment", anonymousPostsAfterPrivate.content[0].title)
+
+            rollback()
+        }
+    }
+
     // todo access groups
     // todo commenting
     // todo generating url when busy
@@ -786,8 +1051,12 @@ class PostServiceTests : UnitTestBase() {
         return users
     }
 
+    private fun getPosts(viewer: Viewer, author: String? = null, diary: String? = null, pattern: String? = null, tags: Pair<TagPolicy, Set<String>>? = null, pageable: Pageable): Page<PostDto.View> {
+        return postService.getPosts(viewer, author, diary, pattern, tags, null, null, pageable)
+    }
+
     private fun getPosts(userId: UUID, author: String? = null, diary: String? = null, pattern: String? = null, tags: Pair<TagPolicy, Set<String>>? = null, pageable: Pageable): Page<PostDto.View> {
-        return postService.getPosts(Viewer.Registered(userId), author, diary, pattern, tags, null, null, pageable)
+        return getPosts(Viewer.Registered(userId), author, diary, pattern, tags, pageable)
     }
 
     private fun createPostPostData(

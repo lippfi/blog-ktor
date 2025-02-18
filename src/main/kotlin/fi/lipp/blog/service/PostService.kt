@@ -33,6 +33,30 @@ interface PostService {
     fun addComment(userId: UUID, comment: CommentDto.Create)
     fun updateComment(userId: UUID, comment: CommentDto.Update)
     fun deleteComment(userId: UUID, commentId: UUID)
+
+    /**
+     * Get posts from users that the specified user is following
+     * @param userId ID of the user whose followed posts to retrieve
+     * @param pageable pagination parameters
+     * @return Page of posts from followed users
+     */
+    fun getFollowedPosts(userId: UUID, pageable: Pageable): Page<PostDto.View>
+
+    /**
+     * Get latest posts for a specific viewer
+     * @param viewer the viewer requesting the posts (registered or anonymous)
+     * @param pageable pagination parameters
+     * @return Page of posts ordered by creation date
+     */
+    fun getPosts(viewer: Viewer, pageable: Pageable): Page<PostDto.View>
+
+    /**
+     * Get posts sorted by the time of their latest comment
+     * @param viewer the viewer requesting the posts (registered or anonymous)
+     * @param pageable pagination parameters
+     * @return Page of posts ordered by last comment time
+     */
+    fun getDiscussedPosts(viewer: Viewer, pageable: Pageable): Page<PostDto.View>
 }
 
 sealed interface Viewer {
