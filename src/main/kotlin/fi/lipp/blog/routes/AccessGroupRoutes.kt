@@ -14,17 +14,17 @@ import java.util.*
 fun Route.accessGroupRoutes(accessGroupService: AccessGroupService) {
     authenticate {
         route("/access-groups") {
-            get("/{diaryLogin}") {
-                val diaryLogin = call.parameters["diaryLogin"] ?: return@get call.respond(
+            get {
+                val diaryLogin = call.request.queryParameters["diary"] ?: return@get call.respond(
                     HttpStatusCode.BadRequest,
-                    "Missing diary login"
+                    "Missing login"
                 )
                 val groups = accessGroupService.getAccessGroups(userId, diaryLogin)
                 call.respond(groups)
             }
 
-            post("/{diaryLogin}/create") {
-                val diaryLogin = call.parameters["diaryLogin"] ?: return@post call.respond(
+            post {
+                val diaryLogin = call.request.queryParameters["diary"] ?: return@post call.respond(
                     HttpStatusCode.BadRequest,
                     "Missing diary login"
                 )
@@ -33,31 +33,31 @@ fun Route.accessGroupRoutes(accessGroupService: AccessGroupService) {
                 call.respondText("Access group created successfully")
             }
 
-            delete("/{groupId}") {
-                val groupId = UUID.fromString(call.parameters["groupId"])
+            delete {
+                val groupId = UUID.fromString(call.request.queryParameters["groupId"])
                 accessGroupService.deleteAccessGroup(userId, groupId)
                 call.respondText("Access group deleted successfully")
             }
 
-            post("/{groupId}/add-user") {
-                val groupId = UUID.fromString(call.parameters["groupId"])
+            post("/add-user") {
+                val groupId = UUID.fromString(call.request.queryParameters["groupId"])
                 val memberLogin = call.receive<String>()
                 accessGroupService.addUserToGroup(userId, memberLogin, groupId)
                 call.respondText("User added to group successfully")
             }
 
-            post("/{groupId}/remove-user") {
-                val groupId = UUID.fromString(call.parameters["groupId"])
+            post("/remove-user") {
+                val groupId = UUID.fromString(call.request.queryParameters["groupId"])
                 val memberLogin = call.receive<String>()
                 accessGroupService.removeUserFromGroup(userId, memberLogin, groupId)
                 call.respondText("User removed from group successfully")
             }
         }
         authenticate(optional = true) {
-            get("/{groupId}/in-group") {
-                val groupId = UUID.fromString(call.parameters["groupId"])
+            get("/in-group") {
+                val groupId = UUID.fromString(call.request.queryParameters["groupId"])
                 val isInGroup = accessGroupService.inGroup(viewer, groupId)
-                call.respondText(if (isInGroup) "User is in group" else "User is not in group")
+                call.respondText(isInGroup.toString())
             }
         }
     }
