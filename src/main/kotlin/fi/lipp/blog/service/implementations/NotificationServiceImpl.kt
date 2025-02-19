@@ -97,6 +97,21 @@ class NotificationServiceImpl : NotificationService {
         }
     }
 
+    override fun notifyAboutRepost(userId: UUID, repostId: UUID) {
+        transaction {
+            val repostEntity = PostEntity.findById(repostId) ?: throw PostNotFoundException()
+            val repostAuthor = repostEntity.authorId
+            if (repostAuthor.value == userId) return@transaction
+
+            Notifications.insert {
+                it[type] = NotificationType.REPOST
+                it[recipient] = userId
+                it[sender] = repostAuthor.value
+                it[relatedPost] = EntityID(repostId, Posts)
+            }
+        }
+    }
+
     override fun notifyAboutCommentReaction(commentId: UUID) {
         transaction {
             val commentAuthor = CommentEntity.findById(commentId)?.authorId ?: return@transaction
@@ -178,6 +193,14 @@ class NotificationServiceImpl : NotificationService {
                 diaryLogin = diaryLogin!!,
                 postUri = postUri!!,
             )
+            NotificationType.REPOST -> {
+                val reposterDiary = DiaryEntity.find { Diaries.owner eq row[Notifications.sender] }.single()
+                NotificationDto.Repost(
+                    id = row[Notifications.id].value,
+                    diaryLogin = reposterDiary.login,
+                    postUri = postUri!!,
+                )
+            }
             NotificationType.FRIEND_REQUEST -> {
                 val requestId = row[Notifications.relatedRequest]?.value ?: throw IllegalStateException("Friend request notification without request ID")
                 val senderDiary = DiaryEntity.find { Diaries.owner eq row[Notifications.sender] }.single()
@@ -231,6 +254,14 @@ class NotificationServiceImpl : NotificationService {
                 diaryLogin = diaryLogin!!,
                 postUri = postUri!!,
             )
+            NotificationType.REPOST -> {
+                val reposterDiary = DiaryEntity.find { Diaries.owner eq notification.sender.id }.single()
+                NotificationDto.Repost(
+                    id = notification.id.value,
+                    diaryLogin = reposterDiary.login,
+                    postUri = postUri!!,
+                )
+            }
             NotificationType.FRIEND_REQUEST -> {
                 val requestId = notification.relatedRequest?.id?.value ?: throw IllegalStateException("Friend request notification without request ID")
                 val senderDiary = DiaryEntity.find { Diaries.owner eq notification.sender.id }.single()

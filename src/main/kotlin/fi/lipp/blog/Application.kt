@@ -17,12 +17,6 @@ import org.koin.logger.slf4jLogger
 // TODO Integration tests
 // TODO Cors
 
-// SECOND ITERATION
-// Private messages
-// Reposts
-// follow diaries : 3
-// Friends, discussed now, subscribed feed
-
 // POST-FRONTEND
 // Communities
 

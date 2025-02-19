@@ -80,4 +80,14 @@ sealed interface NotificationDto {
     ) : NotificationDto {
         override val type: NotificationType = NotificationType.PRIVATE_MESSAGE
     }
+
+    @Serializable
+    data class Repost(
+        @Serializable(with = UUIDSerializer::class)
+        override val id: UUID,
+        val diaryLogin: String,
+        val postUri: String,
+    ) : NotificationDto {
+        override val type: NotificationType = NotificationType.REPOST
+    }
 }
