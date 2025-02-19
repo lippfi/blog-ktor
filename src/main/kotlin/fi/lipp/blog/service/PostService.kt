@@ -26,12 +26,12 @@ interface PostService {
         pageable: Pageable,
     ): Page<PostDto.View>
 
-    fun addPost(userId: UUID, post: PostDto.Create)
-    fun updatePost(userId: UUID, post: PostDto.Update)
+    fun addPost(userId: UUID, post: PostDto.Create): PostDto.View
+    fun updatePost(userId: UUID, post: PostDto.Update): PostDto.View
     fun deletePost(userId: UUID, postId: UUID)
 
-    fun addComment(userId: UUID, comment: CommentDto.Create)
-    fun updateComment(userId: UUID, comment: CommentDto.Update)
+    fun addComment(userId: UUID, comment: CommentDto.Create): CommentDto.View
+    fun updateComment(userId: UUID, comment: CommentDto.Update): CommentDto.View
     fun deleteComment(userId: UUID, commentId: UUID)
 
     /**

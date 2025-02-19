@@ -152,8 +152,8 @@ class PostServiceImpl(
         }
     }
 
-    override fun addPost(userId: UUID, post: PostDto.Create) {
-        transaction {
+    override fun addPost(userId: UUID, post: PostDto.Create): PostDto.View {
+        return transaction {
             if (post.isPreface) {
                 addPreface(userId, post)
             } else {
@@ -162,13 +162,13 @@ class PostServiceImpl(
         }
     }
 
-    private fun addPreface(userId: UUID, post: PostDto.Create) {
+    private fun addPreface(userId: UUID, post: PostDto.Create): PostDto.View {
         val preface = PostEntity.find { (Posts.author eq userId) and (Posts.isPreface eq true) }.firstOrNull()
         if (preface != null) {
             deletePost(preface)
         }
 
-        addPostToDb(userId, post)
+        return addPostToDb(userId, post)
     }
 
     override fun getPosts(viewer: Viewer, pageable: Pageable): Page<PostDto.View> {
@@ -300,8 +300,8 @@ class PostServiceImpl(
         }
     }
 
-    override fun updatePost(userId: UUID, post: PostDto.Update) {
-        transaction {
+    override fun updatePost(userId: UUID, post: PostDto.Update): PostDto.View {
+        return transaction {
             val postEntity = post.id.let { PostEntity.findById(it) } ?: throw PostNotFoundException()
             if (postEntity.authorId.value != userId) throw WrongUserException()
 
@@ -336,6 +336,7 @@ class PostServiceImpl(
                 commentReactionGroupId = commentReactionGroup.id
             }
             updatePostTags(postEntity, post.tags)
+            toPostView(Viewer.Registered(userId), postEntity)
         }
     }
 
@@ -388,16 +389,16 @@ class PostServiceImpl(
         }
     }
 
-    override fun deletePost(userId: UUID, postId: UUID) {
-        transaction {
+    override fun deletePost(userId: UUID, postId: UUID): Unit {
+        return transaction {
             val postEntity = PostEntity.findById(postId) ?: return@transaction
             if (postEntity.authorId.value != userId) throw WrongUserException()
             deletePost(postEntity)
         }
     }
 
-    override fun addComment(userId: UUID, comment: CommentDto.Create) {
-        transaction {
+    override fun addComment(userId: UUID, comment: CommentDto.Create): CommentDto.View {
+        return transaction {
             val postEntity = PostEntity.findById(comment.postId) ?: throw PostNotFoundException()
             val viewer = Viewer.Registered(userId)
             if (userId != postEntity.authorId.value && (!accessGroupService.inGroup(viewer, postEntity.readGroupId.value) || !accessGroupService.inGroup(viewer, postEntity.commentGroupId.value))) {
@@ -431,22 +432,25 @@ class PostServiceImpl(
             val postId = postEntity.id.value
             notificationService.subscribeToComments(userId, postId)
             notificationService.notifyAboutComment(commentId.value, userId, postId)
+
+            CommentEntity.findById(commentId)!!.toComment(this)
         }
     }
 
-    override fun updateComment(userId: UUID, comment: CommentDto.Update) {
-        transaction {
+    override fun updateComment(userId: UUID, comment: CommentDto.Update): CommentDto.View {
+        return transaction {
             val commentEntity = CommentEntity.findById(comment.id) ?: throw CommentNotFoundException()
             if (userId != commentEntity.authorId.value) throw WrongUserException()
             commentEntity.apply {
                 avatar = comment.avatar
                 text = comment.text
             }
+            commentEntity.toComment(this)
         }
     }
 
-    override fun deleteComment(userId: UUID, commentId: UUID) {
-        transaction {
+    override fun deleteComment(userId: UUID, commentId: UUID): Unit {
+        return transaction {
             val commentEntity = CommentEntity.findById(commentId) ?: throw CommentNotFoundException()
             if (userId != commentEntity.authorId.value) throw WrongUserException()
 
@@ -473,8 +477,8 @@ class PostServiceImpl(
         }
     }
 
-    private fun addPostToDb(userId: UUID, post: PostDto.Create) {
-        transaction {
+    private fun addPostToDb(userId: UUID, post: PostDto.Create): PostDto.View {
+        return transaction {
             val postUri = checkOrCreateUri(userId, post.title, post.uri)
             val diaryId = DiaryEntity.find { Diaries.owner eq userId }.first().id.value
 
@@ -519,6 +523,9 @@ class PostServiceImpl(
             }
 
             notificationService.subscribeToComments(userId, postId.value)
+
+            val postEntity = PostEntity.findById(postId)!!
+            toPostView(Viewer.Registered(userId), postEntity)
         }
     }
 
