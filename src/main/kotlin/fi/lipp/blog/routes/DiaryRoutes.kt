@@ -13,7 +13,7 @@ import java.util.*
 
 fun Route.diaryRoutes(diaryService: DiaryService) {
     route("/diary") {
-        get("/style") {
+        get("/style-text") {
             val diaryLogin = call.request.queryParameters["diaryLogin"] ?: ""
             val style = diaryService.getDiaryStyle(diaryLogin)
             call.respond(style)
@@ -32,7 +32,6 @@ fun Route.diaryRoutes(diaryService: DiaryService) {
         authenticate {
             post("/set-style") {
                 val styleContent = call.receive<String>()
-                val userId = UUID.fromString(call.request.queryParameters["userId"])
                 diaryService.setDiaryStyle(userId, styleContent)
                 call.respondText("Diary style set successfully")
             }
