@@ -43,8 +43,8 @@ fun Route.reactionRoutes(reactionService: ReactionService) {
                 call.respond(reaction)
             }
 
-            delete("/{name}") {
-                val name = call.parameters["name"] ?: throw IllegalArgumentException("Missing name parameter")
+            delete {
+                val name = call.request.queryParameters["name"] ?: throw IllegalArgumentException("Missing name parameter")
                 reactionService.deleteReaction(userId, name)
                 call.respondText("Reaction deleted successfully")
             }
@@ -56,11 +56,10 @@ fun Route.reactionRoutes(reactionService: ReactionService) {
             }
         }
 
-        // Post reactions
-        post("/{diaryLogin}/{uri}/{reactionId}") {
-            val diaryLogin = call.parameters["diaryLogin"] ?: throw IllegalArgumentException("Missing diaryLogin parameter")
-            val uri = call.parameters["uri"] ?: throw IllegalArgumentException("Missing uri parameter")
-            val reactionId = call.parameters["reactionId"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing reactionId parameter")
+        post("/post-reaction") {
+            val diaryLogin = call.request.queryParameters["login"] ?: throw IllegalArgumentException("Missing diaryLogin parameter")
+            val uri = call.request.queryParameters["uri"] ?: throw IllegalArgumentException("Missing uri parameter")
+            val reactionId = call.request.queryParameters["id"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing reactionId parameter")
 
             val viewer = call.principal<JWTPrincipal>()?.let { Viewer.Registered(userId) }
                 ?: Viewer.Anonymous(call.request.local.remoteHost, call.request.headers["User-Agent"] ?: "unknown")
@@ -69,10 +68,10 @@ fun Route.reactionRoutes(reactionService: ReactionService) {
             call.respondText("Reaction added successfully")
         }
 
-        delete("/{diaryLogin}/{uri}/{reactionId}") {
-            val diaryLogin = call.parameters["diaryLogin"] ?: throw IllegalArgumentException("Missing diaryLogin parameter")
-            val uri = call.parameters["uri"] ?: throw IllegalArgumentException("Missing uri parameter")
-            val reactionId = call.parameters["reactionId"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing reactionId parameter")
+        delete("/post-reaction") {
+            val diaryLogin = call.request.queryParameters["login"] ?: throw IllegalArgumentException("Missing diaryLogin parameter")
+            val uri = call.request.queryParameters["uri"] ?: throw IllegalArgumentException("Missing uri parameter")
+            val reactionId = call.request.queryParameters["id"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing reactionId parameter")
 
             val viewer = call.principal<JWTPrincipal>()?.let { Viewer.Registered(userId) }
                 ?: Viewer.Anonymous(call.request.local.remoteHost, call.request.headers["User-Agent"] ?: "unknown")
@@ -82,9 +81,9 @@ fun Route.reactionRoutes(reactionService: ReactionService) {
         }
 
         // Comment reactions
-        post("/comments/{commentId}/{reactionId}") {
-            val commentId = call.parameters["commentId"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing commentId parameter")
-            val reactionId = call.parameters["reactionId"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing reactionId parameter")
+        post("comment-reaction") {
+            val commentId = call.request.queryParameters["commentId"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing commentId parameter")
+            val reactionId = call.request.queryParameters["reactionId"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing reactionId parameter")
 
             val viewer = call.principal<JWTPrincipal>()?.let { Viewer.Registered(userId) }
                 ?: Viewer.Anonymous(call.request.origin.remoteHost, call.request.headers["User-Agent"] ?: "unknown")
@@ -93,21 +92,15 @@ fun Route.reactionRoutes(reactionService: ReactionService) {
             call.respondText("Comment reaction added successfully")
         }
 
-        delete("/comments/{commentId}/{reactionId}") {
-            val commentId = call.parameters["commentId"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing commentId parameter")
-            val reactionId = call.parameters["reactionId"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing reactionId parameter")
+        delete("comment-reaction") {
+            val commentId = call.request.queryParameters["commentId"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing commentId parameter")
+            val reactionId = call.request.queryParameters["reactionId"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing reactionId parameter")
 
             val viewer = call.principal<JWTPrincipal>()?.let { Viewer.Registered(userId) }
                 ?: Viewer.Anonymous(call.request.origin.remoteHost, call.request.headers["User-Agent"] ?: "unknown")
 
             reactionService.removeCommentReaction(viewer, commentId, reactionId)
             call.respondText("Comment reaction removed successfully")
-        }
-
-        get("/comments/{commentId}") {
-            val commentId = call.parameters["commentId"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing commentId parameter")
-            val reactions = reactionService.getCommentReactions(commentId)
-            call.respond(reactions)
         }
     }
 }
