@@ -36,14 +36,14 @@ fun Route.postRoutes(postService: PostService, reactionService: ReactionService)
                 }
             }
 
-            get("/{authorLogin}/{uri}") {
-                val authorLogin = call.parameters["authorLogin"]!!
-                val uri = call.parameters["uri"]!!
+            get {
+                val authorLogin = call.request.queryParameters["login"]!!
+                val uri = call.request.queryParameters["uri"]!!
                 val post = postService.getPost(viewer, authorLogin, uri)
                 call.respond(post)
             }
 
-            get("/") {
+            get("/search") {
                 val author = call.request.queryParameters["author"]
                 val diary = call.request.queryParameters["diary"]
                 val text = call.request.queryParameters["text"]
@@ -60,10 +60,40 @@ fun Route.postRoutes(postService: PostService, reactionService: ReactionService)
                 val posts = postService.getPosts(viewer, author, diary, text, tags?.let { Pair(tagPolicy, it) }, from, to, pageable)
                 call.respond(posts)
             }
+
+            get {
+                val pageable = Pageable(
+                    page = call.request.queryParameters["page"]?.toInt() ?: 0,
+                    size = call.request.queryParameters["size"]?.toInt() ?: 10,
+                    direction = SortOrder.DESC,
+                )
+                val posts = postService.getPosts(viewer, pageable)
+                call.respond(posts)
+            }
+
+            get("/discussed") {
+                val pageable = Pageable(
+                    page = call.request.queryParameters["page"]?.toInt() ?: 0,
+                    size = call.request.queryParameters["size"]?.toInt() ?: 10,
+                    direction = SortOrder.DESC,
+                )
+                val posts = postService.getDiscussedPosts(viewer, pageable)
+                call.respond(posts)
+            }
         }
 
         authenticate {
-            get("/{postId}") {
+            get("/followed") {
+                val pageable = Pageable(
+                    page = call.request.queryParameters["page"]?.toInt() ?: 0,
+                    size = call.request.queryParameters["size"]?.toInt() ?: 10,
+                    direction = SortOrder.DESC,
+                )
+                val posts = postService.getFollowedPosts(userId, pageable)
+                call.respond(posts)
+            }
+
+            get {
                 val postIdParameter = call.request.queryParameters["id"]
                 if (postIdParameter == null) {
                     call.respond(HttpStatusCode.BadRequest, "Missing post id query parameter")
@@ -79,78 +109,34 @@ fun Route.postRoutes(postService: PostService, reactionService: ReactionService)
                 call.respond(post)
             }
 
-            put("/{postId}") {
+            put {
                 val post = call.receive<PostDto.Update>()
-                postService.updatePost(userId, post)
-                call.respondText("Post updated successfully")
+                val updatedPost = postService.updatePost(userId, post)
+                call.respond(updatedPost)
             }
 
-            delete("/{postId}") {
-                val postId = UUID.fromString(call.parameters["postId"])
+            delete {
+                val postId = UUID.fromString(call.request.queryParameters["postId"])
                 postService.deletePost(userId, postId)
                 call.respondText("Post deleted successfully")
             }
 
-            post("/{postId}/comments") {
+            post("/comment") {
                 val comment = call.receive<CommentDto.Create>()
-                postService.addComment(userId, comment)
-                call.respondText("Comment added successfully")
+                val addedComment = postService.addComment(userId, comment)
+                call.respond(addedComment)
             }
 
-            put("/comments/{commentId}") {
+            put("/comment") {
                 val comment = call.receive<CommentDto.Update>()
-                postService.updateComment(userId, comment)
-                call.respondText("Comment updated successfully")
+                val updatedComment = postService.updateComment(userId, comment)
+                call.respond(updatedComment)
             }
 
-            delete("/comments/{commentId}") {
-                val commentId = UUID.fromString(call.parameters["commentId"])
+            delete("/comment") {
+                val commentId = UUID.fromString(call.request.queryParameters["commentId"])
                 postService.deleteComment(userId, commentId)
                 call.respondText("Comment deleted successfully")
-            }
-
-            get("/reactions") {
-                val namePattern = call.request.queryParameters["name"]
-                val reactions = if (namePattern != null) {
-                    reactionService.searchReactionsByName(namePattern)
-                } else {
-                    reactionService.getReactions()
-                }
-                call.respond(reactions)
-            }
-
-            post("/reactions") {
-                val multipart = call.receiveMultipart()
-                val name: String = call.request.queryParameters["name"].toString()
-                val icon: FileUploadData = multipart.toFileUploadDatas().first() // TODO method for one upload data
-
-                val createdReaction = reactionService.createReaction(userId, name, icon)
-                call.respond(createdReaction)
-            }
-
-            delete("/reactions/{name}") {
-                val name = call.parameters["name"]!!
-                reactionService.deleteReaction(userId, name)
-                call.respondText("Reaction deleted successfully")
-            }
-        }
-
-        // Endpoints for adding/removing reactions to posts
-        authenticate(optional = true) {
-            post("/{authorLogin}/{uri}/reactions/{reactionId}") {
-                val authorLogin = call.parameters["authorLogin"]!!
-                val uri = call.parameters["uri"]!!
-                val reactionId = UUID.fromString(call.parameters["reactionId"])
-                reactionService.addReaction(viewer, authorLogin, uri, reactionId)
-                call.respondText("Reaction added successfully")
-            }
-
-            delete("/{authorLogin}/{uri}/reactions/{reactionId}") {
-                val authorLogin = call.parameters["authorLogin"]!!
-                val uri = call.parameters["uri"]!!
-                val reactionId = UUID.fromString(call.parameters["reactionId"])
-                reactionService.removeReaction(viewer, authorLogin, uri, reactionId)
-                call.respondText("Reaction removed successfully")
             }
         }
     }
