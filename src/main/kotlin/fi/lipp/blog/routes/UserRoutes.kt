@@ -109,40 +109,33 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService)
                 call.respondText("Avatar deleted successfully")
             }
 
-            get("/recent-reactions") {
-                val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 50
-                val reactions = reactionService.getUserRecentReactions(userId, limit)
-                call.respond(reactions)
-            }
-
             post("/notification-settings") {
                 val settings = call.receive<NotificationSettings>()
                 userService.updateNotificationSettings(userId, settings)
                 call.respondText("Notification settings updated successfully")
             }
 
-            // Friend-related routes
             post("/friend-request") {
                 val request = call.receive<FriendRequestDto.Create>()
                 userService.sendFriendRequest(userId, request)
                 call.respondText("Friend request sent successfully")
             }
 
-            post("/friend-request/{requestId}/accept") {
-                val requestId = UUID.fromString(call.parameters["requestId"]!!)
-                val label = call.parameters["label"]
+            post("/friend-request/accept") {
+                val requestId = UUID.fromString(call.request.queryParameters["requestId"]!!)
+                val label = call.request.queryParameters["label"]
                 userService.acceptFriendRequest(userId, requestId, label)
                 call.respondText("Friend request accepted")
             }
 
-            post("/friend-request/{requestId}/decline") {
-                val requestId = UUID.fromString(call.parameters["requestId"]!!)
+            post("/friend-request/decline") {
+                val requestId = UUID.fromString(call.request.queryParameters["requestId"]!!)
                 userService.declineFriendRequest(userId, requestId)
                 call.respondText("Friend request declined")
             }
 
-            delete("/friend-request/{requestId}") {
-                val requestId = UUID.fromString(call.parameters["requestId"]!!)
+            delete("/friend-request") {
+                val requestId = UUID.fromString(call.request.queryParameters["requestId"]!!)
                 userService.cancelFriendRequest(userId, requestId)
                 call.respondText("Friend request cancelled")
             }
@@ -162,7 +155,7 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService)
                 call.respond(friends)
             }
 
-            delete("/friends/{friendId}") {
+            delete("/friends") {
                 val friendLogin = call.parameters["login"] ?: throw IllegalArgumentException("Missing friendLogin parameter")
                 userService.removeFriend(userId, friendLogin)
                 call.respondText("Friend removed successfully")
