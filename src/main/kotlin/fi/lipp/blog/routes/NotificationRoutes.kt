@@ -39,15 +39,6 @@ fun Route.notificationRoutes(notificationService: NotificationService) {
             }
         }
 
-        route("/posts/notifications") {
-            post("/read-all") {
-                val postId = call.request.queryParameters["postId"]?.let { UUID.fromString(it) }
-                    ?: return@post call.respond(HttpStatusCode.BadRequest, "Invalid post ID")
-                notificationService.readAllPostNotifications(userId, postId)
-                call.respondText("All post notifications marked as read")
-            }
-        }
-
         route("/posts/mentions") {
             post {
                 val postId = call.request.queryParameters["postId"]?.let { UUID.fromString(it) }

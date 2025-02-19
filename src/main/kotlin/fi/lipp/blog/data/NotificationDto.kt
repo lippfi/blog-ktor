@@ -15,9 +15,8 @@ sealed interface NotificationDto {
         override val id: UUID,
         val diaryLogin: String,
         val postUri: String,
-    ) : NotificationDto {
-        override val type: NotificationType = NotificationType.NEW_POST
-    }
+        override val type: NotificationType = NotificationType.NEW_POST,
+    ) : NotificationDto
 
     @Serializable
     data class Comment(
@@ -25,9 +24,8 @@ sealed interface NotificationDto {
         override val id: UUID,
         val diaryLogin: String,
         val postUri: String,
-    ) : NotificationDto {
-        override val type: NotificationType = NotificationType.COMMENT
-    }
+        override val type: NotificationType = NotificationType.COMMENT,
+    ) : NotificationDto
 
     @Serializable
     data class CommentReply(
@@ -35,9 +33,8 @@ sealed interface NotificationDto {
         override val id: UUID,
         val diaryLogin: String,
         val postUri: String,
-    ) : NotificationDto {
-        override val type: NotificationType = NotificationType.COMMENT_REPLY
-    }
+        override val type: NotificationType = NotificationType.COMMENT_REPLY,
+    ) : NotificationDto
 
     @Serializable
     data class PostReaction(
@@ -45,9 +42,8 @@ sealed interface NotificationDto {
         override val id: UUID,
         val diaryLogin: String,
         val postUri: String,
-    ) : NotificationDto {
-        override val type: NotificationType = NotificationType.POST_REACTION
-    }
+        override val type: NotificationType = NotificationType.POST_REACTION,
+    ) : NotificationDto
 
     @Serializable
     data class CommentReaction(
@@ -55,9 +51,8 @@ sealed interface NotificationDto {
         override val id: UUID,
         val diaryLogin: String,
         val postUri: String,
-    ) : NotificationDto {
-        override val type: NotificationType = NotificationType.COMMENT_REACTION
-    }
+        override val type: NotificationType = NotificationType.COMMENT_REACTION,
+    ) : NotificationDto
 
     @Serializable
     data class FriendRequest(
@@ -66,9 +61,8 @@ sealed interface NotificationDto {
         val senderLogin: String,
         @Serializable(with = UUIDSerializer::class)
         val requestId: UUID,
-    ) : NotificationDto {
-        override val type: NotificationType = NotificationType.FRIEND_REQUEST
-    }
+        override val type: NotificationType = NotificationType.FRIEND_REQUEST,
+    ) : NotificationDto
 
     @Serializable
     data class PrivateMessage(
@@ -77,9 +71,8 @@ sealed interface NotificationDto {
         val senderLogin: String,
         @Serializable(with = UUIDSerializer::class)
         val dialogId: UUID,
-    ) : NotificationDto {
-        override val type: NotificationType = NotificationType.PRIVATE_MESSAGE
-    }
+        override val type: NotificationType = NotificationType.PRIVATE_MESSAGE,
+    ) : NotificationDto
 
     @Serializable
     data class Repost(
@@ -87,7 +80,6 @@ sealed interface NotificationDto {
         override val id: UUID,
         val diaryLogin: String,
         val postUri: String,
-    ) : NotificationDto {
-        override val type: NotificationType = NotificationType.REPOST
-    }
+        override val type: NotificationType = NotificationType.REPOST,
+    ) : NotificationDto
 }
