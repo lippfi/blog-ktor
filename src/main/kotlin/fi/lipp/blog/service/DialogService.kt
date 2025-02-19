@@ -10,6 +10,7 @@ import fi.lipp.blog.model.exceptions.MessageReadException
 import fi.lipp.blog.model.exceptions.MessageUpdateException
 import fi.lipp.blog.model.exceptions.NotDialogParticipantException
 import fi.lipp.blog.model.exceptions.NotMessageSenderException
+import fi.lipp.blog.model.exceptions.UserNotFoundException
 import java.util.UUID
 import kotlin.jvm.Throws
 
@@ -31,6 +32,17 @@ interface DialogService {
      */
     @Throws(DialogNotFoundException::class, NotDialogParticipantException::class)
     fun getMessages(userId: UUID, dialogId: UUID, pageable: Pageable): Page<MessageDto.View>
+
+    /**
+     * Get messages between the current user and another user identified by login
+     * @param userId ID of the current user
+     * @param userLogin Login of the other user
+     * @param pageable Pagination parameters
+     * @throws UserNotFoundException if user with given login doesn't exist
+     * @return List of messages between the users
+     */
+    @Throws(UserNotFoundException::class)
+    fun getMessages(userId: UUID, userLogin: String, pageable: Pageable): Page<MessageDto.View>
 
     /**
      * Send a message to another user

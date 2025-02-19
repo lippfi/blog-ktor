@@ -69,6 +69,17 @@ class DialogServiceImpl(
         )
     }
 
+    override fun getMessages(userId: UUID, userLogin: String, pageable: Pageable): Page<MessageDto.View> {
+        val dialogId = transaction {
+            val otherUserId = DiaryEntity.find { Diaries.login eq userLogin }.firstOrNull()?.owner?.value ?: throw UserNotFoundException()
+            DialogEntity.find {
+                ((Dialogs.user1 eq userId) and (Dialogs.user2 eq otherUserId)) or
+                ((Dialogs.user1 eq otherUserId) and (Dialogs.user2 eq userId))
+            }.firstOrNull()?.id?.value
+        } ?: return Page(emptyList(), 0, 0)
+        return getMessages(userId, dialogId, pageable)
+    }
+
     override fun getMessages(userId: UUID, dialogId: UUID, pageable: Pageable): Page<MessageDto.View> {
         return transaction {
             val dialog = DialogEntity.findById(EntityID(dialogId, Dialogs)) ?: throw DialogNotFoundException()

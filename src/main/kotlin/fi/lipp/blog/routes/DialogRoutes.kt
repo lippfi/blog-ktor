@@ -1,6 +1,5 @@
 package fi.lipp.blog.routes
 
-import fi.lipp.blog.data.DialogDto
 import fi.lipp.blog.data.MessageDto
 import fi.lipp.blog.model.Pageable
 import fi.lipp.blog.plugins.userId
@@ -17,7 +16,6 @@ import java.util.*
 fun Route.dialogRoutes(dialogService: DialogService) {
     route("/dialog") {
         authenticate {
-            // Get all dialogs for current user
             get("/list") {
                 val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 0
                 val size = call.request.queryParameters["size"]?.toIntOrNull() ?: 10
@@ -30,8 +28,7 @@ fun Route.dialogRoutes(dialogService: DialogService) {
                 call.respond(dialogs)
             }
 
-            // Get messages in a dialog
-            get("/messages") {
+            get("/dialog-messages") {
                 val dialogId = call.request.queryParameters["dialogId"]?.let { UUID.fromString(it) }
                     ?: return@get call.respond(HttpStatusCode.BadRequest, "dialogId is required")
                 val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 0
@@ -45,10 +42,22 @@ fun Route.dialogRoutes(dialogService: DialogService) {
                 call.respond(messages)
             }
 
-            // Send a message to a user
-            post("/messages") {
-                val receiverLogin = call.request.queryParameters["receiverLogin"]
-                    ?: return@post call.respond(HttpStatusCode.BadRequest, "receiverLogin is required")
+            get("/messages") {
+                val login = call.request.queryParameters["login"] ?: return@get call.respond(HttpStatusCode.BadRequest, "login is required")
+                val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 0
+                val size = call.request.queryParameters["size"]?.toIntOrNull() ?: 10
+                val direction = when (call.request.queryParameters["direction"]?.uppercase()) {
+                    "DESC" -> SortOrder.DESC
+                    else -> SortOrder.ASC
+                }
+                val pageable = Pageable(page, size, direction)
+                val messages = dialogService.getMessages(userId, login, pageable)
+                call.respond(messages)
+            }
+
+            post("/message") {
+                val receiverLogin = call.request.queryParameters["login"]
+                    ?: return@post call.respond(HttpStatusCode.BadRequest, "receiver login is required")
                 val message = call.receive<MessageDto.Create>()
                 val createdMessage = dialogService.sendMessage(userId, receiverLogin, message)
                 call.respond(createdMessage)

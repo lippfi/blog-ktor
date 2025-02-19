@@ -53,6 +53,42 @@ class DialogServiceTest : UnitTestBase() {
     }
 
     @Test
+    fun `test get messages by user login`() {
+        // Create first user
+        userService.signUp(testUser, "")
+        val user1 = findUserByLogin(testUser.login)!!
+
+        // Create second user with invite code
+        val inviteCode = userService.generateInviteCode(user1.id)
+        userService.signUp(testUser2, inviteCode)
+        val user2 = findUserByLogin(testUser2.login)!!
+
+        // Send messages
+        val messageText1 = "Hello!"
+        val messageText2 = "How are you?"
+        dialogService.sendMessage(user1.id, user2.login, MessageDto.Create(avatarUri = "test-avatar.jpg", content = messageText1))
+        dialogService.sendMessage(user2.id, user1.login, MessageDto.Create(avatarUri = "test-avatar.jpg", content = messageText2))
+
+        // Get messages by user login and verify
+        val messages = dialogService.getMessages(user1.id, user2.login, Pageable(0, 10, SortOrder.DESC))
+        assertEquals(2, messages.content.size)
+        assertEquals(messageText2, messages.content[0].content)
+        assertEquals(messageText1, messages.content[1].content)
+    }
+
+    @Test
+    fun `test error - get messages with non-existent user`() {
+        // Create user
+        userService.signUp(testUser, "")
+        val user = findUserByLogin(testUser.login)!!
+
+        // Try to get messages with non-existent user
+        assertFailsWith<UserNotFoundException> {
+            dialogService.getMessages(user.id, "non-existent-user", Pageable(0, 10, SortOrder.DESC))
+        }
+    }
+
+    @Test
     fun `test update message`() {
         // Create first user
         userService.signUp(testUser, "")
