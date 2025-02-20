@@ -18,6 +18,7 @@ import org.koin.logger.slf4jLogger
 // TODO Cors
 
 // POST-FRONTEND
+// ReactionInfo should also store nicknames
 // Allow post owners to delete comments of other users
 // Friends access group
 // Communities
