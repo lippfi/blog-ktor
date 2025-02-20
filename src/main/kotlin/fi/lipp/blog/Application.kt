@@ -18,6 +18,8 @@ import org.koin.logger.slf4jLogger
 // TODO Cors
 
 // POST-FRONTEND
+// Allow post owners to delete comments of other users
+// Friends access group
 // Communities
 
 // THIRD ITERATION
