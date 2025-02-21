@@ -730,7 +730,7 @@ class PostServiceImpl(
             val anonymousCount = anonymousCounts[reactionId] ?: 0
 
             ReactionDto.ReactionInfo(
-                reactionId = reactionId,
+                id = reactionId,
                 name = name,
                 iconUri = storageService.getFileURL(FileEntity.findById(fileId)!!.toBlogFile()),
                 count = userLogins.size + anonymousCount,

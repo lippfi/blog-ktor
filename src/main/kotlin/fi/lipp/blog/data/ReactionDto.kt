@@ -1,9 +1,7 @@
 package fi.lipp.blog.data
 
-import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 import java.util.UUID
-import fi.lipp.blog.data.FileUploadData
 import fi.lipp.blog.util.UUIDSerializer
 
 sealed interface ReactionDto {

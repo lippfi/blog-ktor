@@ -8,7 +8,6 @@ import fi.lipp.blog.service.ReactionService
 import fi.lipp.blog.service.Viewer
 import fi.lipp.blog.service.implementations.PostServiceImpl
 import fi.lipp.blog.service.implementations.ReactionServiceImpl
-import io.ktor.server.config.ApplicationConfig
 import io.ktor.server.config.MapApplicationConfig
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.mockito.kotlin.mock
@@ -308,7 +307,7 @@ class ReactionServiceTests : UnitTestBase() {
         assertEquals(1, updatedPost.reactions.size)
 
         val reactionInfo = updatedPost.reactions[0]
-        assertEquals(reaction.id, reactionInfo.reactionId)
+        assertEquals(reaction.id, reactionInfo.id)
         assertEquals(reaction.name, reactionInfo.name)
         assertEquals(reaction.iconUri, reactionInfo.iconUri)
         assertEquals(4, reactionInfo.count)
