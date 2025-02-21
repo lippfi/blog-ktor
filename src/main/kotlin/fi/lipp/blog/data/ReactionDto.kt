@@ -18,7 +18,7 @@ sealed interface ReactionDto {
     @Serializable
     data class ReactionInfo(
         @Serializable(with = UUIDSerializer::class)
-        val reactionId: UUID,
+        val id: UUID,
         val name: String,
         val iconUri: String,
         val count: Int,
