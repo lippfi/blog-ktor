@@ -4,6 +4,7 @@ import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 import java.util.UUID
 import fi.lipp.blog.data.FileUploadData
+import fi.lipp.blog.util.UUIDSerializer
 
 sealed interface ReactionDto {
     companion object {
@@ -16,7 +17,7 @@ sealed interface ReactionDto {
 
     @Serializable
     data class ReactionInfo(
-        @Contextual
+        @Serializable(with = UUIDSerializer::class)
         val reactionId: UUID,
         val name: String,
         val iconUri: String,
@@ -27,7 +28,7 @@ sealed interface ReactionDto {
 
     @Serializable
     data class View(
-        @Contextual
+        @Serializable(with = UUIDSerializer::class)
         val id: UUID,
         val name: String,
         val iconUri: String,
