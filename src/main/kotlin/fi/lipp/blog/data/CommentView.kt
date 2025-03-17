@@ -4,7 +4,6 @@ import fi.lipp.blog.util.UUIDSerializer
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.Serializable
 import java.util.UUID
-import fi.lipp.blog.data.ReactionDto
 
 sealed interface CommentDto {
     @Serializable
@@ -28,6 +27,11 @@ sealed interface CommentDto {
 
     @Serializable
     data class Create(
+        @Serializable(with = UUIDSerializer::class)
+        val postId: UUID,
+        val avatar : String,
+        val text: String,
+
         @Serializable(with = UUIDSerializer::class)
         val parentCommentId: UUID? = null,
 
