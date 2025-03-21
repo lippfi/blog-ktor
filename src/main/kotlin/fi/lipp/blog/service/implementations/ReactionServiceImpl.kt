@@ -41,6 +41,12 @@ class ReactionServiceImpl(
         // Validate reaction name
         ReactionDto.validateName(name)
 
+        // TODO it is a race
+        val isNameUsed = transaction { isReactionNameUsed(name) }
+        if (isNameUsed) {
+            throw ReactionNameIsTakenException()
+        }
+
         // Store the icon file first
         val storedFile = storageService.storeReaction(userId, icon)
 
@@ -56,6 +62,10 @@ class ReactionServiceImpl(
             }
             toReactionView(reactionEntity)
         }
+    }
+
+    private fun Transaction.isReactionNameUsed(name: String): Boolean {
+        return ReactionEntity.find { Reactions.name eq name }.firstOrNull() != null
     }
 
     override fun deleteReaction(userId: UUID, name: String) {
@@ -156,7 +166,6 @@ class ReactionServiceImpl(
 
     private fun toReactionView(reactionEntity: ReactionEntity): ReactionDto.View {
         return ReactionDto.View(
-            id = reactionEntity.id.value,
             name = reactionEntity.name,
             iconUri = storageService.getFileURL(reactionEntity.icon.toBlogFile())
         )
