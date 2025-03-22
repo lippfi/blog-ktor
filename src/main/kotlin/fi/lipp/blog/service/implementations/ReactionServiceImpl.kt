@@ -2,6 +2,7 @@ package fi.lipp.blog.service.implementations
 
 import fi.lipp.blog.data.FileUploadData
 import fi.lipp.blog.data.ReactionDto
+import fi.lipp.blog.data.ReactionPackDto
 import fi.lipp.blog.domain.*
 import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.repository.*
@@ -22,20 +23,126 @@ class ReactionServiceImpl(
     private val notificationService: NotificationService,
     private val config: ApplicationConfig
 ) : ReactionService {
-    private val configuredBasicNames by lazy {
-        config.property("reactions.basic").getList()
-    }
 
-    private val cachedBasicReactions by lazy {
-        transaction {
-            configuredBasicNames.mapNotNull { name ->
-                ReactionEntity.find { Reactions.name eq name }.firstOrNull()?.let { toReactionView(it) }
-            }
-        }
-    }
+    // Map of sticker file names to reaction names
+    private val smolReactions = mapOf(
+        "sticker1.webp" to "suicide",
+        "sticker2.webp" to "speech",
+        "sticker3.webp" to "shef",
+        "sticker4.webp" to "cereal",
+        "sticker5.webp" to "fyou",
+        "sticker6.webp" to "punch",
+        "sticker7.webp" to "peace",
+        "sticker8.webp" to "shock",
+        "sticker9.webp" to "sad",
+        "sticker10.webp" to "high",
+        "sticker11.webp" to "broken",
+        "sticker12.webp" to "crying",
+        "sticker13.webp" to "lick",
+        "sticker14.webp" to "milk",
+        "sticker15.webp" to "tears",
+        "sticker16.webp" to "alien",
+        "sticker17.webp" to "krakozyabra",
+        "sticker18.webp" to "hearts",
+        "sticker19.webp" to "crying2",
+        "sticker20.webp" to "annoyed",
+        "sticker21.webp" to "tilt",
+        "sticker22.webp" to "angry",
+        "sticker23.webp" to "suspicious",
+        "sticker24.webp" to "surprized",
+        "sticker25.webp" to "furious",
+        "sticker26.webp" to "nerd",
+        "sticker27.webp" to "nerd2",
+        "sticker28.webp" to "offended",
+        "sticker29.webp" to "love",
+        "sticker30.webp" to "happy",
+        "sticker31.webp" to "touched",
+        "sticker32.webp" to "ola",
+        "sticker33.webp" to "silly",
+        "sticker34.webp" to "insulted",
+        "sticker35.webp" to "shy",
+        "sticker36.webp" to "eating",
+        "sticker37.webp" to "potato",
+        "sticker39.webp" to "hisoka",
+        "sticker40.webp" to "runnynose",
+        "sticker41.webp" to "crying3",
+        "sticker42.webp" to "heart",
+        "sticker43.webp" to "love2",
+        "sticker44.webp" to "flowers",
+        "sticker45.webp" to "serious",
+        "sticker46.webp" to "wink",
+        "sticker47.webp" to "hehe",
+        "sticker48.webp" to "heheq",
+        "sticker49.webp" to "nothehe",
+        "sticker50.webp" to "talk",
+        "sticker51.webp" to "listening",
+//        "sticker52.webp" to "stressed",
+//        "sticker53.webp" to "calm",
+//        "sticker54.webp" to "energetic",
+//        "sticker55.webp" to "lazy",
+//        "sticker56.webp" to "motivated",
+//        "sticker57.webp" to "overwhelmed",
+//        "sticker58.webp" to "playful",
+//        "sticker59.webp" to "serious",
+//        "sticker60.webp" to "silly",
+//        "sticker61.webp" to "grumpy",
+//        "sticker62.webp" to "joyful",
+//        "sticker63.webp" to "melancholic",
+//        "sticker64.webp" to "hopeless",
+//        "sticker65.webp" to "desperate",
+//        "sticker66.webp" to "ecstatic",
+//        "sticker68.webp" to "furious",
+//        "sticker69.webp" to "delighted",
+//        "sticker70.webp" to "disgusted",
+//        "sticker72.webp" to "envious",
+//        "sticker73.webp" to "sympathetic",
+//        "sticker74.webp" to "empathetic",
+//        "sticker75.webp" to "compassionate",
+//        "sticker76.webp" to "resentful",
+//        "sticker77.webp" to "remorseful",
+//        "sticker78.webp" to "regretful",
+//        "sticker79.webp" to "appreciative",
+//        "sticker80.webp" to "admiring",
+//        "sticker81.webp" to "respectful",
+//        "sticker82.webp" to "trusting",
+//        "sticker83.webp" to "suspicious",
+//        "sticker84.webp" to "doubtful",
+//        "sticker85.webp" to "certain",
+//        "sticker86.webp" to "uncertain",
+//        "sticker87.webp" to "insecure",
+        "sticker88.webp" to "friends",
+//        "sticker89.webp" to "comfortable",
+//        "sticker90.webp" to "uncomfortable",
+//        "sticker91.webp" to "pleased",
+//        "sticker92.webp" to "displeased",
+//        "sticker93.webp" to "satisfied",
+//        "sticker94.webp" to "dissatisfied",
+//        "sticker95.webp" to "fulfilled",
+//        "sticker96.webp" to "empty",
+//        "sticker97.webp" to "complete",
+//        "sticker98.webp" to "incomplete",
+//        "sticker99.webp" to "whole",
+//        "sticker100.webp" to "broken",
+//        "sticker101.webp" to "connected",
+//        "sticker102.webp" to "disconnected",
+//        "sticker103.webp" to "engaged",
+//        "sticker104.webp" to "disengaged",
+//        "sticker105.webp" to "interested",
+//        "sticker106.webp" to "disinterested",
+//        "sticker107.webp" to "attentive",
+//        "sticker108.webp" to "distracted",
+//        "sticker109.webp" to "focused",
+//        "sticker110.webp" to "unfocused",
+//        "sticker111.webp" to "alert",
+//        "sticker113.webp" to "drowsy",
+//        "sticker114.webp" to "awake",
+//        "sticker115.webp" to "asleep",
+//        "sticker116.webp" to "dreaming"
+    )
 
-    override fun getBasicReactions(): List<ReactionDto.View> {
-        return cachedBasicReactions
+
+    override fun getBasicReactions(): List<ReactionPackDto> {
+        TODO() // return basic pack + small pack
     }
     override fun createReaction(userId: UUID, name: String, icon: FileUploadData): ReactionDto.View {
         // Validate reaction name

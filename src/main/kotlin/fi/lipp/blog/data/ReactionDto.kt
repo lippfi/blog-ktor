@@ -4,6 +4,12 @@ import kotlinx.serialization.Serializable
 import java.util.UUID
 import fi.lipp.blog.util.UUIDSerializer
 
+@Serializable
+data class ReactionPackDto(
+    val iconUri: String,
+    val reactions: List<ReactionDto.View>
+)
+
 sealed interface ReactionDto {
     companion object {
         private val namePattern = Regex("^[a-zA-Z][a-zA-Z0-9-]*$")

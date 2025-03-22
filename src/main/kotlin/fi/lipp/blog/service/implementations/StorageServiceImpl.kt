@@ -55,7 +55,7 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
     }
 
     // TODO safer avatar storing. Only the given extensions with size & dimensions limits
-    private val allowedImageExtensions = setOf(".jpg", ".jpeg", ".png", ".gif", ".svg")
+    private val allowedImageExtensions = setOf(".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp")
     private fun validateAvatar(file: FileUploadData): FileUploadData {
         if (!allowedImageExtensions.contains(file.extension)) throw InvalidAvatarExtensionException()
 
@@ -94,9 +94,9 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
         val image = ImageIO.read(bytes.inputStream())
 
         // Check if image is square and dimensions are <= 100x100
-        if (image.width != image.height || image.width > 100) {
-            throw InvalidReactionImageException()
-        }
+//        if (image.width != image.height || image.width > 100) {
+//            throw InvalidReactionImageException()
+//        }
 
         // Create a new FileUploadData with a fresh InputStream from the bytes
         return FileUploadData(
