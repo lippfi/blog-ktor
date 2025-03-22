@@ -235,7 +235,7 @@ class ReactionServiceImpl(
         }
     }
 
-    override fun addReaction(viewer: Viewer, diaryLogin: String, uri: String, reactionId: UUID) {
+    override fun addReaction(viewer: Viewer, diaryLogin: String, uri: String, reactionName: String) {
         val userId = (viewer as? Viewer.Registered)?.userId
         transaction {
             val diaryEntity = findDiaryByLogin(diaryLogin)
@@ -243,6 +243,7 @@ class ReactionServiceImpl(
             if (postEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, postEntity.reactionGroupId.value)) {
                 throw WrongUserException()
             }
+            val reactionId = ReactionEntity.find { Reactions.name eq reactionName }.firstOrNull()?.id ?: throw ReactionNotFoundException()
             when (viewer) {
                 is Viewer.Registered -> {
                     val hasReaction = PostReactions.select { 
@@ -286,7 +287,7 @@ class ReactionServiceImpl(
         }
     }
 
-    override fun removeReaction(viewer: Viewer, diaryLogin: String, uri: String, reactionId: UUID) {
+    override fun removeReaction(viewer: Viewer, diaryLogin: String, uri: String, reactionName: String) {
         val userId = (viewer as? Viewer.Registered)?.userId
         transaction {
             val diaryEntity = findDiaryByLogin(diaryLogin)
@@ -294,6 +295,7 @@ class ReactionServiceImpl(
             if (postEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, postEntity.reactionGroupId.value)) {
                 throw WrongUserException()
             }
+            val reactionId = ReactionEntity.find { Reactions.name eq reactionName }.firstOrNull()?.id ?: throw ReactionNotFoundException()
             when (viewer) {
                 is Viewer.Registered -> {
                     val reaction = PostReactionEntity.find { 
@@ -346,7 +348,7 @@ class ReactionServiceImpl(
         }
     }
 
-    override fun addCommentReaction(viewer: Viewer, commentId: UUID, reactionId: UUID) {
+    override fun addCommentReaction(viewer: Viewer, commentId: UUID, reactionName: String) {
         val userId = (viewer as? Viewer.Registered)?.userId
         transaction {
             val commentEntity = CommentEntity.findById(commentId) ?: throw CommentNotFoundException()
@@ -355,6 +357,7 @@ class ReactionServiceImpl(
             if (commentEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, commentEntity.reactionGroupId.value)) {
                 throw WrongUserException()
             }
+            val reactionId = ReactionEntity.find { Reactions.name eq reactionName }.firstOrNull()?.id ?: throw ReactionNotFoundException()
 
             when (viewer) {
                 is Viewer.Registered -> {
@@ -394,7 +397,7 @@ class ReactionServiceImpl(
         }
     }
 
-    override fun removeCommentReaction(viewer: Viewer, commentId: UUID, reactionId: UUID) {
+    override fun removeCommentReaction(viewer: Viewer, commentId: UUID, reactionName: String) {
         val userId = (viewer as? Viewer.Registered)?.userId
         transaction {
             val commentEntity = CommentEntity.findById(commentId) ?: throw CommentNotFoundException()
@@ -403,6 +406,7 @@ class ReactionServiceImpl(
             if (commentEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, commentEntity.reactionGroupId.value)) {
                 throw WrongUserException()
             }
+            val reactionId = ReactionEntity.find { Reactions.name eq reactionName }.firstOrNull()?.id ?: throw ReactionNotFoundException()
 
             when (viewer) {
                 is Viewer.Registered -> {

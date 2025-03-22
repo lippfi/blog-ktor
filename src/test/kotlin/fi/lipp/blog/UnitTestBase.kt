@@ -105,8 +105,7 @@ abstract class UnitTestBase {
                         storageService = get(),
                         accessGroupService = get(),
                         notificationService = get(),
-                        userService = get(),
-                        config = get<ApplicationEnvironment>().config
+                        userService = get()
                     ) }
                     single<PostService> { PostServiceImpl(
                         accessGroupService = get(),

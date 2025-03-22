@@ -1,7 +1,9 @@
 package fi.lipp.blog
 
 import fi.lipp.blog.data.*
+import fi.lipp.blog.domain.ReactionEntity
 import fi.lipp.blog.model.exceptions.*
+import fi.lipp.blog.repository.Reactions
 import fi.lipp.blog.service.NotificationService
 import fi.lipp.blog.service.PostService
 import fi.lipp.blog.service.ReactionService
@@ -22,6 +24,14 @@ class ReactionServiceTests : UnitTestBase() {
     private lateinit var reactionService: ReactionService
     private val notificationService = mock<NotificationService>()
 
+    // Helper method to find a reaction by name and get its id
+    private fun getReactionIdByName(name: String): UUID {
+        return transaction {
+            val reactionEntity = ReactionEntity.find { Reactions.name eq name }.firstOrNull() ?: throw ReactionNotFoundException()
+            reactionEntity.id.value
+        }
+    }
+
     @BeforeTest
     fun setUp() {
         transaction {
@@ -41,7 +51,7 @@ class ReactionServiceTests : UnitTestBase() {
                 put("reactions.basic.4", "sad")
                 put("reactions.basic.5", "angry")
             }
-            reactionService = ReactionServiceImpl(storageService, groupService, notificationService, config)
+            reactionService = ReactionServiceImpl(storageService, groupService, notificationService, userService)
             postService = PostServiceImpl(groupService, storageService, reactionService, notificationService)
         }
     }
@@ -115,9 +125,10 @@ class ReactionServiceTests : UnitTestBase() {
 
     @Test
     fun `test add reaction to post`() {
+        val reactionName = "like"
         val reaction = reactionService.createReaction(
             testUser.id,
-            "like",
+            reactionName,
             FileUploadData(
                 fullName = "reaction.png",
                 inputStream = avatarFile1.inputStream()
@@ -127,16 +138,18 @@ class ReactionServiceTests : UnitTestBase() {
         val post = createTestPost(testUser.id)
         val viewer = Viewer.Registered(testUser.id)
 
-        reactionService.addReaction(viewer, testUser.login, post.uri, reaction.id)
+        val reactionId = getReactionIdByName(reactionName)
+        reactionService.addReaction(viewer, testUser.login, post.uri, reactionId)
         // Adding the same reaction again should not throw
-        reactionService.addReaction(viewer, testUser.login, post.uri, reaction.id)
+        reactionService.addReaction(viewer, testUser.login, post.uri, reactionId)
     }
 
     @Test
     fun `test remove reaction from post`() {
+        val reactionName = "like"
         val reaction = reactionService.createReaction(
             testUser.id,
-            "like",
+            reactionName,
             FileUploadData(
                 fullName = "reaction.png",
                 inputStream = avatarFile1.inputStream()
@@ -146,10 +159,11 @@ class ReactionServiceTests : UnitTestBase() {
         val post = createTestPost(testUser.id)
         val viewer = Viewer.Registered(testUser.id)
 
-        reactionService.addReaction(viewer, testUser.login, post.uri, reaction.id)
-        reactionService.removeReaction(viewer, testUser.login, post.uri, reaction.id)
+        val reactionId = getReactionIdByName(reactionName)
+        reactionService.addReaction(viewer, testUser.login, post.uri, reactionId)
+        reactionService.removeReaction(viewer, testUser.login, post.uri, reactionId)
         // Removing non-existent reaction should not throw
-        reactionService.removeReaction(viewer, testUser.login, post.uri, reaction.id)
+        reactionService.removeReaction(viewer, testUser.login, post.uri, reactionId)
     }
 
     @Test

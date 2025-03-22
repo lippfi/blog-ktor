@@ -14,11 +14,11 @@ interface ReactionService {
     fun getUserRecentReactions(userId: UUID, limit: Int = 50): List<ReactionDto.View>
 
     // Post reactions
-    fun addReaction(viewer: Viewer, diaryLogin: String, uri: String, reactionId: UUID)
-    fun removeReaction(viewer: Viewer, diaryLogin: String, uri: String, reactionId: UUID)
+    fun addReaction(viewer: Viewer, diaryLogin: String, uri: String, reactionName: String)
+    fun removeReaction(viewer: Viewer, diaryLogin: String, uri: String, reactionName: String)
 
     // Comment reactions
-    fun addCommentReaction(viewer: Viewer, commentId: UUID, reactionId: UUID)
-    fun removeCommentReaction(viewer: Viewer, commentId: UUID, reactionId: UUID)
+    fun addCommentReaction(viewer: Viewer, commentId: UUID, reactionName: String)
+    fun removeCommentReaction(viewer: Viewer, commentId: UUID, reactionName: String)
     fun getCommentReactions(commentId: UUID): List<ReactionDto.ReactionInfo>
 }
