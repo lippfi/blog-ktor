@@ -59,47 +59,47 @@ fun Route.reactionRoutes(reactionService: ReactionService) {
         post("/post-reaction") {
             val diaryLogin = call.request.queryParameters["login"] ?: throw IllegalArgumentException("Missing diaryLogin parameter")
             val uri = call.request.queryParameters["uri"] ?: throw IllegalArgumentException("Missing uri parameter")
-            val reactionId = call.request.queryParameters["id"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing reactionId parameter")
+            val reactionName = call.request.queryParameters["name"] ?: throw IllegalArgumentException("Missing reactionName parameter")
 
             val viewer = call.principal<JWTPrincipal>()?.let { Viewer.Registered(userId) }
                 ?: Viewer.Anonymous(call.request.local.remoteHost, call.request.headers["User-Agent"] ?: "unknown")
 
-            reactionService.addReaction(viewer, diaryLogin, uri, reactionId)
+            reactionService.addReaction(viewer, diaryLogin, uri, reactionName)
             call.respondText("Reaction added successfully")
         }
 
         delete("/post-reaction") {
             val diaryLogin = call.request.queryParameters["login"] ?: throw IllegalArgumentException("Missing diaryLogin parameter")
             val uri = call.request.queryParameters["uri"] ?: throw IllegalArgumentException("Missing uri parameter")
-            val reactionId = call.request.queryParameters["id"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing reactionId parameter")
+            val reactionName = call.request.queryParameters["name"] ?: throw IllegalArgumentException("Missing reactionName parameter")
 
             val viewer = call.principal<JWTPrincipal>()?.let { Viewer.Registered(userId) }
                 ?: Viewer.Anonymous(call.request.local.remoteHost, call.request.headers["User-Agent"] ?: "unknown")
 
-            reactionService.removeReaction(viewer, diaryLogin, uri, reactionId)
+            reactionService.removeReaction(viewer, diaryLogin, uri, reactionName)
             call.respondText("Reaction removed successfully")
         }
 
         // Comment reactions
         post("comment-reaction") {
             val commentId = call.request.queryParameters["commentId"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing commentId parameter")
-            val reactionId = call.request.queryParameters["reactionId"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing reactionId parameter")
+            val reactionName = call.request.queryParameters["name"] ?: throw IllegalArgumentException("Missing reactionName parameter")
 
             val viewer = call.principal<JWTPrincipal>()?.let { Viewer.Registered(userId) }
                 ?: Viewer.Anonymous(call.request.origin.remoteHost, call.request.headers["User-Agent"] ?: "unknown")
 
-            reactionService.addCommentReaction(viewer, commentId, reactionId)
+            reactionService.addCommentReaction(viewer, commentId, reactionName)
             call.respondText("Comment reaction added successfully")
         }
 
         delete("comment-reaction") {
             val commentId = call.request.queryParameters["commentId"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing commentId parameter")
-            val reactionId = call.request.queryParameters["reactionId"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing reactionId parameter")
+            val reactionName = call.request.queryParameters["name"] ?: throw IllegalArgumentException("Missing reactionName parameter")
 
             val viewer = call.principal<JWTPrincipal>()?.let { Viewer.Registered(userId) }
                 ?: Viewer.Anonymous(call.request.origin.remoteHost, call.request.headers["User-Agent"] ?: "unknown")
 
-            reactionService.removeCommentReaction(viewer, commentId, reactionId)
+            reactionService.removeCommentReaction(viewer, commentId, reactionName)
             call.respondText("Comment reaction removed successfully")
         }
     }
