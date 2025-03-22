@@ -75,6 +75,8 @@ class UserRoutesTests {
                 single { userService }
                 single { reactionService }
                 // Mock other required services
+                single { mock(NotificationService::class.java) }
+                single { mock(DialogService::class.java) }
                 single { mock(PostService::class.java) }
                 single { mock(DiaryService::class.java) }
                 single { mock(StorageService::class.java) }
@@ -108,8 +110,8 @@ class UserRoutesTests {
 
         // Mock the reaction service response
         val mockReactions = listOf(
-            ReactionDto.View(UUID.randomUUID(), "happy", "happy.png"),
-            ReactionDto.View(UUID.randomUUID(), "sad", "sad.png")
+            ReactionDto.View("happy", "happy.png"),
+            ReactionDto.View("sad", "sad.png")
         )
         `when`(reactionService.getUserRecentReactions(testUserId, 50)).thenReturn(mockReactions)
 

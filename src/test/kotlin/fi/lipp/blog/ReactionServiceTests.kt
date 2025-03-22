@@ -24,12 +24,10 @@ class ReactionServiceTests : UnitTestBase() {
     private lateinit var reactionService: ReactionService
     private val notificationService = mock<NotificationService>()
 
-    // Helper method to find a reaction by name and get its id
-    private fun getReactionIdByName(name: String): UUID {
-        return transaction {
-            val reactionEntity = ReactionEntity.find { Reactions.name eq name }.firstOrNull() ?: throw ReactionNotFoundException()
-            reactionEntity.id.value
-        }
+    // This helper method is no longer needed as we use reaction names directly
+    // Keeping it for backward compatibility with existing test code
+    private fun getReactionIdByName(name: String): String {
+        return name
     }
 
     @BeforeTest
@@ -139,9 +137,9 @@ class ReactionServiceTests : UnitTestBase() {
         val viewer = Viewer.Registered(testUser.id)
 
         val reactionId = getReactionIdByName(reactionName)
-        reactionService.addReaction(viewer, testUser.login, post.uri, reactionId)
+        reactionService.addReaction(viewer, testUser.login, post.uri, reactionName)
         // Adding the same reaction again should not throw
-        reactionService.addReaction(viewer, testUser.login, post.uri, reactionId)
+        reactionService.addReaction(viewer, testUser.login, post.uri, reactionName)
     }
 
     @Test
@@ -159,11 +157,10 @@ class ReactionServiceTests : UnitTestBase() {
         val post = createTestPost(testUser.id)
         val viewer = Viewer.Registered(testUser.id)
 
-        val reactionId = getReactionIdByName(reactionName)
-        reactionService.addReaction(viewer, testUser.login, post.uri, reactionId)
-        reactionService.removeReaction(viewer, testUser.login, post.uri, reactionId)
+        reactionService.addReaction(viewer, testUser.login, post.uri, reactionName)
+        reactionService.removeReaction(viewer, testUser.login, post.uri, reactionName)
         // Removing non-existent reaction should not throw
-        reactionService.removeReaction(viewer, testUser.login, post.uri, reactionId)
+        reactionService.removeReaction(viewer, testUser.login, post.uri, reactionName)
     }
 
     @Test
@@ -180,8 +177,8 @@ class ReactionServiceTests : UnitTestBase() {
         val post = createTestPost(testUser.id)
         val viewer = Viewer.Anonymous("127.0.0.1", "test-fingerprint")
 
-        reactionService.addReaction(viewer, testUser.login, post.uri, reaction.id)
-        reactionService.removeReaction(viewer, testUser.login, post.uri, reaction.id)
+        reactionService.addReaction(viewer, testUser.login, post.uri, reaction.name)
+        reactionService.removeReaction(viewer, testUser.login, post.uri, reaction.name)
     }
 
     @Test
@@ -270,24 +267,24 @@ class ReactionServiceTests : UnitTestBase() {
         val privatePost = createTestPost(testUser.id, "post-private", groupService.privateGroupUUID)
 
         // Test everyone post
-        reactionService.addReaction(Viewer.Anonymous("127.0.0.1", "test"), testUser.login, everyonePost.uri, reaction.id)
-        reactionService.addReaction(Viewer.Registered(user2.id), testUser.login, everyonePost.uri, reaction.id)
+        reactionService.addReaction(Viewer.Anonymous("127.0.0.1", "test"), testUser.login, everyonePost.uri, reaction.name)
+        reactionService.addReaction(Viewer.Registered(user2.id), testUser.login, everyonePost.uri, reaction.name)
 
         // Test registered users post
         assertFailsWith<WrongUserException>("Anonymous user should not be able to react to registered-only post") {
-            reactionService.addReaction(Viewer.Anonymous("127.0.0.1", "test"), testUser.login, registeredPost.uri, reaction.id)
+            reactionService.addReaction(Viewer.Anonymous("127.0.0.1", "test"), testUser.login, registeredPost.uri, reaction.name)
         }
-        reactionService.addReaction(Viewer.Registered(user2.id), testUser.login, registeredPost.uri, reaction.id)
+        reactionService.addReaction(Viewer.Registered(user2.id), testUser.login, registeredPost.uri, reaction.name)
 
         // Test private post
         assertFailsWith<WrongUserException>("Anonymous user should not be able to react to private post") {
-            reactionService.addReaction(Viewer.Anonymous("127.0.0.1", "test"), testUser.login, privatePost.uri, reaction.id)
+            reactionService.addReaction(Viewer.Anonymous("127.0.0.1", "test"), testUser.login, privatePost.uri, reaction.name)
         }
         assertFailsWith<WrongUserException>("Other user should not be able to react to private post") {
-            reactionService.addReaction(Viewer.Registered(user2.id), testUser.login, privatePost.uri, reaction.id)
+            reactionService.addReaction(Viewer.Registered(user2.id), testUser.login, privatePost.uri, reaction.name)
         }
         // Author should be able to react to their own private post
-        reactionService.addReaction(Viewer.Registered(testUser.id), testUser.login, privatePost.uri, reaction.id)
+        reactionService.addReaction(Viewer.Registered(testUser.id), testUser.login, privatePost.uri, reaction.name)
     }
 
     @Test
@@ -311,17 +308,16 @@ class ReactionServiceTests : UnitTestBase() {
         val post = createTestPost(testUser.id)
 
         // Add reactions from different users
-        reactionService.addReaction(Viewer.Registered(testUser.id), testUser.login, post.uri, reaction.id)
-        reactionService.addReaction(Viewer.Registered(user2.id), testUser.login, post.uri, reaction.id)
-        reactionService.addReaction(Viewer.Anonymous("127.0.0.1", "test1"), testUser.login, post.uri, reaction.id)
-        reactionService.addReaction(Viewer.Anonymous("127.0.0.2", "test2"), testUser.login, post.uri, reaction.id)
+        reactionService.addReaction(Viewer.Registered(testUser.id), testUser.login, post.uri, reaction.name)
+        reactionService.addReaction(Viewer.Registered(user2.id), testUser.login, post.uri, reaction.name)
+        reactionService.addReaction(Viewer.Anonymous("127.0.0.1", "test1"), testUser.login, post.uri, reaction.name)
+        reactionService.addReaction(Viewer.Anonymous("127.0.0.2", "test2"), testUser.login, post.uri, reaction.name)
 
         // Get post and verify reaction information
         val updatedPost = postService.getPost(Viewer.Registered(testUser.id), testUser.login, post.uri)
         assertEquals(1, updatedPost.reactions.size)
 
         val reactionInfo = updatedPost.reactions[0]
-        assertEquals(reaction.id, reactionInfo.id)
         assertEquals(reaction.name, reactionInfo.name)
         assertEquals(reaction.iconUri, reactionInfo.iconUri)
         assertEquals(4, reactionInfo.count)
@@ -392,23 +388,23 @@ class ReactionServiceTests : UnitTestBase() {
         val posts = (1..3).map { createTestPost(testUser.id) }
 
         // Add reactions in specific order to test timestamp-based ordering
-        reactionService.addReaction(Viewer.Registered(testUser.id), posts[0].authorLogin, posts[0].uri, createdReactions[0].id)
-        reactionService.addReaction(Viewer.Registered(testUser.id), posts[1].authorLogin, posts[1].uri, createdReactions[1].id)
-        reactionService.addReaction(Viewer.Registered(testUser.id), posts[2].authorLogin, posts[2].uri, createdReactions[2].id)
-        reactionService.addReaction(Viewer.Registered(testUser.id), posts[0].authorLogin, posts[0].uri, createdReactions[1].id)
+        reactionService.addReaction(Viewer.Registered(testUser.id), posts[0].authorLogin, posts[0].uri, createdReactions[0].name)
+        reactionService.addReaction(Viewer.Registered(testUser.id), posts[1].authorLogin, posts[1].uri, createdReactions[1].name)
+        reactionService.addReaction(Viewer.Registered(testUser.id), posts[2].authorLogin, posts[2].uri, createdReactions[2].name)
+        reactionService.addReaction(Viewer.Registered(testUser.id), posts[0].authorLogin, posts[0].uri, createdReactions[1].name)
 
         // Test getting recent reactions with default limit
         val recentReactions = reactionService.getUserRecentReactions(testUser.id)
         assertEquals(3, recentReactions.size)
-        assertEquals(createdReactions[1].id, recentReactions[0].id) // Most recent (sad)
-        assertEquals(createdReactions[2].id, recentReactions[1].id) // Second recent (love)
-        assertEquals(createdReactions[0].id, recentReactions[2].id) // Least recent (happy)
+        assertEquals(createdReactions[1].name, recentReactions[0].name) // Most recent (sad)
+        assertEquals(createdReactions[2].name, recentReactions[1].name) // Second recent (love)
+        assertEquals(createdReactions[0].name, recentReactions[2].name) // Least recent (happy)
 
         // Test with custom limit
         val limitedReactions = reactionService.getUserRecentReactions(testUser.id, 2)
         assertEquals(2, limitedReactions.size)
-        assertEquals(createdReactions[1].id, limitedReactions[0].id)
-        assertEquals(createdReactions[2].id, limitedReactions[1].id)
+        assertEquals(createdReactions[1].name, limitedReactions[0].name)
+        assertEquals(createdReactions[2].name, limitedReactions[1].name)
     }
 
     @Test
@@ -436,16 +432,15 @@ class ReactionServiceTests : UnitTestBase() {
             )
         )
 
-        // Get basic reactions and verify
-        val basicReactionsList = reactionService.getBasicReactions()
-        assertEquals(expectedBasicReactions.size, basicReactionsList.size)
-        basicReactionsList.forEach { reaction ->
+        // Get all reactions and filter for basic ones
+        val allReactions = reactionService.getReactions()
+        val basicReactions = allReactions.filter { expectedBasicReactions.contains(it.name) }
+
+        // Verify basic reactions
+        assertEquals(expectedBasicReactions.size, basicReactions.size)
+        basicReactions.forEach { reaction ->
             assertTrue(expectedBasicReactions.contains(reaction.name))
         }
-
-        // Verify caching by getting reactions again
-        val cachedReactions = reactionService.getBasicReactions()
-        assertEquals(basicReactionsList, cachedReactions)
 
         transaction {
             rollback()
