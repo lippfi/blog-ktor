@@ -80,7 +80,7 @@ fun KoinApplication.loadMyKoins(environment: ApplicationEnvironment): KoinApplic
         single<PasswordEncoder> { PasswordEncoderImpl() }
         single<UserService> { UserServiceImpl(get(), get(), get(), get(), get<NotificationService>()) }
         single<AccessGroupService> { AccessGroupServiceImpl() }
-        single<ReactionService> { ReactionServiceImpl(get<StorageService>(), get<AccessGroupService>(), get<NotificationService>(), get<ApplicationEnvironment>().config) }
+        single<ReactionService> { ReactionServiceImpl(get<StorageService>(), get<AccessGroupService>(), get<NotificationService>(), get<UserService>(), get<ApplicationEnvironment>().config) }
         single<PostService> { PostServiceImpl(get<AccessGroupService>(), get<StorageService>(), get<ReactionService>(), get<NotificationService>()) }
         single<NotificationService> { NotificationServiceImpl() }
         single<DialogService> { DialogServiceImpl(get<UserService>(), get<NotificationService>()) }

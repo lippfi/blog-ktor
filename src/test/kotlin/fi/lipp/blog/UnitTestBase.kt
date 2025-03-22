@@ -100,13 +100,14 @@ abstract class UnitTestBase {
                     single<StorageService> { StorageServiceImpl(get()) }
                     single<AccessGroupService> { AccessGroupServiceImpl() }
                     single<NotificationService> { mock() }
+                    single<UserService> { UserServiceImpl(get(), get(), get(), get(), get()) }
                     single<ReactionService> { ReactionServiceImpl(
                         storageService = get(),
                         accessGroupService = get(),
                         notificationService = get(),
+                        userService = get(),
                         config = get<ApplicationEnvironment>().config
                     ) }
-                    single<UserService> { UserServiceImpl(get(), get(), get(), get(), get()) }
                     single<PostService> { PostServiceImpl(
                         accessGroupService = get(),
                         storageService = get(),

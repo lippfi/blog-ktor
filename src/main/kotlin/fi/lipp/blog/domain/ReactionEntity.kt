@@ -12,7 +12,7 @@ class ReactionEntity(id: EntityID<UUID>) : UUIDEntity(id) {
 
     var name by Reactions.name
     var icon by FileEntity referencedOn Reactions.icon
-    var creator by UserEntity referencedOn Reactions.creator
+    var creator by Reactions.creator
 }
 
 class PostReactionEntity(id: EntityID<UUID>) : UUIDEntity(id) {

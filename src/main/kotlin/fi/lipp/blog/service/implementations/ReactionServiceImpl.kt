@@ -6,22 +6,18 @@ import fi.lipp.blog.data.ReactionPackDto
 import fi.lipp.blog.domain.*
 import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.repository.*
-import fi.lipp.blog.service.AccessGroupService
-import fi.lipp.blog.service.NotificationService
-import fi.lipp.blog.service.ReactionService
-import fi.lipp.blog.service.StorageService
-import fi.lipp.blog.service.Viewer
-import io.ktor.server.config.ApplicationConfig
+import fi.lipp.blog.service.*
+import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.FileNotFoundException
-import java.util.UUID
+import java.util.*
 
 class ReactionServiceImpl(
     private val storageService: StorageService,
     private val accessGroupService: AccessGroupService,
     private val notificationService: NotificationService,
-    private val config: ApplicationConfig
+    private val userService: UserService,
 ) : ReactionService {
     // Basic reactions are stored in resources/img/reactions/basic
     private val basicReactions = mapOf(
@@ -145,12 +141,58 @@ class ReactionServiceImpl(
 //        "sticker116.webp" to "smol-dreaming"
     )
 
+    // TODO move it to init
+    private val cachedBasicReactions: List<ReactionPackDto> by lazy {
+        val systemUserId = userService.getOrCreateSystemUser()
 
-    override fun getBasicReactions(): List<ReactionPackDto> {
-        TODO() // return basic pack + smol pack
+        val basicReactionViews = createReactionViews(systemUserId, basicReactions, "img/reactions/basic")
+        val smolReactionViews = createReactionViews(systemUserId, smolReactions, "img/reactions/smol")
+
+        listOf(
+            createReactionPackDto(basicReactionViews),
+            createReactionPackDto(smolReactionViews)
+        )
     }
+
+    private fun createReactionViews(systemUserId: UUID, reactions: Map<String, String>, resourcePathPrefix: String): List<ReactionDto.View> {
+        return transaction {
+            reactions.map { (fileName, reactionName) ->
+                if (!isReactionNameUsed(reactionName)) {
+                    val resourcePath = "$resourcePathPrefix/$fileName"
+                    val inputStream = this@ReactionServiceImpl::class.java.classLoader.getResourceAsStream(resourcePath)
+                        ?: throw IllegalStateException("Resource not found: $resourcePath")
+
+                    val fileUploadData = FileUploadData(
+                        fullName = fileName,
+                        inputStream = inputStream
+                    )
+
+                    val storedFile = storageService.storeReaction(systemUserId, fileUploadData)
+                    val iconFile = FileEntity.findById(storedFile.id) ?: throw FileNotFoundException()
+
+                    ReactionEntity.new {
+                        this.name = reactionName
+                        this.icon = iconFile
+                        this.creator = EntityID(systemUserId, Users)
+                    }
+                }
+
+                val reactionEntity = ReactionEntity.find { Reactions.name eq reactionName }.first()
+                toReactionView(reactionEntity)
+            }
+        }
+    }
+
+    private fun createReactionPackDto(reactionViews: List<ReactionDto.View>): ReactionPackDto {
+        return ReactionPackDto(
+            iconUri = reactionViews.firstOrNull()?.iconUri ?: "",
+            reactions = reactionViews
+        )
+    }
+
+    override fun getBasicReactions(): List<ReactionPackDto> = cachedBasicReactions
+
     override fun createReaction(userId: UUID, name: String, icon: FileUploadData): ReactionDto.View {
-        // Validate reaction name
         ReactionDto.validateName(name)
 
         // TODO it is a race
@@ -159,18 +201,15 @@ class ReactionServiceImpl(
             throw ReactionNameIsTakenException()
         }
 
-        // Store the icon file first
         val storedFile = storageService.storeReaction(userId, icon)
 
         return transaction {
-            // Get the file entity
             val iconFile = FileEntity.findById(storedFile.id) ?: throw FileNotFoundException()
 
-            val userEntity = UserEntity.findById(userId) ?: throw WrongUserException()
             val reactionEntity = ReactionEntity.new {
                 this.name = name
                 this.icon = iconFile
-                this.creator = userEntity
+                this.creator = EntityID(userId, Users)
             }
             toReactionView(reactionEntity)
         }
@@ -183,7 +222,7 @@ class ReactionServiceImpl(
     override fun deleteReaction(userId: UUID, name: String) {
         transaction {
             val reactionEntity = ReactionEntity.find { Reactions.name eq name }.firstOrNull() ?: throw ReactionNotFoundException()
-            if (reactionEntity.creator.id.value != userId) {
+            if (reactionEntity.creator.value != userId) {
                 throw WrongUserException()
             }
             reactionEntity.delete()

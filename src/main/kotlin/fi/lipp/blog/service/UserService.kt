@@ -139,4 +139,10 @@ interface UserService {
      * Get list of users that follow the specified user
      */
     fun getFollowers(userId: UUID): List<UserDto.View>
+
+    /**
+     * Get or create the system user
+     * @return ID of the system user
+     */
+    fun getOrCreateSystemUser(): UUID
 }

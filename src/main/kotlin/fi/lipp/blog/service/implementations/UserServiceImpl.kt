@@ -730,4 +730,22 @@ class UserServiceImpl(
                 }
         }
     }
+
+    // System user ID for creating system resources
+    private val systemUserId = UUID.fromString("00000000-0000-0000-0000-000000000000")
+
+    override fun getOrCreateSystemUser(): UUID {
+        transaction {
+            UserEntity.findById(systemUserId) ?: UserEntity.new(systemUserId) {
+                email = "system@example.com"
+                password = UUID.randomUUID().toString()
+                nickname = "system"
+                sex = Sex.UNDEFINED
+                timezone = "UTC"
+                language = Language.EN
+                nsfw = NSFWPolicy.HIDE
+            }
+        }
+        return systemUserId
+    }
 }
