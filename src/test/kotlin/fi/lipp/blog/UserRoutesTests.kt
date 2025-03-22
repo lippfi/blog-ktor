@@ -116,7 +116,7 @@ class UserRoutesTests {
         `when`(reactionService.getUserRecentReactions(testUserId, 50)).thenReturn(mockReactions)
 
         // Test with default limit
-        client.get("/user/recent-reactions") {
+        client.get("/reactions/recent") {
             header(HttpHeaders.Authorization, "Bearer $testToken")
         }.apply {
             assertEquals(HttpStatusCode.OK, status)
@@ -131,7 +131,7 @@ class UserRoutesTests {
         `when`(reactionService.getUserRecentReactions(testUserId, customLimit))
             .thenReturn(mockReactions.take(customLimit))
 
-        client.get("/user/recent-reactions?limit=$customLimit") {
+        client.get("/reactions/recent?limit=$customLimit") {
             header(HttpHeaders.Authorization, "Bearer $testToken")
         }.apply {
             assertEquals(HttpStatusCode.OK, status)
@@ -158,7 +158,7 @@ class UserRoutesTests {
             configureRouting()
         }
 
-        client.get("/user/recent-reactions").apply {
+        client.get("/reactions/recent").apply {
             assertEquals(HttpStatusCode.Unauthorized, status)
         }
     }
@@ -209,7 +209,7 @@ class UserRoutesTests {
         }
 
         val requestId = UUID.randomUUID()
-        client.post("/user/friend-request/$requestId/accept") {
+        client.post("/user/friend-request/accept?requestId=$requestId") {
             header(HttpHeaders.Authorization, "Bearer $testToken")
         }.apply {
             assertEquals(HttpStatusCode.OK, status)
@@ -235,7 +235,7 @@ class UserRoutesTests {
         }
 
         val requestId = UUID.randomUUID()
-        client.post("/user/friend-request/$requestId/decline") {
+        client.post("/user/friend-request/decline?requestId=$requestId") {
             header(HttpHeaders.Authorization, "Bearer $testToken")
         }.apply {
             assertEquals(HttpStatusCode.OK, status)
@@ -297,8 +297,8 @@ class UserRoutesTests {
             configureRouting()
         }
 
-        val friendId = UUID.randomUUID()
-        client.delete("/user/friends/$friendId") {
+        val friendLogin = "friend1"
+        client.delete("/user/friends?login=$friendLogin") {
             header(HttpHeaders.Authorization, "Bearer $testToken")
         }.apply {
             assertEquals(HttpStatusCode.OK, status)
@@ -332,12 +332,13 @@ class UserRoutesTests {
         }
 
         // Test accept friend request
-        client.post("/user/friend-request/${UUID.randomUUID()}/accept").apply {
+        val requestId = UUID.randomUUID()
+        client.post("/user/friend-request/accept?requestId=$requestId").apply {
             assertEquals(HttpStatusCode.Unauthorized, status)
         }
 
         // Test decline friend request
-        client.post("/user/friend-request/${UUID.randomUUID()}/decline").apply {
+        client.post("/user/friend-request/decline?requestId=$requestId").apply {
             assertEquals(HttpStatusCode.Unauthorized, status)
         }
 
@@ -347,7 +348,8 @@ class UserRoutesTests {
         }
 
         // Test remove friend
-        client.delete("/user/friends/${UUID.randomUUID()}").apply {
+        val friendLogin = "friend1"
+        client.delete("/user/friends?login=$friendLogin").apply {
             assertEquals(HttpStatusCode.Unauthorized, status)
         }
     }
