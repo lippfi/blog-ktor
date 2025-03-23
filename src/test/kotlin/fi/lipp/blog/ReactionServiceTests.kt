@@ -24,12 +24,6 @@ class ReactionServiceTests : UnitTestBase() {
     private lateinit var reactionService: ReactionService
     private val notificationService = mock<NotificationService>()
 
-    // This helper method is no longer needed as we use reaction names directly
-    // Keeping it for backward compatibility with existing test code
-    private fun getReactionIdByName(name: String): String {
-        return name
-    }
-
     @BeforeTest
     fun setUp() {
         transaction {
@@ -136,7 +130,6 @@ class ReactionServiceTests : UnitTestBase() {
         val post = createTestPost(testUser.id)
         val viewer = Viewer.Registered(testUser.id)
 
-        val reactionId = getReactionIdByName(reactionName)
         reactionService.addReaction(viewer, testUser.login, post.uri, reactionName)
         // Adding the same reaction again should not throw
         reactionService.addReaction(viewer, testUser.login, post.uri, reactionName)
