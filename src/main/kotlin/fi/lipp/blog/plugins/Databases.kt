@@ -13,7 +13,7 @@ fun Application.configureDatabases() {
         password = ""
     )
     transaction {
-        SchemaUtils.create(Users, Diaries, InviteCodes, PasswordResets, Files, UserAvatars, Tags, Posts, PostTags, AccessGroups, CustomGroupUsers, Comments, Dialogs, Messages, HiddenDialogs)
+        SchemaUtils.create(Users, UserUploads, Diaries, InviteCodes, PasswordResets, Files, UserAvatars, Tags, Posts, PostTags, AccessGroups, CustomGroupUsers, Comments, Dialogs, Messages, HiddenDialogs, Reactions)
     }
 //    val userService = UserService(database)
 //    routing {

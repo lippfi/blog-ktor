@@ -21,8 +21,8 @@ class ReactionServiceImpl(
 ) : ReactionService {
     // Basic reactions are stored in resources/img/reactions/basic
     private val basicReactions = mapOf(
-        "sticker1.webp" to "heart",
-        "sticker2.webp" to "like"
+        "heart.svg" to "heart",
+        "fire.svg" to "fire"
     )
 
     // Smol reactions are stored in resources/img/reactions/smol
@@ -77,18 +77,18 @@ class ReactionServiceImpl(
         "sticker49.webp" to "smol-nothehe",
         "sticker50.webp" to "smol-talk",
         "sticker51.webp" to "smol-listening",
-//        "sticker52.webp" to "smol-stressed",
-//        "sticker53.webp" to "smol-calm",
-//        "sticker54.webp" to "smol-energetic",
-//        "sticker55.webp" to "smol-lazy",
-//        "sticker56.webp" to "smol-motivated",
-//        "sticker57.webp" to "smol-overwhelmed",
-//        "sticker58.webp" to "smol-playful",
-//        "sticker59.webp" to "smol-serious",
-//        "sticker60.webp" to "smol-silly",
-//        "sticker61.webp" to "smol-grumpy",
-//        "sticker62.webp" to "smol-joyful",
-//        "sticker63.webp" to "smol-melancholic",
+        "sticker52.webp" to "smol-night",
+        "sticker53.webp" to "smol-clown",
+        "sticker54.webp" to "smol-thumbsuppleased",
+        "sticker55.webp" to "smol-thumbsupsad",
+        "sticker56.webp" to "smol-thumbsup",
+        "sticker57.webp" to "smol-horror",
+        "sticker58.webp" to "smol-pleased",
+        "sticker59.webp" to "smol-hearttears",
+        "sticker60.webp" to "smol-silent",
+        "sticker61.webp" to "smol-singing",
+        "sticker62.webp" to "smol-handshake",
+        "sticker63.webp" to "smol-smol",
 //        "sticker64.webp" to "smol-hopeless",
 //        "sticker65.webp" to "smol-desperate",
 //        "sticker66.webp" to "smol-ecstatic",
@@ -114,8 +114,8 @@ class ReactionServiceImpl(
         "sticker88.webp" to "smol-friends",
 //        "sticker89.webp" to "smol-comfortable",
 //        "sticker90.webp" to "smol-uncomfortable",
-//        "sticker91.webp" to "smol-pleased",
-//        "sticker92.webp" to "smol-displeased",
+        "sticker91.webp" to "smol-angel",
+        "sticker92.webp" to "smol-demon",
 //        "sticker93.webp" to "smol-satisfied",
 //        "sticker94.webp" to "smol-dissatisfied",
 //        "sticker95.webp" to "smol-fulfilled",
@@ -141,7 +141,6 @@ class ReactionServiceImpl(
 //        "sticker116.webp" to "smol-dreaming"
     )
 
-    // TODO move it to init
     private val cachedBasicReactions: List<ReactionPackDto> by lazy {
         val systemUserId = userService.getOrCreateSystemUser()
 
@@ -150,7 +149,7 @@ class ReactionServiceImpl(
 
         listOf(
             createReactionPackDto(basicReactionViews),
-            createReactionPackDto(smolReactionViews)
+            createReactionPackDto(smolReactionViews, "smol-alien")
         )
     }
 
@@ -183,9 +182,9 @@ class ReactionServiceImpl(
         }
     }
 
-    private fun createReactionPackDto(reactionViews: List<ReactionDto.View>): ReactionPackDto {
+    private fun createReactionPackDto(reactionViews: List<ReactionDto.View>, icon: String? = null): ReactionPackDto {
         return ReactionPackDto(
-            iconUri = reactionViews.firstOrNull()?.iconUri ?: "",
+            iconUri = icon?.let { reactionViews.first { it.name == icon }.iconUri } ?: reactionViews.firstOrNull()?.iconUri ?: "",
             reactions = reactionViews
         )
     }

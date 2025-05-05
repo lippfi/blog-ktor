@@ -30,7 +30,7 @@ url:
     audios: "???"
     styles: "???"
     other: "???"
-    reactions: "???"
+    reactions: "http://localhost:8000"
 reactions:
     basic: ["like", "love", "haha", "wow", "sad", "angry"]
 storage:

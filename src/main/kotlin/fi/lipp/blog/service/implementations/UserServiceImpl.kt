@@ -735,17 +735,19 @@ class UserServiceImpl(
     private val systemUserId = UUID.fromString("00000000-0000-0000-0000-000000000000")
 
     override fun getOrCreateSystemUser(): UUID {
-        transaction {
-            UserEntity.findById(systemUserId) ?: UserEntity.new(systemUserId) {
-                email = "system@example.com"
-                password = UUID.randomUUID().toString()
-                nickname = "system"
-                sex = Sex.UNDEFINED
-                timezone = "UTC"
-                language = Language.EN
-                nsfw = NSFWPolicy.HIDE
-            }
-        }
-        return systemUserId
+        val uuid = getUserByLogin("system")?.id?.value
+        if (uuid != null) return uuid
+
+        val systemUser = UserDto.Registration(
+            login = "system",
+            email = "system@example.com",
+            password = UUID.randomUUID().toString(),
+            nickname = "system",
+            timezone = "Asia/Nicosia",
+            language = Language.EN,
+        )
+        signUp(systemUser, "")
+
+        return getUserByLogin(systemUser.login)!!.id.value
     }
 }
