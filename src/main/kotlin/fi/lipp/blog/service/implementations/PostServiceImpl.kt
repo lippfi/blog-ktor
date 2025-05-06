@@ -704,15 +704,15 @@ class PostServiceImpl(
                 )
             }.distinct()
 
-        // Get user logins for each reaction
-        val reactionUsers = mutableMapOf<UUID, MutableList<String>>()
+        // Get user logins and nicknames for each reaction
+        val reactionUsers = mutableMapOf<UUID, MutableList<ReactionDto.UserInfo>>()
         reactionData.forEach { (reactionId, _, _) ->
-            val userLogins = (PostReactions innerJoin Users innerJoin Diaries)
-                .slice(Diaries.login)
+            val userInfos = (PostReactions innerJoin Users innerJoin Diaries)
+                .slice(Diaries.login, Users.nickname)
                 .select { (PostReactions.post eq postId) and (PostReactions.reaction eq reactionId) }
-                .map { it[Diaries.login] }
+                .map { ReactionDto.UserInfo(login = it[Diaries.login], nickname = it[Users.nickname]) }
                 .distinct()
-            reactionUsers[reactionId] = userLogins.toMutableList()
+            reactionUsers[reactionId] = userInfos.toMutableList()
         }
 
         // Get anonymous reactions count
@@ -734,7 +734,7 @@ class PostServiceImpl(
                 name = name,
                 iconUri = storageService.getFileURL(FileEntity.findById(fileId)!!.toBlogFile()),
                 count = userLogins.size + anonymousCount,
-                userLogins = userLogins,
+                users = userLogins,
                 anonymousCount = anonymousCount
             )
         }

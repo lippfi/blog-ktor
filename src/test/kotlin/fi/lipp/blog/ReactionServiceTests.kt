@@ -315,9 +315,9 @@ class ReactionServiceTests : UnitTestBase() {
         assertEquals(reaction.iconUri, reactionInfo.iconUri)
         assertEquals(4, reactionInfo.count)
         assertEquals(2, reactionInfo.anonymousCount)
-        assertEquals(2, reactionInfo.userLogins.size)
-        assertTrue(reactionInfo.userLogins.contains(testUser.login))
-        assertTrue(reactionInfo.userLogins.contains(testUser2.login))
+        assertEquals(2, reactionInfo.users.size)
+        assertTrue(reactionInfo.users.any { it.login == testUser.login })
+        assertTrue(reactionInfo.users.any { it.login == testUser2.login })
     }
 
     @Test

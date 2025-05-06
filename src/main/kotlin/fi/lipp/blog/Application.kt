@@ -19,7 +19,6 @@ import org.koin.logger.slf4jLogger
 
 // POST-FRONTEND
 // Do I need reaction ids if names are unique?
-// ReactionInfo should store nicknames
 // Allow post owners to delete comments of other users
 // Friends access group
 // Communities
