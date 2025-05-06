@@ -89,6 +89,7 @@ abstract class UnitTestBase {
                     Messages,
                     HiddenDialogs,
                     UserFollows,
+                    CommentReactions,
                 )
             }
             startKoin {
@@ -123,6 +124,10 @@ abstract class UnitTestBase {
                 accessGroupService.everyoneGroupUUID
                 accessGroupService.registeredGroupUUID
                 accessGroupService.privateGroupUUID
+                accessGroupService.friendsGroupUUID
+
+                // Upload basic reactions
+                reactionService.getBasicReactions()
             }
         }
 
@@ -144,6 +149,8 @@ abstract class UnitTestBase {
         protected val groupService get() = org.koin.core.context.GlobalContext.get().get<AccessGroupService>()
         @JvmStatic
         protected val userService get() = org.koin.core.context.GlobalContext.get().get<UserService>()
+        @JvmStatic
+        protected val reactionService get() = org.koin.core.context.GlobalContext.get().get<ReactionService>()
 
         @JvmStatic
         protected val notificationService get() = org.koin.core.context.GlobalContext.get().get<NotificationService>()

@@ -5,4 +5,5 @@ enum class AccessGroupType {
     REGISTERED_USERS,
     PRIVATE,
     CUSTOM,
+    FRIENDS,
 }

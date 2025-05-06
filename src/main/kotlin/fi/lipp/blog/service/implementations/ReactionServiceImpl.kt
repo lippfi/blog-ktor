@@ -238,8 +238,9 @@ class ReactionServiceImpl(
         val userId = (viewer as? Viewer.Registered)?.userId
         transaction {
             val diaryEntity = findDiaryByLogin(diaryLogin)
+            val diaryOwnerId = diaryEntity.owner.value
             val postEntity = PostEntity.find { (Posts.diary eq diaryEntity.id) and (Posts.uri eq uri) and (Posts.isArchived eq false) }.firstOrNull() ?: throw PostNotFoundException()
-            if (postEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, postEntity.reactionGroupId.value)) {
+            if (postEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, postEntity.reactionGroupId.value, diaryOwnerId)) {
                 throw WrongUserException()
             }
             val reactionId = ReactionEntity.find { Reactions.name eq reactionName }.firstOrNull()?.id ?: throw ReactionNotFoundException()
@@ -290,8 +291,9 @@ class ReactionServiceImpl(
         val userId = (viewer as? Viewer.Registered)?.userId
         transaction {
             val diaryEntity = findDiaryByLogin(diaryLogin)
+            val diaryOwnerId = diaryEntity.owner.value
             val postEntity = PostEntity.find { (Posts.diary eq diaryEntity.id) and (Posts.uri eq uri) and (Posts.isArchived eq false) }.firstOrNull() ?: throw PostNotFoundException()
-            if (postEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, postEntity.reactionGroupId.value)) {
+            if (postEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, postEntity.reactionGroupId.value, diaryOwnerId)) {
                 throw WrongUserException()
             }
             val reactionId = ReactionEntity.find { Reactions.name eq reactionName }.firstOrNull()?.id ?: throw ReactionNotFoundException()
@@ -351,9 +353,11 @@ class ReactionServiceImpl(
         val userId = (viewer as? Viewer.Registered)?.userId
         transaction {
             val commentEntity = CommentEntity.findById(commentId) ?: throw CommentNotFoundException()
+            val postEntity = PostEntity.findById(commentEntity.postId)!!
+            val diaryOwnerId = DiaryEntity.findById(postEntity.diaryId)!!.owner.value
 
             // Check reaction permissions
-            if (commentEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, commentEntity.reactionGroupId.value)) {
+            if (commentEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, commentEntity.reactionGroupId.value, diaryOwnerId)) {
                 throw WrongUserException()
             }
             val reactionId = ReactionEntity.find { Reactions.name eq reactionName }.firstOrNull()?.id ?: throw ReactionNotFoundException()
@@ -400,9 +404,11 @@ class ReactionServiceImpl(
         val userId = (viewer as? Viewer.Registered)?.userId
         transaction {
             val commentEntity = CommentEntity.findById(commentId) ?: throw CommentNotFoundException()
+            val postEntity = PostEntity.findById(commentEntity.postId)!!
+            val diaryOwnerId = DiaryEntity.findById(postEntity.diaryId)!!.owner.value
 
             // Check reaction permissions
-            if (commentEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, commentEntity.reactionGroupId.value)) {
+            if (commentEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, commentEntity.reactionGroupId.value, diaryOwnerId)) {
                 throw WrongUserException()
             }
             val reactionId = ReactionEntity.find { Reactions.name eq reactionName }.firstOrNull()?.id ?: throw ReactionNotFoundException()

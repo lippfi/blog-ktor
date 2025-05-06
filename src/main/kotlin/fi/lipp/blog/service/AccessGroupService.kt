@@ -6,6 +6,7 @@ interface AccessGroupService {
     val privateGroupUUID: UUID
     val everyoneGroupUUID: UUID
     val registeredGroupUUID: UUID
+    val friendsGroupUUID: UUID
 
     fun getAccessGroups(userId: UUID, diaryLogin: String): List<Pair<String, UUID>>
     fun createAccessGroup(userId: UUID, diaryLogin: String, groupName: String)
@@ -14,5 +15,5 @@ interface AccessGroupService {
     fun addUserToGroup(userId: UUID, memberLogin: String, groupId: UUID)
     fun removeUserFromGroup(userId: UUID, memberLogin: String, groupId: UUID)
 
-    fun inGroup(viewer: Viewer, groupId: UUID): Boolean
+    fun inGroup(viewer: Viewer, groupId: UUID, groupOwner: UUID): Boolean
 }

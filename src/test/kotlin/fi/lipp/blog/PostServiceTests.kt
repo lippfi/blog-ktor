@@ -2,6 +2,7 @@ package fi.lipp.blog
 
 import fi.lipp.blog.data.*
 import fi.lipp.blog.domain.DiaryEntity
+import fi.lipp.blog.domain.PostEntity
 import fi.lipp.blog.model.Page
 import fi.lipp.blog.model.Pageable
 import fi.lipp.blog.model.TagPolicy
@@ -14,6 +15,7 @@ import fi.lipp.blog.service.PostService
 import fi.lipp.blog.service.ReactionService
 import fi.lipp.blog.service.Viewer
 import fi.lipp.blog.service.implementations.PostServiceImpl
+import fi.lipp.blog.service.implementations.ReactionServiceImpl
 import fi.lipp.blog.service.implementations.StorageServiceImpl
 import fi.lipp.blog.service.implementations.UserServiceImpl
 import fi.lipp.blog.stubs.ApplicationPropertiesStub
@@ -22,8 +24,7 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.junit.AfterClass
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertThrows
+import org.junit.Assert.*
 import org.junit.BeforeClass
 import org.junit.Test
 import org.mockito.Mockito.mock
@@ -48,7 +49,6 @@ class PostServiceTests : UnitTestBase() {
         private val properties = ApplicationPropertiesStub()
         private val encoder = PasswordEncoderStub()
         private val mailService = mock<MailService>()
-        private val reactionService = mock<ReactionService>()
         private val notificationService = mock<NotificationService>()
         private val storageService = StorageServiceImpl(properties)
         private val userService = UserServiceImpl(encoder, mailService, storageService, groupService, notificationService)
@@ -625,6 +625,87 @@ class PostServiceTests : UnitTestBase() {
     }
 
     @Test
+    fun `test friend-only posts`() {
+        transaction {
+            // Set up users
+            val users = signUsersUp(4)
+            val (user1Id, user1Login) = users[0]
+            val (user2Id, user2Login) = users[1]
+            val (user3Id, _) = users[2]
+            val (user4Id, _) = users[3]
+
+            // Create a post that's only visible to friends
+            val friendPost = createPostPostData(title = "friends only post", readGroup = groupService.friendsGroupUUID)
+            postService.addPost(user1Id, friendPost)
+
+            // Create a post visible to everyone
+            val publicPost = createPostPostData(title = "public post")
+            postService.addPost(user1Id, publicPost)
+
+            // Test owner access (user1) - can see all posts (owner can always see their own posts)
+            var page = getPosts(Viewer.Registered(user1Id), pageable = Pageable(0, 10, SortOrder.DESC))
+            assertEquals(2, page.content.size)
+            assertEquals(listOf("public post", "friends only post"), page.content.map { it.title })
+
+            // Test other user access (user2) - can only see public post (since they're not friends yet)
+            page = getPosts(Viewer.Registered(user2Id), pageable = Pageable(0, 10, SortOrder.DESC))
+            assertEquals(1, page.content.size)
+            assertEquals(listOf("public post"), page.content.map { it.title })
+
+            // Test other user access (user3) - can only see public post
+            page = getPosts(Viewer.Registered(user3Id), pageable = Pageable(0, 10, SortOrder.DESC))
+            assertEquals(1, page.content.size)
+            assertEquals(listOf("public post"), page.content.map { it.title })
+
+            // Test other user access (user4) - can only see public post
+            page = getPosts(Viewer.Registered(user4Id), pageable = Pageable(0, 10, SortOrder.DESC))
+            assertEquals(1, page.content.size)
+            assertEquals(listOf("public post"), page.content.map { it.title })
+
+            // Test anonymous access - can only see public post
+            page = getPosts(Viewer.Anonymous("127.0.0.1", "test"), pageable = Pageable(0, 10, SortOrder.DESC))
+            assertEquals(1, page.content.size)
+            assertEquals(listOf("public post"), page.content.map { it.title })
+
+            userService.sendFriendRequest(user1Id, FriendRequestDto.Create(user2Login, "", null))
+            val friendRequests = userService.getReceivedFriendRequests(user2Id)
+            assertEquals(1, friendRequests.size)
+            userService.acceptFriendRequest(user2Id, friendRequests.first().id, null)
+
+            page = getPosts(Viewer.Registered(user2Id), pageable = Pageable(0, 10, SortOrder.DESC))
+            assertEquals(2, page.content.size)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `test friendship access control`() {
+        transaction {
+            // Set up users
+            val users = signUsersUp(2)
+            val (user1Id, _) = users[0]
+            val (user2Id, _) = users[1]
+
+            // Initially, user2 should not be in user1's friends group
+            var inFriendsGroup = groupService.inGroup(Viewer.Registered(user2Id), groupService.friendsGroupUUID, user1Id)
+            assertEquals(false, inFriendsGroup)
+
+            // Directly insert a friendship record
+            Friends.insert {
+                it[user1] = user1Id
+                it[user2] = user2Id
+            }
+
+            // Now user2 should be in user1's friends group
+            inFriendsGroup = groupService.inGroup(Viewer.Registered(user2Id), groupService.friendsGroupUUID, user1Id)
+            assertEquals(true, inFriendsGroup)
+
+            rollback()
+        }
+    }
+
+    @Test
     fun `test access group post hiding`() {
         transaction {
             val users = signUsersUp(3)
@@ -868,12 +949,12 @@ class PostServiceTests : UnitTestBase() {
             groupService.createAccessGroup(user1, login1, "empty group")
             val emptyGroupUUID = groupService.getAccessGroups(user1, login1).find { it.first == "empty group" }!!.second
 
-            groupService.createAccessGroup(user1, login1, "friends")
-            val friendsGroupUUID = groupService.getAccessGroups(user1, login1).find { it.first == "friends" }!!.second
-            groupService.addUserToGroup(user1, users[2].second, friendsGroupUUID)
-            groupService.addUserToGroup(user1, users[4].second, friendsGroupUUID)
-            groupService.addUserToGroup(user1, users[6].second, friendsGroupUUID)
-            groupService.addUserToGroup(user1, users[8].second, friendsGroupUUID)
+            groupService.createAccessGroup(user1, login1, "team members")
+            val teamGroupUUID = groupService.getAccessGroups(user1, login1).find { it.first == "team members" }!!.second
+            groupService.addUserToGroup(user1, users[2].second, teamGroupUUID)
+            groupService.addUserToGroup(user1, users[4].second, teamGroupUUID)
+            groupService.addUserToGroup(user1, users[6].second, teamGroupUUID)
+            groupService.addUserToGroup(user1, users[8].second, teamGroupUUID)
 
             val hiddenPost = createPostPostData(title = "post1", readGroup = emptyGroupUUID)
             postService.addPost(user1, hiddenPost)
@@ -888,8 +969,8 @@ class PostServiceTests : UnitTestBase() {
             assertEquals(0, getPosts(userId = users[8].first, pageable = pageable).content.size)
             assertEquals(0, getPosts(userId = users[9].first, pageable = pageable).content.size)
 
-            val friendPost = createPostPostData(title = "post2", readGroup = friendsGroupUUID)
-            postService.addPost(user1, friendPost)
+            val teamPost = createPostPostData(title = "post2", readGroup = teamGroupUUID)
+            postService.addPost(user1, teamPost)
             assertEquals(2, getPosts(userId = users[0].first, pageable = pageable).content.size)
             assertEquals(0, getPosts(userId = users[1].first, pageable = pageable).content.size)
             assertEquals(1, getPosts(userId = users[2].first, pageable = pageable).content.size)
@@ -932,6 +1013,116 @@ class PostServiceTests : UnitTestBase() {
             assertEquals(testUser2.login, comments[1].authorLogin)
             assertEquals(testUser2.nickname, comments[1].authorNickname)
             assertNow(comments[1].creationTime)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `test comment post with friends-only commenting`() {
+        transaction {
+            // Set up users
+            val users = signUsersUp(3)
+            val (user1Id, user1Login) = users[0]
+            val (user2Id, user2Login) = users[1]
+            val (user3Id, _) = users[2]
+
+            // Create a post with friends-only commenting
+            val post = createPostPostData(
+                uri = "friends-comment",
+                title = "Friends only commenting",
+                commentGroup = groupService.friendsGroupUUID
+            )
+            postService.addPost(user1Id, post)
+            val postId = postService.getPost(Viewer.Registered(user1Id), user1Login, "friends-comment").id
+
+            // Owner can always comment on their own post
+            val ownerComment = CommentDto.Create(postId = postId, avatar = "avatar1", text = "Owner comment")
+            postService.addComment(user1Id, ownerComment)
+
+            // User2 tries to comment but fails (not friends yet)
+            val user2Comment = CommentDto.Create(postId = postId, avatar = "avatar2", text = "User2 comment")
+            assertThrows(WrongUserException::class.java) {
+                postService.addComment(user2Id, user2Comment)
+            }
+
+            // User3 tries to comment but fails (not friends)
+            val user3Comment = CommentDto.Create(postId = postId, avatar = "avatar3", text = "User3 comment")
+            assertThrows(WrongUserException::class.java) {
+                postService.addComment(user3Id, user3Comment)
+            }
+
+            // Make user1 and user2 friends
+            userService.sendFriendRequest(user1Id, FriendRequestDto.Create(user2Login, "", null))
+            val friendRequests = userService.getReceivedFriendRequests(user2Id)
+            assertEquals(1, friendRequests.size)
+            userService.acceptFriendRequest(user2Id, friendRequests.first().id, null)
+
+            // Now user2 can comment
+            postService.addComment(user2Id, user2Comment)
+
+            // User3 still can't comment
+            assertThrows(WrongUserException::class.java) {
+                postService.addComment(user3Id, user3Comment)
+            }
+
+            // Verify comments
+            val comments = postService.getPost(Viewer.Registered(user1Id), user1Login, "friends-comment").comments
+            assertEquals(2, comments.size)
+            assertEquals("Owner comment", comments[0].text)
+            assertEquals("User2 comment", comments[1].text)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `test post with friends-only reacting access control`() {
+        transaction {
+            // Set up users
+            val users = signUsersUp(3)
+            val (user1Id, user1Login) = users[0]
+            val (user2Id, user2Login) = users[1]
+            val (user3Id, _) = users[2]
+
+            // Create a post with friends-only reacting
+            val post = createPostPostData(
+                uri = "friends-react",
+                title = "Friends only reacting",
+                reactionGroup = groupService.friendsGroupUUID
+            )
+            postService.addPost(user1Id, post)
+            val postView = postService.getPost(Viewer.Registered(user1Id), user1Login, "friends-react")
+
+            // Verify the post was created with the friends-only reaction group
+            val postEntity = PostEntity.findById(postView.id)
+            assertNotNull(postEntity)
+            assertEquals(groupService.friendsGroupUUID, postEntity!!.reactionGroupId.value)
+
+            // Verify friendship affects access
+            // Initially user2 is not friends with user1
+            var user2InFriendsGroup = groupService.inGroup(Viewer.Registered(user2Id), groupService.friendsGroupUUID, user1Id)
+            assertEquals(false, user2InFriendsGroup)
+
+            // Make user1 and user2 friends
+            userService.sendFriendRequest(user1Id, FriendRequestDto.Create(user2Login, "", null))
+            val friendRequests = userService.getReceivedFriendRequests(user2Id)
+            assertEquals(1, friendRequests.size)
+            userService.acceptFriendRequest(user2Id, friendRequests.first().id, null)
+
+            // Now user2 should be in user1's friends group
+            user2InFriendsGroup = groupService.inGroup(Viewer.Registered(user2Id), groupService.friendsGroupUUID, user1Id)
+            assertEquals(true, user2InFriendsGroup)
+
+            val reactions = reactionService.getBasicReactions()
+            assertTrue(reactions.isNotEmpty())
+            // Now user2 can react
+            reactionService.addReaction(Viewer.Registered(user2Id), user1Login, "friends-react", "fire")
+
+            // User3 still can't react
+            assertThrows(WrongUserException::class.java) {
+                reactionService.addReaction(Viewer.Registered(user3Id), user1Login, "friends-react", "fire")
+            }
 
             rollback()
         }

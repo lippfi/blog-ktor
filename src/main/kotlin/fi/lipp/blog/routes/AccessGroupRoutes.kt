@@ -53,12 +53,5 @@ fun Route.accessGroupRoutes(accessGroupService: AccessGroupService) {
                 call.respondText("User removed from group successfully")
             }
         }
-        authenticate(optional = true) {
-            get("/in-group") {
-                val groupId = UUID.fromString(call.request.queryParameters["groupId"])
-                val isInGroup = accessGroupService.inGroup(viewer, groupId)
-                call.respondText(isInGroup.toString())
-            }
-        }
     }
 } 

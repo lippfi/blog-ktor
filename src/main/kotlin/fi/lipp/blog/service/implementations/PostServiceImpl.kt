@@ -43,9 +43,11 @@ class PostServiceImpl(
     override fun getPreface(viewer: Viewer, diaryLogin: String): PostDto.View? {
         val userId = (viewer as? Viewer.Registered)?.userId
         return transaction {
-            val diaryId = findDiaryByLogin(diaryLogin).id
+            val diary = findDiaryByLogin(diaryLogin)
+            val diaryId = diary.id
+            val diaryOwnerId = diary.owner.value
             val preface = PostEntity.find { (Posts.diary eq diaryId) and (Posts.isPreface eq true) and (Posts.isArchived eq false) }.firstOrNull() ?: return@transaction null
-            return@transaction if (userId == preface.authorId.value || accessGroupService.inGroup(viewer, preface.readGroupId.value)) {
+            return@transaction if (userId == preface.authorId.value || accessGroupService.inGroup(viewer, preface.readGroupId.value, diaryOwnerId)) {
                 toPostView(viewer, preface)
             } else {
                 null
@@ -57,8 +59,9 @@ class PostServiceImpl(
         val userId = (viewer as? Viewer.Registered)?.userId
         return transaction {
             val diaryEntity = findDiaryByLogin(diaryLogin)
+            val diaryOwnerId = diaryEntity.owner.value
             val postEntity = PostEntity.find { (Posts.diary eq diaryEntity.id) and (Posts.uri eq uri) and (Posts.isArchived eq false) }.firstOrNull() ?: throw PostNotFoundException()
-            if (userId == postEntity.authorId.value || accessGroupService.inGroup(viewer, postEntity.readGroupId.value)) {
+            if (userId == postEntity.authorId.value || accessGroupService.inGroup(viewer, postEntity.readGroupId.value, diaryOwnerId)) {
                 if (userId != null) notificationService.readAllPostNotifications(userId, postEntity.id.value)
                 toPostView(viewer, postEntity)
             } else {
@@ -92,7 +95,7 @@ class PostServiceImpl(
                 .innerJoin(AccessGroups, { Posts.readGroup }, { AccessGroups.id })
                 .leftJoin(PostTags)
                 .leftJoin(Tags)
-                .slice(Posts.columns + Users.id + Users.nickname + Diaries.login + AccessGroups.type)
+                .slice(Posts.columns + Users.id + Users.nickname + Diaries.owner + Diaries.login + AccessGroups.type)
                 .select {
                     val baseCondition = (Posts.isArchived eq false) and (Posts.isPreface eq false)
 
@@ -105,6 +108,14 @@ class PostServiceImpl(
                             (Posts.author eq userId) or
                             (AccessGroups.type eq AccessGroupType.EVERYONE) or
                             (AccessGroups.type eq AccessGroupType.REGISTERED_USERS) or
+                            ((AccessGroups.type eq AccessGroupType.FRIENDS) and (Diaries.owner inSubQuery 
+                                Friends.slice(Friends.user2)
+                                    .select { Friends.user1 eq userId }
+                                    .union(
+                                        Friends.slice(Friends.user1)
+                                            .select { Friends.user2 eq userId }
+                                    )
+                            )) or
                             (AccessGroups.type eq AccessGroupType.CUSTOM and Posts.readGroup.inSubQuery(customAccessSubquery))
                         }
                         else -> (AccessGroups.type eq AccessGroupType.EVERYONE)
@@ -177,7 +188,7 @@ class PostServiceImpl(
                 .innerJoin(Users, { Posts.author }, { Users.id })
                 .innerJoin(Diaries, { Posts.diary }, { Diaries.id })
                 .innerJoin(AccessGroups, { Posts.readGroup }, { AccessGroups.id })
-                .slice(Posts.columns + Users.id + Users.nickname + Diaries.login + AccessGroups.type)
+                .slice(Posts.columns + Users.id + Users.nickname + Diaries.owner + Diaries.login + AccessGroups.type)
                 .select {
                     val accessCondition = when (viewer) {
                         is Viewer.Anonymous -> {
@@ -191,6 +202,14 @@ class PostServiceImpl(
                             (Posts.author eq viewer.userId) or // Owner can see all their posts
                             (AccessGroups.type eq AccessGroupType.EVERYONE) or
                             (AccessGroups.type eq AccessGroupType.REGISTERED_USERS) or
+                            ((AccessGroups.type eq AccessGroupType.FRIENDS) and (Diaries.owner inSubQuery 
+                                Friends.slice(Friends.user2)
+                                    .select { Friends.user1 eq viewer.userId }
+                                    .union(
+                                        Friends.slice(Friends.user1)
+                                            .select { Friends.user2 eq viewer.userId }
+                                    )
+                            )) or
                             (AccessGroups.type eq AccessGroupType.CUSTOM and Posts.readGroup.inSubQuery(customAccessSubquery))
                         }
                     }
@@ -222,7 +241,7 @@ class PostServiceImpl(
                 .innerJoin(Users, { Posts.author }, { Users.id })
                 .innerJoin(Diaries, { Posts.diary }, { Diaries.id })
                 .innerJoin(AccessGroups, { Posts.readGroup }, { AccessGroups.id })
-                .slice(Posts.columns + Users.id + Users.nickname + Diaries.login + AccessGroups.type)
+                .slice(Posts.columns + Users.id + Users.nickname + Diaries.owner + Diaries.login + AccessGroups.type)
                 .select {
                     val accessCondition = when (viewer) {
                         is Viewer.Anonymous -> {
@@ -236,6 +255,7 @@ class PostServiceImpl(
                             (Posts.author eq viewer.userId) or // Owner can see all their posts
                             (AccessGroups.type eq AccessGroupType.EVERYONE) or
                             (AccessGroups.type eq AccessGroupType.REGISTERED_USERS) or
+                            (AccessGroups.type eq AccessGroupType.FRIENDS) or
                             (AccessGroups.type eq AccessGroupType.CUSTOM and Posts.readGroup.inSubQuery(customAccessSubquery))
                         }
                     }
@@ -282,6 +302,7 @@ class PostServiceImpl(
 
                     val accessCondition = (AccessGroups.type eq AccessGroupType.EVERYONE) or
                             (AccessGroups.type eq AccessGroupType.REGISTERED_USERS) or
+                            (AccessGroups.type eq AccessGroupType.FRIENDS) or
                             (AccessGroups.type eq AccessGroupType.CUSTOM and Posts.readGroup.inSubQuery(customAccessSubquery))
 
                     baseCondition and followingCondition and accessCondition
@@ -400,8 +421,10 @@ class PostServiceImpl(
     override fun addComment(userId: UUID, comment: CommentDto.Create): CommentDto.View {
         return transaction {
             val postEntity = PostEntity.findById(comment.postId) ?: throw PostNotFoundException()
+            val diaryEntity = DiaryEntity.findById(postEntity.diaryId.value) ?: throw InternalServerError()
+            val diaryOwnerId = diaryEntity.owner.value
             val viewer = Viewer.Registered(userId)
-            if (userId != postEntity.authorId.value && (!accessGroupService.inGroup(viewer, postEntity.readGroupId.value) || !accessGroupService.inGroup(viewer, postEntity.commentGroupId.value))) {
+            if (userId != postEntity.authorId.value && (!accessGroupService.inGroup(viewer, postEntity.readGroupId.value, diaryOwnerId) || !accessGroupService.inGroup(viewer, postEntity.commentGroupId.value, diaryOwnerId))) {
                 throw WrongUserException()
             }
             if (comment.parentCommentId != null) {
@@ -597,8 +620,9 @@ class PostServiceImpl(
         val userId = (viewer as? Viewer.Registered)?.userId
         val author = UserEntity.findById(postEntity.authorId) ?: throw InternalServerError()
         val authorDiary = DiaryEntity.find { Diaries.owner eq author.id }.single()
-        val isCommentable = (userId == postEntity.authorId.value) || (accessGroupService.inGroup(viewer, postEntity.commentGroupId.value))
-        val isReactable = (userId == postEntity.authorId.value) || (accessGroupService.inGroup(viewer, postEntity.reactionGroupId.value))
+        val diaryOwnerId = DiaryEntity.findById(postEntity.diaryId)!!.owner.value
+        val isCommentable = (userId == postEntity.authorId.value) || (accessGroupService.inGroup(viewer, postEntity.commentGroupId.value, diaryOwnerId))
+        val isReactable = (userId == postEntity.authorId.value) || (accessGroupService.inGroup(viewer, postEntity.reactionGroupId.value, diaryOwnerId))
 
         return PostDto.View(
             id = postEntity.id.value,
@@ -626,6 +650,7 @@ class PostServiceImpl(
 
     private fun Transaction.toPostView(viewer: Viewer, row: ResultRow): PostDto.View {
         val userId = (viewer as? Viewer.Registered)?.userId
+        val diaryOwnerId = row[Diaries.owner].value
         return PostDto.View(
             id = row[Posts.id].value,
             uri = row[Posts.uri],
@@ -644,14 +669,14 @@ class PostServiceImpl(
             tags = getTagsForPost(row[Posts.id].value),
 
             classes = row[Posts.classes],
-            isCommentable = (userId == row[Users.id].value) || (accessGroupService.inGroup(viewer, row[Posts.commentGroup].value)),
+            isCommentable = (userId == row[Users.id].value) || (accessGroupService.inGroup(viewer, row[Posts.commentGroup].value, diaryOwnerId)),
             comments = getCommentsForPost(row[Posts.id].value),
 
             readGroupId = row[Posts.readGroup].value,
             commentGroupId = row[Posts.commentGroup].value,
             reactionGroupId = row[Posts.reactionGroup].value,
             commentReactionGroupId = row[Posts.reactionGroup].value, // Using post's reaction group as default for comments
-            isReactable = (userId == row[Users.id].value) || (accessGroupService.inGroup(viewer, row[Posts.reactionGroup].value)),
+            isReactable = (userId == row[Users.id].value) || (accessGroupService.inGroup(viewer, row[Posts.reactionGroup].value, diaryOwnerId)),
             reactions = collectReactionInfo(row[Posts.id].value),
         )
     }
@@ -743,10 +768,12 @@ class PostServiceImpl(
 
     @Suppress("UNUSED_PARAMETER")
     private fun CommentEntity.toComment(transaction: Transaction): CommentDto.View {
+        val commentedPost = PostEntity.findById(postId)!!
+        val commentedDiaryOwnerId = DiaryEntity.findById(commentedPost.diaryId)!!.owner.value
         val author = UserEntity.findById(authorId) ?: throw InternalServerError()
         val authorDiary = DiaryEntity.find { Diaries.owner eq authorId }.single()
         val viewer = Viewer.Registered(authorId.value)
-        val isReactable = (authorId.value == author.id.value) || accessGroupService.inGroup(viewer, reactionGroupId.value)
+        val isReactable = (authorId.value == author.id.value) || accessGroupService.inGroup(viewer, reactionGroupId.value, commentedDiaryOwnerId)
         return CommentDto.View(
             id = id.value,
             authorLogin = authorDiary.login,
