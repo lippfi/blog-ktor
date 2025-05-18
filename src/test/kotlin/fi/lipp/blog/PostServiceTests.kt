@@ -1213,45 +1213,6 @@ class PostServiceTests : UnitTestBase() {
     // todo generating url when busy
     // todo generating url when russian
 
-    private fun signUsersUp(): Pair<UUID, UUID> {
-        // Get or create system user to generate invite codes
-        val systemUserId = userService.getOrCreateSystemUser()
-        val inviteCode = userService.generateInviteCode(systemUserId)
-
-        // Sign up first user with invite code
-        userService.signUp(testUser, inviteCode)
-        val user1 = findUserByLogin(testUser.login)!!
-        val nextInviteCode = userService.generateInviteCode(user1.id)
-
-        userService.signUp(testUser2, nextInviteCode)
-        val user2 = findUserByLogin(testUser2.login)!!
-        return user1.id to user2.id
-    }
-
-    @Suppress("SameParameterValue")
-    private fun signUsersUp(count: Int): List<Pair<UUID, String>> {
-        val users = mutableListOf<Pair<UUID, String>>()
-
-        // Get or create system user to generate invite codes
-        val systemUserId = userService.getOrCreateSystemUser()
-        val inviteCode = userService.generateInviteCode(systemUserId)
-
-        // Sign up first user with invite code
-        userService.signUp(testUser, inviteCode)
-        var userEntity = findUserByLogin(testUser.login)!!
-        users.add(userEntity.id to testUser.login)
-
-        var i = count - 1
-        while (i > 0) {
-            val nextInviteCode = userService.generateInviteCode(userEntity.id)
-            val randomUser = UserDto.Registration(login = UUID.randomUUID().toString(), email = "${UUID.randomUUID()}@mail.com", password = "123", nickname = UUID.randomUUID().toString(), language = Language.KK, timezone = "Asia/Qostanay")
-            userService.signUp(randomUser, nextInviteCode)
-            userEntity = findUserByLogin(randomUser.login)!!
-            users.add(userEntity.id to randomUser.login)
-            --i
-        }
-        return users
-    }
 
     private fun getPosts(viewer: Viewer, author: String? = null, diary: String? = null, pattern: String? = null, tags: Pair<TagPolicy, Set<String>>? = null, pageable: Pageable): Page<PostDto.View> {
         return postService.getPosts(viewer, author, diary, pattern, tags, null, null, pageable)

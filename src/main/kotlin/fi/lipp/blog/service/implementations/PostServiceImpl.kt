@@ -291,7 +291,7 @@ class PostServiceImpl(
                 .innerJoin(Users, { Posts.author }, { Users.id })
                 .innerJoin(AccessGroups, { Posts.readGroup }, { AccessGroups.id })
                 .innerJoin(UserFollows, { Posts.author }, { UserFollows.following })
-                .slice(Posts.columns + Users.id + Users.nickname + Diaries.login + AccessGroups.type)
+                .slice(Posts.columns + Users.id + Users.nickname + Diaries.login + Diaries.owner + AccessGroups.type)
                 .select {
                     val baseCondition = (Posts.isArchived eq false) and (Posts.isPreface eq false)
                     val followingCondition = UserFollows.follower eq userId

@@ -36,14 +36,9 @@ class FollowingTests : UnitTestBase() {
     fun `test successful follow`() {
         transaction {
             // Create users
-            userService.signUp(testUser, "")
-            val user1 = findUserByLogin(testUser.login)!!
-            user1Id = user1.id
-
-            val inviteCode = userService.generateInviteCode(user1.id)
-            userService.signUp(testUser2, inviteCode)
-            val user2 = findUserByLogin(testUser2.login)!!
-            user2Id = user2.id
+            val (id1, id2) = signUsersUp()
+            user1Id = id1
+            user2Id = id2
 
             // Test following
             userService.followUser(user1Id, testUser2.login)
@@ -63,9 +58,8 @@ class FollowingTests : UnitTestBase() {
     @Test
     fun `test follow nonexistent user`() {
         transaction {
-            userService.signUp(testUser, "")
-            val user1 = findUserByLogin(testUser.login)!!
-            user1Id = user1.id
+            val (id1, _) = signUsersUp()
+            user1Id = id1
 
             assertThrows(UserNotFoundException::class.java) {
                 userService.followUser(user1Id, "nonexistent")
@@ -78,14 +72,9 @@ class FollowingTests : UnitTestBase() {
     @Test
     fun `test follow already followed user`() {
         transaction {
-            userService.signUp(testUser, "")
-            val user1 = findUserByLogin(testUser.login)!!
-            user1Id = user1.id
-
-            val inviteCode = userService.generateInviteCode(user1.id)
-            userService.signUp(testUser2, inviteCode)
-            val user2 = findUserByLogin(testUser2.login)!!
-            user2Id = user2.id
+            val (id1, id2) = signUsersUp()
+            user1Id = id1
+            user2Id = id2
 
             userService.followUser(user1Id, testUser2.login)
 
@@ -100,14 +89,9 @@ class FollowingTests : UnitTestBase() {
     @Test
     fun `test successful unfollow`() {
         transaction {
-            userService.signUp(testUser, "")
-            val user1 = findUserByLogin(testUser.login)!!
-            user1Id = user1.id
-
-            val inviteCode = userService.generateInviteCode(user1.id)
-            userService.signUp(testUser2, inviteCode)
-            val user2 = findUserByLogin(testUser2.login)!!
-            user2Id = user2.id
+            val (id1, id2) = signUsersUp()
+            user1Id = id1
+            user2Id = id2
 
             userService.followUser(user1Id, testUser2.login)
             userService.unfollowUser(user1Id, testUser2.login)
@@ -125,14 +109,9 @@ class FollowingTests : UnitTestBase() {
     @Test
     fun `test unfollow not followed user`() {
         transaction {
-            userService.signUp(testUser, "")
-            val user1 = findUserByLogin(testUser.login)!!
-            user1Id = user1.id
-
-            val inviteCode = userService.generateInviteCode(user1.id)
-            userService.signUp(testUser2, inviteCode)
-            val user2 = findUserByLogin(testUser2.login)!!
-            user2Id = user2.id
+            val (id1, id2) = signUsersUp()
+            user1Id = id1
+            user2Id = id2
 
             assertThrows(NotFollowingException::class.java) {
                 userService.unfollowUser(user1Id, testUser2.login)
@@ -145,14 +124,9 @@ class FollowingTests : UnitTestBase() {
     @Test
     fun `test get followed posts`() {
         transaction {
-            userService.signUp(testUser, "")
-            val user1 = findUserByLogin(testUser.login)!!
-            user1Id = user1.id
-
-            val inviteCode = userService.generateInviteCode(user1.id)
-            userService.signUp(testUser2, inviteCode)
-            val user2 = findUserByLogin(testUser2.login)!!
-            user2Id = user2.id
+            val (id1, id2) = signUsersUp()
+            user1Id = id1
+            user2Id = id2
 
             // Create a post from user2
             val diary = DiaryEntity.find { Diaries.owner eq user2Id }.first()

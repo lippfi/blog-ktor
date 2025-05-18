@@ -45,8 +45,12 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun isLoginBusy() {
         transaction {
+            // Get system user to generate invite code
+            val systemUserId = userService.getOrCreateSystemUser()
+            val inviteCode = userService.generateInviteCode(systemUserId)
+
             assertFalse(userService.isLoginBusy(testUser.login))
-            userService.signUp(testUser, "")
+            userService.signUp(testUser, inviteCode)
             assertTrue(userService.isLoginBusy(testUser.login))
             rollback()
         }
@@ -55,8 +59,12 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun isEmailBusy() {
         transaction {
+            // Get system user to generate invite code
+            val systemUserId = userService.getOrCreateSystemUser()
+            val inviteCode = userService.generateInviteCode(systemUserId)
+
             assertFalse(userService.isEmailBusy(testUser.email))
-            userService.signUp(testUser, "")
+            userService.signUp(testUser, inviteCode)
             assertTrue(userService.isEmailBusy(testUser.email))
             rollback()
         }
@@ -65,8 +73,12 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun isNicknameBusy() {
         transaction {
+            // Get system user to generate invite code
+            val systemUserId = userService.getOrCreateSystemUser()
+            val inviteCode = userService.generateInviteCode(systemUserId)
+
             assertFalse(userService.isNicknameBusy(testUser.nickname))
-            userService.signUp(testUser, "")
+            userService.signUp(testUser, inviteCode)
             assertTrue(userService.isNicknameBusy(testUser.nickname))
             rollback()
         }
@@ -75,10 +87,14 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `successful registration`() {
         transaction {
+            // Get system user to generate invite code
+            val systemUserId = userService.getOrCreateSystemUser()
+            val inviteCode = userService.generateInviteCode(systemUserId)
+
             var foundUser = findUserByLogin(testUser.login)
             assertNull(foundUser)
 
-            userService.signUp(testUser, "")
+            userService.signUp(testUser, inviteCode)
             foundUser = findUserByLogin(testUser.login)
             assertNotNull(foundUser)
 
@@ -95,18 +111,22 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `registration with busy login`() {
         transaction {
+            // Get system user to generate invite code
+            val systemUserId = userService.getOrCreateSystemUser()
+            val inviteCode = userService.generateInviteCode(systemUserId)
+
             var foundUser = findUserByLogin(testUser.login)
             assertNull(foundUser)
 
-            userService.signUp(testUser, "")
+            userService.signUp(testUser, inviteCode)
             foundUser = findUserByLogin(testUser.login)
             assertNotNull(foundUser)
 
-            val inviteCode = userService.generateInviteCode(foundUser.id)
+            val nextInviteCode = userService.generateInviteCode(foundUser.id)
             assertThrows(LoginIsBusyException::class.java) {
                 userService.signUp(
                     UserDto.Registration(testUser.login, "new" + testUser.email, testUser.password, "new" + testUser.nickname, language = Language.EN, timezone = "Asia/Seoul"),
-                    inviteCode
+                    nextInviteCode
                 )
             }
 
@@ -117,18 +137,22 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `registration with busy email`() {
         transaction {
+            // Get system user to generate invite code
+            val systemUserId = userService.getOrCreateSystemUser()
+            val inviteCode = userService.generateInviteCode(systemUserId)
+
             var foundUser = findUserByLogin(testUser.login)
             assertNull(foundUser)
 
-            userService.signUp(testUser, "")
+            userService.signUp(testUser, inviteCode)
             foundUser = findUserByLogin(testUser.login)
             assertNotNull(foundUser)
 
-            val inviteCode = userService.generateInviteCode(foundUser.id)
+            val nextInviteCode = userService.generateInviteCode(foundUser.id)
             assertThrows(EmailIsBusyException::class.java) {
                 userService.signUp(
                     UserDto.Registration("new" + testUser.login, testUser.email, testUser.password, "new" + testUser.nickname, language = Language.EN, timezone = "Asia/Seoul"),
-                    inviteCode
+                    nextInviteCode
                 )
             }
 
@@ -139,18 +163,22 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `registration with busy nickname`() {
         transaction {
+            // Get system user to generate invite code
+            val systemUserId = userService.getOrCreateSystemUser()
+            val inviteCode = userService.generateInviteCode(systemUserId)
+
             var foundUser = findUserByLogin(testUser.login)
             assertNull(foundUser)
 
-            userService.signUp(testUser, "")
+            userService.signUp(testUser, inviteCode)
             foundUser = findUserByLogin(testUser.login)
             assertNotNull(foundUser)
 
-            val inviteCode = userService.generateInviteCode(foundUser.id)
+            val nextInviteCode = userService.generateInviteCode(foundUser.id)
             assertThrows(NicknameIsBusyException::class.java) {
                 userService.signUp(
                     UserDto.Registration("new" + testUser.login, "new" + testUser.email, testUser.password, testUser.nickname, language = Language.EN, timezone = "Asia/Seoul"),
-                    inviteCode
+                    nextInviteCode
                 )
             }
 
@@ -161,7 +189,11 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `successful sign in does not throw exception`() {
         transaction {
-            userService.signUp(testUser, "")
+            // Get system user to generate invite code
+            val systemUserId = userService.getOrCreateSystemUser()
+            val inviteCode = userService.generateInviteCode(systemUserId)
+
+            userService.signUp(testUser, inviteCode)
             userService.signIn(UserDto.Login(testUser.login, testUser.password))
             rollback()
         }
@@ -170,7 +202,11 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `sign in with wrong password`() {
         transaction {
-            userService.signUp(testUser, "")
+            // Get system user to generate invite code
+            val systemUserId = userService.getOrCreateSystemUser()
+            val inviteCode = userService.generateInviteCode(systemUserId)
+
+            userService.signUp(testUser, inviteCode)
             assertThrows(WrongPasswordException::class.java) {
                 userService.signIn(UserDto.Login(testUser.login, "wrong" + testUser.password))
             }
@@ -181,7 +217,11 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `sign in with nonexistent login`() {
         transaction {
-            userService.signUp(testUser, "")
+            // Get system user to generate invite code
+            val systemUserId = userService.getOrCreateSystemUser()
+            val inviteCode = userService.generateInviteCode(systemUserId)
+
+            userService.signUp(testUser, inviteCode)
             assertThrows(UserNotFoundException::class.java) {
                 userService.signIn(UserDto.Login("unknown" + testUser.login, testUser.password))
             }
@@ -192,7 +232,11 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `updating user info`() {
         transaction {
-            userService.signUp(testUser, "")
+            // Get system user to generate invite code
+            val systemUserId = userService.getOrCreateSystemUser()
+            val inviteCode = userService.generateInviteCode(systemUserId)
+
+            userService.signUp(testUser, inviteCode)
 
             val userEntity = findUserByLogin(testUser.login)!!
             val registrationTime = userEntity.registrationTime
@@ -213,7 +257,11 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `updating only email`() {
         transaction {
-            userService.signUp(testUser, "")
+            // Get system user to generate invite code
+            val systemUserId = userService.getOrCreateSystemUser()
+            val inviteCode = userService.generateInviteCode(systemUserId)
+
+            userService.signUp(testUser, inviteCode)
 
             val userEntity = findUserByLogin(testUser.login)!!
             val registrationTime = userEntity.registrationTime
@@ -234,7 +282,11 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `updating only nickname`() {
         transaction {
-            userService.signUp(testUser, "")
+            // Get system user to generate invite code
+            val systemUserId = userService.getOrCreateSystemUser()
+            val inviteCode = userService.generateInviteCode(systemUserId)
+
+            userService.signUp(testUser, inviteCode)
 
             val userEntity = findUserByLogin(testUser.login)!!
             val registrationTime = userEntity.registrationTime
@@ -255,7 +307,11 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `updating user with wrong password`() {
         transaction {
-            userService.signUp(testUser, "")
+            // Get system user to generate invite code
+            val systemUserId = userService.getOrCreateSystemUser()
+            val inviteCode = userService.generateInviteCode(systemUserId)
+
+            userService.signUp(testUser, inviteCode)
 
             val userEntity = findUserByLogin(testUser.login)!!
             val registrationTime = userEntity.registrationTime
@@ -278,11 +334,7 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `updating user with busy email`() {
         transaction {
-            userService.signUp(testUser, "")
-            val foundUser = findUserByLogin(testUser.login)!!
-            val inviteCode = userService.generateInviteCode(foundUser.id)
-            userService.signUp(testUser2, inviteCode)
-
+            val (userId1, userId2) = signUsersUp()
             val userEntity = findUserByLogin(testUser.login)!!
             val updatedUser = UserDto.Registration(testUser.login, testUser2.email, testUser.password, testUser.nickname, language = Language.EN, timezone = "Asia/Seoul")
             assertThrows(EmailIsBusyException::class.java) {
@@ -296,11 +348,7 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `updating user with busy nickname`() {
         transaction {
-            userService.signUp(testUser, "")
-            val foundUser = findUserByLogin(testUser.login)!!
-            val inviteCode = userService.generateInviteCode(foundUser.id)
-            userService.signUp(testUser2, inviteCode)
-
+            val (userId1, userId2) = signUsersUp()
             val userEntity = findUserByLogin(testUser.login)!!
             val updatedUser = UserDto.Registration(testUser.login, testUser.email, testUser.password, testUser2.nickname, language = Language.EN, timezone = "Asia/Seoul")
             assertThrows(NicknameIsBusyException::class.java) {
@@ -316,7 +364,11 @@ class UserServiceTests : UnitTestBase() {
         transaction {
             val stringCaptor = argumentCaptor<String>()
 
-            userService.signUp(testUser, "")
+            // Get system user to generate invite code
+            val systemUserId = userService.getOrCreateSystemUser()
+            val inviteCode = userService.generateInviteCode(systemUserId)
+
+            userService.signUp(testUser, inviteCode)
             val foundUser = findUserByLogin(testUser.login)!!
             userService.sendPasswordResetEmail(foundUser.email)
 
@@ -354,9 +406,7 @@ class UserServiceTests : UnitTestBase() {
             val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
             val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.inputStream())
 
-            userService.signUp(testUser, "")
-            val foundUser = findUserByLogin(testUser.login)!!
-            val userId = foundUser.id
+            val (userId, _) = signUsersUp()
 
             userService.addAvatar(userId, listOf(avatarUpload1))
             var avatars = userService.getAvatars(userId)
@@ -408,9 +458,7 @@ class UserServiceTests : UnitTestBase() {
             }
             val wrongSizeUpload = FileUploadData(avatarFile1.name, modifiedInputStream)
 
-            userService.signUp(testUser, "")
-            val foundUser = findUserByLogin(testUser.login)!!
-            val userId = foundUser.id
+            val (userId, _) = signUsersUp()
 
             assertThrows(InvalidAvatarDimensionsException::class.java) {
                 userService.addAvatar(userId, listOf(wrongSizeUpload))
@@ -443,9 +491,7 @@ class UserServiceTests : UnitTestBase() {
             ImageIO.write(image, "png", outputStream)
             val largeFileData = FileUploadData("large_avatar.png", java.io.ByteArrayInputStream(outputStream.toByteArray()))
 
-            userService.signUp(testUser, "")
-            val foundUser = findUserByLogin(testUser.login)!!
-            val userId = foundUser.id
+            val (userId, _) = signUsersUp()
 
             assertThrows(InvalidAvatarSizeException::class.java) {
                 userService.addAvatar(userId, listOf(largeFileData))
@@ -462,9 +508,7 @@ class UserServiceTests : UnitTestBase() {
         transaction {
             val avatarUploadTxt = FileUploadData(avatarFileTxt.name, avatarFileTxt.inputStream())
 
-            userService.signUp(testUser, "")
-            val foundUser = findUserByLogin(testUser.login)!!
-            val userId = foundUser.id
+            val (userId, _) = signUsersUp()
 
             assertThrows(InvalidAvatarExtensionException::class.java) {
                 userService.addAvatar(userId, listOf(avatarUploadTxt))
@@ -483,9 +527,7 @@ class UserServiceTests : UnitTestBase() {
             val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
             val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.inputStream())
 
-            userService.signUp(testUser, "")
-            val foundUser = findUserByLogin(testUser.login)!!
-            val userId = foundUser.id
+            val (userId, _) = signUsersUp()
 
             userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
             val avatars = userService.getAvatars(userId)
@@ -516,9 +558,7 @@ class UserServiceTests : UnitTestBase() {
             val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
             val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.inputStream())
 
-            userService.signUp(testUser, "")
-            val foundUser = findUserByLogin(testUser.login)!!
-            val userId = foundUser.id
+            val (userId, _) = signUsersUp()
 
             userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
             val avatars = userService.getAvatarUrls(userId)
@@ -540,9 +580,7 @@ class UserServiceTests : UnitTestBase() {
             val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
             val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.inputStream())
 
-            userService.signUp(testUser, "")
-            val foundUser = findUserByLogin(testUser.login)!!
-            val userId = foundUser.id
+            val (userId, _) = signUsersUp()
 
             userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
             val avatars = userService.getAvatarUrls(userId)
@@ -564,9 +602,7 @@ class UserServiceTests : UnitTestBase() {
             val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
             val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.inputStream())
 
-            userService.signUp(testUser, "")
-            val foundUser = findUserByLogin(testUser.login)!!
-            val userId = foundUser.id
+            val (userId, _) = signUsersUp()
 
             userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
             val avatars = userService.getAvatarUrls(userId)
@@ -588,9 +624,7 @@ class UserServiceTests : UnitTestBase() {
             val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
             val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.inputStream())
 
-            userService.signUp(testUser, "")
-            val foundUser = findUserByLogin(testUser.login)!!
-            val userId = foundUser.id
+            val (userId, _) = signUsersUp()
 
             userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
             val avatars = userService.getAvatars(userId)
@@ -612,9 +646,7 @@ class UserServiceTests : UnitTestBase() {
             val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
             val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.inputStream())
 
-            userService.signUp(testUser, "")
-            val foundUser = findUserByLogin(testUser.login)!!
-            val userId = foundUser.id
+            val (userId, _) = signUsersUp()
 
             userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
             val avatars = userService.getAvatars(userId)
@@ -635,9 +667,7 @@ class UserServiceTests : UnitTestBase() {
             val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
             val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.inputStream())
 
-            userService.signUp(testUser, "")
-            val foundUser = findUserByLogin(testUser.login)!!
-            val userId = foundUser.id
+            val (userId, _) = signUsersUp()
 
             userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
             userService.deleteAvatar(userId, "nonexistent uri")
@@ -654,11 +684,7 @@ class UserServiceTests : UnitTestBase() {
             val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
             val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
 
-            userService.signUp(testUser, "")
-            val userId1 = findUserByLogin(testUser.login)!!.id
-            val inviteCode = userService.generateInviteCode(userId1)
-            userService.signUp(testUser2, inviteCode)
-            val userId2 = findUserByLogin(testUser2.login)!!.id
+            val (userId1, userId2) = signUsersUp()
 
             userService.addAvatar(userId1, listOf(avatarUpload1))
             var avatars1 = userService.getAvatars(userId1)
@@ -689,12 +715,7 @@ class UserServiceTests : UnitTestBase() {
             val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
             val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.inputStream())
 
-            userService.signUp(testUser, "")
-            val userId1 = findUserByLogin(testUser.login)!!.id
-            val inviteCode = userService.generateInviteCode(userId1)
-
-            userService.signUp(testUser2, inviteCode)
-            val userId2 = findUserByLogin(testUser2.login)!!.id
+            val (userId1, userId2) = signUsersUp()
 
             userService.addAvatar(userId1, listOf(avatarUpload1, avatarUpload2))
             val avatars1 = userService.getAvatars(userId1)
@@ -719,7 +740,11 @@ class UserServiceTests : UnitTestBase() {
             val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
             val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.inputStream())
 
-            userService.signUp(testUser, "")
+            // Get system user to generate invite code
+            val systemUserId = userService.getOrCreateSystemUser()
+            val inviteCode = userService.generateInviteCode(systemUserId)
+
+            userService.signUp(testUser, inviteCode)
             val userId1 = findUserByLogin(testUser.login)!!.id
 
             userService.addAvatar(userId1, listOf(avatarUpload1, avatarUpload2))
@@ -740,8 +765,7 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `first avatar becomes primary`() {
         transaction {
-            userService.signUp(testUser, "")
-            val userId = findUserByLogin(testUser.login)!!.id
+            val (userId, _) = signUsersUp()
 
             // Add first avatar
             val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
@@ -770,8 +794,7 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `change primary avatar`() {
         transaction {
-            userService.signUp(testUser, "")
-            val userId = findUserByLogin(testUser.login)!!.id
+            val (userId, _) = signUsersUp()
 
             // Add two avatars
             val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
@@ -798,11 +821,7 @@ class UserServiceTests : UnitTestBase() {
     fun `upload existing avatar file`() {
         transaction {
             // Create two users
-            userService.signUp(testUser, "")
-            val userId1 = findUserByLogin(testUser.login)!!.id
-            val inviteCode = userService.generateInviteCode(userId1)
-            userService.signUp(testUser2, inviteCode)
-            val userId2 = findUserByLogin(testUser2.login)!!.id
+            val (userId1, userId2) = signUsersUp()
 
             // Add avatar to first user
             val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
@@ -825,8 +844,7 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `upload non-avatar file as avatar`() {
         transaction {
-            userService.signUp(testUser, "")
-            val userId = findUserByLogin(testUser.login)!!.id
+            val (userId, _) = signUsersUp()
 
             // Upload a non-avatar file
             val fileUpload = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
@@ -850,11 +868,7 @@ class UserServiceTests : UnitTestBase() {
     fun `change primary avatar to other user avatar`() {
         transaction {
             // Create two users
-            userService.signUp(testUser, "")
-            val userId1 = findUserByLogin(testUser.login)!!.id
-            val inviteCode = userService.generateInviteCode(userId1)
-            userService.signUp(testUser2, inviteCode)
-            val userId2 = findUserByLogin(testUser2.login)!!.id
+            val (userId1, userId2) = signUsersUp()
 
             // Add avatar to first user
             val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
@@ -883,8 +897,7 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `delete primary avatar`() {
         transaction {
-            userService.signUp(testUser, "")
-            val userId = findUserByLogin(testUser.login)!!.id
+            val (userId, _) = signUsersUp()
 
             // Add two avatars
             val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
@@ -917,11 +930,7 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `send friend request successfully`() {
         transaction {
-            userService.signUp(testUser, "")
-            val userId1 = findUserByLogin(testUser.login)!!.id
-            val inviteCode = userService.generateInviteCode(userId1)
-            userService.signUp(testUser2, inviteCode)
-            val userId2 = findUserByLogin(testUser2.login)!!.id
+            val (userId1, userId2) = signUsersUp()
 
             val request = FriendRequestDto.Create("bigbabyboy", "Let's be friends!", "coworker")
             userService.sendFriendRequest(userId1, request)
@@ -943,7 +952,11 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `send friend request to nonexistent user`() {
         transaction {
-            userService.signUp(testUser, "")
+            // Get system user to generate invite code
+            val systemUserId = userService.getOrCreateSystemUser()
+            val inviteCode = userService.generateInviteCode(systemUserId)
+
+            userService.signUp(testUser, inviteCode)
             val userId1 = findUserByLogin(testUser.login)!!.id
 
             val request = FriendRequestDto.Create("nonexistent_user", "Let's be friends!", null)
@@ -958,11 +971,7 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `send friend request when already friends`() {
         transaction {
-            userService.signUp(testUser, "")
-            val userId1 = findUserByLogin(testUser.login)!!.id
-            val inviteCode = userService.generateInviteCode(userId1)
-            userService.signUp(testUser2, inviteCode)
-            val userId2 = findUserByLogin(testUser2.login)!!.id
+            val (userId1, userId2) = signUsersUp()
 
             val request = FriendRequestDto.Create("bigbabyboy", "Let's be friends!", null)
             userService.sendFriendRequest(userId1, request)
@@ -979,11 +988,7 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `send duplicate friend request`() {
         transaction {
-            userService.signUp(testUser, "")
-            val userId1 = findUserByLogin(testUser.login)!!.id
-            val inviteCode = userService.generateInviteCode(userId1)
-            userService.signUp(testUser2, inviteCode)
-            val userId2 = findUserByLogin(testUser2.login)!!.id
+            val (userId1, userId2) = signUsersUp()
 
             val request = FriendRequestDto.Create("bigbabyboy", "Let's be friends!", null)
             userService.sendFriendRequest(userId1, request)
@@ -999,11 +1004,7 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `accept friend request successfully`() {
         transaction {
-            userService.signUp(testUser, "")
-            val userId1 = findUserByLogin(testUser.login)!!.id
-            val inviteCode = userService.generateInviteCode(userId1)
-            userService.signUp(testUser2, inviteCode)
-            val userId2 = findUserByLogin(testUser2.login)!!.id
+            val (userId1, userId2) = signUsersUp()
 
             val request = FriendRequestDto.Create("bigbabyboy", "Let's be friends!", "coworker")
             userService.sendFriendRequest(userId1, request)
@@ -1031,8 +1032,7 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `accept nonexistent friend request`() {
         transaction {
-            userService.signUp(testUser, "")
-            val userId = findUserByLogin(testUser.login)!!.id
+            val (userId, _) = signUsersUp()
 
             assertThrows(FriendRequestNotFoundException::class.java) {
                 userService.acceptFriendRequest(userId, UUID.randomUUID(), null)
@@ -1045,11 +1045,7 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `accept friend request as non-recipient`() {
         transaction {
-            userService.signUp(testUser, "")
-            val userId1 = findUserByLogin(testUser.login)!!.id
-            val inviteCode = userService.generateInviteCode(userId1)
-            userService.signUp(testUser2, inviteCode)
-            val userId2 = findUserByLogin(testUser2.login)!!.id
+            val (userId1, userId2) = signUsersUp()
 
             val request = FriendRequestDto.Create("bigbabyboy", "Let's be friends!", null)
             userService.sendFriendRequest(userId1, request)
@@ -1066,11 +1062,7 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `decline friend request successfully`() {
         transaction {
-            userService.signUp(testUser, "")
-            val userId1 = findUserByLogin(testUser.login)!!.id
-            val inviteCode = userService.generateInviteCode(userId1)
-            userService.signUp(testUser2, inviteCode)
-            val userId2 = findUserByLogin(testUser2.login)!!.id
+            val (userId1, userId2) = signUsersUp()
 
             val request = FriendRequestDto.Create("bigbabyboy", "Let's be friends!", null)
             userService.sendFriendRequest(userId1, request)
@@ -1093,11 +1085,7 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `cancel friend request successfully`() {
         transaction {
-            userService.signUp(testUser, "")
-            val userId1 = findUserByLogin(testUser.login)!!.id
-            val inviteCode = userService.generateInviteCode(userId1)
-            userService.signUp(testUser2, inviteCode)
-            val userId2 = findUserByLogin(testUser2.login)!!.id
+            val (userId1, userId2) = signUsersUp()
 
             val request = FriendRequestDto.Create("bigbabyboy", "Let's be friends!", null)
             userService.sendFriendRequest(userId1, request)
@@ -1120,8 +1108,7 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `cancel nonexistent friend request`() {
         transaction {
-            userService.signUp(testUser, "")
-            val userId1 = findUserByLogin(testUser.login)!!.id
+            val (userId1, _) = signUsersUp()
 
             assertThrows(FriendRequestNotFoundException::class.java) {
                 userService.cancelFriendRequest(userId1, UUID.randomUUID())
@@ -1134,11 +1121,7 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `cancel friend request as non-sender`() {
         transaction {
-            userService.signUp(testUser, "")
-            val userId1 = findUserByLogin(testUser.login)!!.id
-            val inviteCode = userService.generateInviteCode(userId1)
-            userService.signUp(testUser2, inviteCode)
-            val userId2 = findUserByLogin(testUser2.login)!!.id
+            val (userId1, userId2) = signUsersUp()
 
             val request = FriendRequestDto.Create("bigbabyboy", "Let's be friends!", null)
             userService.sendFriendRequest(userId1, request)
@@ -1155,11 +1138,7 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `remove friend successfully`() {
         transaction {
-            userService.signUp(testUser, "")
-            val userId1 = findUserByLogin(testUser.login)!!.id
-            val inviteCode = userService.generateInviteCode(userId1)
-            userService.signUp(testUser2, inviteCode)
-            val userId2 = findUserByLogin(testUser2.login)!!.id
+            val (userId1, userId2) = signUsersUp()
 
             val request = FriendRequestDto.Create("bigbabyboy", "Let's be friends!", null)
             userService.sendFriendRequest(userId1, request)
@@ -1180,11 +1159,7 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `remove nonexistent friend`() {
         transaction {
-            userService.signUp(testUser, "")
-            val userId1 = findUserByLogin(testUser.login)!!.id
-            val inviteCode = userService.generateInviteCode(userId1)
-            userService.signUp(testUser2, inviteCode)
-            val userId2 = findUserByLogin(testUser2.login)!!.id
+            val (userId1, userId2) = signUsersUp()
 
             assertThrows(NotFriendsException::class.java) {
                 userService.removeFriend(userId1, testUser2.login)
@@ -1197,11 +1172,7 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `verify friend labels after accepting request`() {
         transaction {
-            userService.signUp(testUser, "")
-            val userId1 = findUserByLogin(testUser.login)!!.id
-            val inviteCode = userService.generateInviteCode(userId1)
-            userService.signUp(testUser2, inviteCode)
-            val userId2 = findUserByLogin(testUser2.login)!!.id
+            val (userId1, userId2) = signUsersUp()
 
             // Send friend request with label "coworker"
             val request = FriendRequestDto.Create("bigbabyboy", "Let's be friends!", "coworker")
@@ -1230,11 +1201,7 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `update friend label`() {
         transaction {
-            userService.signUp(testUser, "")
-            val userId1 = findUserByLogin(testUser.login)!!.id
-            val inviteCode = userService.generateInviteCode(userId1)
-            userService.signUp(testUser2, inviteCode)
-            val userId2 = findUserByLogin(testUser2.login)!!.id
+            val (userId1, userId2) = signUsersUp()
 
             // Become friends first
             val request = FriendRequestDto.Create("bigbabyboy", "Let's be friends!", "coworker")
@@ -1261,11 +1228,7 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `remove friend with labels`() {
         transaction {
-            userService.signUp(testUser, "")
-            val userId1 = findUserByLogin(testUser.login)!!.id
-            val inviteCode = userService.generateInviteCode(userId1)
-            userService.signUp(testUser2, inviteCode)
-            val userId2 = findUserByLogin(testUser2.login)!!.id
+            val (userId1, userId2) = signUsersUp()
 
             // Become friends with labels
             val request = FriendRequestDto.Create("bigbabyboy", "Let's be friends!", "coworker")
