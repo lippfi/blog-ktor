@@ -9,6 +9,7 @@ import fi.lipp.blog.service.PostService
 import fi.lipp.blog.service.ReactionService
 import fi.lipp.blog.service.Viewer
 import fi.lipp.blog.service.implementations.PostServiceImpl
+import fi.lipp.blog.service.implementations.ReactionDatabaseSeeder
 import fi.lipp.blog.service.implementations.ReactionServiceImpl
 import io.ktor.server.config.MapApplicationConfig
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -43,7 +44,8 @@ class ReactionServiceTests : UnitTestBase() {
                 put("reactions.basic.4", "sad")
                 put("reactions.basic.5", "angry")
             }
-            reactionService = ReactionServiceImpl(storageService, groupService, notificationService, userService)
+            val reactionDatabaseSeeder = ReactionDatabaseSeeder(storageService, userService)
+            reactionService = ReactionServiceImpl(storageService, groupService, notificationService, userService, reactionDatabaseSeeder)
             postService = PostServiceImpl(groupService, storageService, reactionService, notificationService)
         }
     }

@@ -79,9 +79,17 @@ fun KoinApplication.loadMyKoins(environment: ApplicationEnvironment): KoinApplic
         single<PasswordEncoder> { PasswordEncoderImpl() }
         single<UserService> { UserServiceImpl(get(), get(), get(), get(), get<NotificationService>()) }
         single<AccessGroupService> { AccessGroupServiceImpl() }
-        single<ReactionService> { ReactionServiceImpl(get<StorageService>(), get<AccessGroupService>(), get<NotificationService>(), get<UserService>()) }
-        single<PostService> { PostServiceImpl(get<AccessGroupService>(), get<StorageService>(), get<ReactionService>(), get<NotificationService>()) }
         single<NotificationService> { NotificationServiceImpl() }
+
+        // Database seeders
+        single { ReactionDatabaseSeeder(get(), get()) }
+
+        // Database initializer
+        single { DatabaseInitializer(listOf(get<ReactionDatabaseSeeder>())) }
+
+        // Services that depend on seeders
+        single<ReactionService> { ReactionServiceImpl(get<StorageService>(), get<AccessGroupService>(), get<NotificationService>(), get<UserService>(), get()) }
+        single<PostService> { PostServiceImpl(get<AccessGroupService>(), get<StorageService>(), get<ReactionService>(), get<NotificationService>()) }
         single<DialogService> { DialogServiceImpl(get<UserService>(), get<NotificationService>()) }
     }
     return modules(appModules)

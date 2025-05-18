@@ -14,6 +14,8 @@ import fi.lipp.blog.service.implementations.DialogServiceImpl
 import fi.lipp.blog.service.implementations.StorageServiceImpl
 import fi.lipp.blog.service.implementations.UserServiceImpl
 import fi.lipp.blog.service.implementations.ReactionServiceImpl
+import fi.lipp.blog.service.implementations.ReactionDatabaseSeeder
+import fi.lipp.blog.service.implementations.DatabaseInitializer
 import fi.lipp.blog.service.implementations.PostServiceImpl
 import fi.lipp.blog.stubs.ApplicationPropertiesStub
 import fi.lipp.blog.stubs.PasswordEncoderStub
@@ -102,11 +104,20 @@ abstract class UnitTestBase {
                     single<AccessGroupService> { AccessGroupServiceImpl() }
                     single<NotificationService> { mock() }
                     single<UserService> { UserServiceImpl(get(), get(), get(), get(), get()) }
+
+                    // Database seeders
+                    single { ReactionDatabaseSeeder(get(), get()) }
+
+                    // Database initializer
+                    single { DatabaseInitializer(listOf(get<ReactionDatabaseSeeder>())) }
+
+                    // Services that depend on seeders
                     single<ReactionService> { ReactionServiceImpl(
                         storageService = get(),
                         accessGroupService = get(),
                         notificationService = get(),
-                        userService = get()
+                        userService = get(),
+                        reactionDatabaseSeeder = get()
                     ) }
                     single<PostService> { PostServiceImpl(
                         accessGroupService = get(),
@@ -126,8 +137,9 @@ abstract class UnitTestBase {
                 accessGroupService.privateGroupUUID
                 accessGroupService.friendsGroupUUID
 
-                // Upload basic reactions
-                reactionService.getBasicReactions()
+                // Initialize the database with seeders
+                val databaseInitializer = org.koin.core.context.GlobalContext.get().get<DatabaseInitializer>()
+                databaseInitializer.initialize()
             }
         }
 
@@ -230,6 +242,10 @@ abstract class UnitTestBase {
             // Don't delete AccessGroups as they are required for the system to work
             commit()
         }
+
+        // Re-initialize the database with seeders
+        val databaseInitializer = org.koin.core.context.GlobalContext.get().get<DatabaseInitializer>()
+        databaseInitializer.initialize()
     }
 
     @After

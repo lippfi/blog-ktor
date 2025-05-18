@@ -18,134 +18,15 @@ class ReactionServiceImpl(
     private val accessGroupService: AccessGroupService,
     private val notificationService: NotificationService,
     private val userService: UserService,
+    private val reactionDatabaseSeeder: ReactionDatabaseSeeder
 ) : ReactionService {
-    // Basic reactions are stored in resources/img/reactions/basic
-    private val basicReactions = mapOf(
-        "heart.svg" to "heart",
-        "fire.svg" to "fire"
-    )
-
-    // Smol reactions are stored in resources/img/reactions/smol
-    private val smolReactions = mapOf(
-        "sticker1.webp" to "smol-suicide",
-        "sticker2.webp" to "smol-speech",
-        "sticker3.webp" to "smol-shef",
-        "sticker4.webp" to "smol-cereal",
-        "sticker5.webp" to "smol-fyou",
-        "sticker6.webp" to "smol-punch",
-        "sticker7.webp" to "smol-peace",
-        "sticker8.webp" to "smol-shock",
-        "sticker9.webp" to "smol-sad",
-        "sticker10.webp" to "smol-high",
-        "sticker11.webp" to "smol-broken",
-        "sticker12.webp" to "smol-crying",
-        "sticker13.webp" to "smol-lick",
-        "sticker14.webp" to "smol-milk",
-        "sticker15.webp" to "smol-tears",
-        "sticker16.webp" to "smol-alien",
-        "sticker17.webp" to "smol-krakozyabra",
-        "sticker18.webp" to "smol-hearts",
-        "sticker19.webp" to "smol-crying2",
-        "sticker20.webp" to "smol-annoyed",
-        "sticker21.webp" to "smol-tilt",
-        "sticker22.webp" to "smol-angry",
-        "sticker23.webp" to "smol-suspicious",
-        "sticker24.webp" to "smol-surprized",
-        "sticker25.webp" to "smol-furious",
-        "sticker26.webp" to "smol-nerd",
-        "sticker27.webp" to "smol-nerd2",
-        "sticker28.webp" to "smol-offended",
-        "sticker29.webp" to "smol-love",
-        "sticker30.webp" to "smol-happy",
-        "sticker31.webp" to "smol-touched",
-        "sticker32.webp" to "smol-ola",
-        "sticker33.webp" to "smol-silly",
-        "sticker34.webp" to "smol-insulted",
-        "sticker35.webp" to "smol-shy",
-        "sticker36.webp" to "smol-eating",
-        "sticker37.webp" to "smol-potato",
-        "sticker39.webp" to "smol-hisoka",
-        "sticker40.webp" to "smol-runnynose",
-        "sticker41.webp" to "smol-crying3",
-        "sticker42.webp" to "smol-heart",
-        "sticker43.webp" to "smol-love2",
-        "sticker44.webp" to "smol-flowers",
-        "sticker45.webp" to "smol-serious",
-        "sticker46.webp" to "smol-wink",
-        "sticker47.webp" to "smol-hehe",
-        "sticker48.webp" to "smol-heheq",
-        "sticker49.webp" to "smol-nothehe",
-        "sticker50.webp" to "smol-talk",
-        "sticker51.webp" to "smol-listening",
-        "sticker52.webp" to "smol-night",
-        "sticker53.webp" to "smol-clown",
-        "sticker54.webp" to "smol-thumbsuppleased",
-        "sticker55.webp" to "smol-thumbsupsad",
-        "sticker56.webp" to "smol-thumbsup",
-        "sticker57.webp" to "smol-horror",
-        "sticker58.webp" to "smol-pleased",
-        "sticker59.webp" to "smol-hearttears",
-        "sticker60.webp" to "smol-silent",
-        "sticker61.webp" to "smol-singing",
-        "sticker62.webp" to "smol-handshake",
-        "sticker63.webp" to "smol-smol",
-//        "sticker64.webp" to "smol-hopeless",
-//        "sticker65.webp" to "smol-desperate",
-//        "sticker66.webp" to "smol-ecstatic",
-//        "sticker68.webp" to "smol-furious",
-//        "sticker69.webp" to "smol-delighted",
-//        "sticker70.webp" to "smol-disgusted",
-//        "sticker72.webp" to "smol-envious",
-//        "sticker73.webp" to "smol-sympathetic",
-//        "sticker74.webp" to "smol-empathetic",
-//        "sticker75.webp" to "smol-compassionate",
-//        "sticker76.webp" to "smol-resentful",
-//        "sticker77.webp" to "smol-remorseful",
-//        "sticker78.webp" to "smol-regretful",
-//        "sticker79.webp" to "smol-appreciative",
-//        "sticker80.webp" to "smol-admiring",
-//        "sticker81.webp" to "smol-respectful",
-//        "sticker82.webp" to "smol-trusting",
-//        "sticker83.webp" to "smol-suspicious",
-//        "sticker84.webp" to "smol-doubtful",
-//        "sticker85.webp" to "smol-certain",
-//        "sticker86.webp" to "smol-uncertain",
-//        "sticker87.webp" to "smol-insecure",
-        "sticker88.webp" to "smol-friends",
-//        "sticker89.webp" to "smol-comfortable",
-//        "sticker90.webp" to "smol-uncomfortable",
-        "sticker91.webp" to "smol-angel",
-        "sticker92.webp" to "smol-demon",
-//        "sticker93.webp" to "smol-satisfied",
-//        "sticker94.webp" to "smol-dissatisfied",
-//        "sticker95.webp" to "smol-fulfilled",
-//        "sticker96.webp" to "smol-empty",
-//        "sticker97.webp" to "smol-complete",
-//        "sticker98.webp" to "smol-incomplete",
-//        "sticker99.webp" to "smol-whole",
-//        "sticker100.webp" to "smol-broken",
-//        "sticker101.webp" to "smol-connected",
-//        "sticker102.webp" to "smol-disconnected",
-//        "sticker103.webp" to "smol-engaged",
-//        "sticker104.webp" to "smol-disengaged",
-//        "sticker105.webp" to "smol-interested",
-//        "sticker106.webp" to "smol-disinterested",
-//        "sticker107.webp" to "smol-attentive",
-//        "sticker108.webp" to "smol-distracted",
-//        "sticker109.webp" to "smol-focused",
-//        "sticker110.webp" to "smol-unfocused",
-//        "sticker111.webp" to "smol-alert",
-//        "sticker113.webp" to "smol-drowsy",
-//        "sticker114.webp" to "smol-awake",
-//        "sticker115.webp" to "smol-asleep",
-//        "sticker116.webp" to "smol-dreaming"
-    )
 
     private val cachedBasicReactions: List<ReactionPackDto> by lazy {
-        val systemUserId = userService.getOrCreateSystemUser()
+        // Ensure reactions are seeded
+        reactionDatabaseSeeder.seed()
 
-        val basicReactionViews = createReactionViews(systemUserId, basicReactions, "img/reactions/basic")
-        val smolReactionViews = createReactionViews(systemUserId, smolReactions, "img/reactions/smol")
+        val basicReactionViews = getReactionsByPrefix("heart", "fire")
+        val smolReactionViews = getReactionsByPrefix("smol-")
 
         listOf(
             createReactionPackDto(basicReactionViews),
@@ -153,43 +34,28 @@ class ReactionServiceImpl(
         )
     }
 
-    private fun createReactionViews(systemUserId: UUID, reactions: Map<String, String>, resourcePathPrefix: String): List<ReactionDto.View> {
+    private fun getReactionsByPrefix(vararg prefixes: String): List<ReactionDto.View> {
         return transaction {
-            reactions.map { (fileName, reactionName) ->
-                if (!isReactionNameUsed(reactionName)) {
-                    val resourcePath = "$resourcePathPrefix/$fileName"
-                    val inputStream = this@ReactionServiceImpl::class.java.classLoader.getResourceAsStream(resourcePath)
-                        ?: throw IllegalStateException("Resource not found: $resourcePath")
-
-                    val fileUploadData = FileUploadData(
-                        fullName = fileName,
-                        inputStream = inputStream
-                    )
-
-                    val storedFile = storageService.storeReaction(systemUserId, fileUploadData)
-                    val iconFile = FileEntity.findById(storedFile.id) ?: throw FileNotFoundException()
-
-                    ReactionEntity.new {
-                        this.name = reactionName
-                        this.icon = iconFile
-                        this.creator = EntityID(systemUserId, Users)
+            ReactionEntity.all()
+                .filter { entity -> 
+                    prefixes.any { prefix -> 
+                        entity.name.startsWith(prefix) || entity.name == prefix 
                     }
                 }
-
-                val reactionEntity = ReactionEntity.find { Reactions.name eq reactionName }.first()
-                toReactionView(reactionEntity)
-            }
+                .map { toReactionView(it) }
         }
     }
 
     private fun createReactionPackDto(reactionViews: List<ReactionDto.View>, icon: String? = null): ReactionPackDto {
         return ReactionPackDto(
-            iconUri = icon?.let { reactionViews.first { it.name == icon }.iconUri } ?: reactionViews.firstOrNull()?.iconUri ?: "",
+            iconUri = icon?.let { reactionViews.firstOrNull { it.name == icon }?.iconUri } ?: reactionViews.firstOrNull()?.iconUri ?: "",
             reactions = reactionViews
         )
     }
 
-    override fun getBasicReactions(): List<ReactionPackDto> = cachedBasicReactions
+    override fun getBasicReactions(): List<ReactionPackDto> {
+        return cachedBasicReactions
+    }
 
     override fun createReaction(userId: UUID, name: String, icon: FileUploadData): ReactionDto.View {
         ReactionDto.validateName(name)

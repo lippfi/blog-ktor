@@ -1214,11 +1214,16 @@ class PostServiceTests : UnitTestBase() {
     // todo generating url when russian
 
     private fun signUsersUp(): Pair<UUID, UUID> {
-        userService.signUp(testUser, "")
-        val user1 = findUserByLogin(testUser.login)!!
-        val inviteCode = userService.generateInviteCode(user1.id)
+        // Get or create system user to generate invite codes
+        val systemUserId = userService.getOrCreateSystemUser()
+        val inviteCode = userService.generateInviteCode(systemUserId)
 
-        userService.signUp(testUser2, inviteCode)
+        // Sign up first user with invite code
+        userService.signUp(testUser, inviteCode)
+        val user1 = findUserByLogin(testUser.login)!!
+        val nextInviteCode = userService.generateInviteCode(user1.id)
+
+        userService.signUp(testUser2, nextInviteCode)
         val user2 = findUserByLogin(testUser2.login)!!
         return user1.id to user2.id
     }
@@ -1226,15 +1231,21 @@ class PostServiceTests : UnitTestBase() {
     @Suppress("SameParameterValue")
     private fun signUsersUp(count: Int): List<Pair<UUID, String>> {
         val users = mutableListOf<Pair<UUID, String>>()
-        userService.signUp(testUser, "")
+
+        // Get or create system user to generate invite codes
+        val systemUserId = userService.getOrCreateSystemUser()
+        val inviteCode = userService.generateInviteCode(systemUserId)
+
+        // Sign up first user with invite code
+        userService.signUp(testUser, inviteCode)
         var userEntity = findUserByLogin(testUser.login)!!
         users.add(userEntity.id to testUser.login)
 
         var i = count - 1
         while (i > 0) {
-            val inviteCode = userService.generateInviteCode(userEntity.id)
+            val nextInviteCode = userService.generateInviteCode(userEntity.id)
             val randomUser = UserDto.Registration(login = UUID.randomUUID().toString(), email = "${UUID.randomUUID()}@mail.com", password = "123", nickname = UUID.randomUUID().toString(), language = Language.KK, timezone = "Asia/Qostanay")
-            userService.signUp(randomUser, inviteCode)
+            userService.signUp(randomUser, nextInviteCode)
             userEntity = findUserByLogin(randomUser.login)!!
             users.add(userEntity.id to randomUser.login)
             --i
