@@ -5,9 +5,11 @@ import fi.lipp.blog.data.UserDto
 import fi.lipp.blog.data.FileUploadData
 import java.util.UUID
 import fi.lipp.blog.domain.DiaryEntity
+import fi.lipp.blog.domain.PendingRegistrationEntity
 import fi.lipp.blog.domain.UserEntity
 import fi.lipp.blog.domain.Notifications
 import fi.lipp.blog.repository.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import fi.lipp.blog.service.*
 import fi.lipp.blog.service.implementations.AccessGroupServiceImpl
 import fi.lipp.blog.service.implementations.DialogServiceImpl
@@ -76,6 +78,7 @@ abstract class UnitTestBase {
                     CustomGroupUsers,
                     InviteCodes,
                     PasswordResets,
+                    PendingRegistrations,
                     Posts,
                     PostTags,
                     Comments,
@@ -276,11 +279,36 @@ abstract class UnitTestBase {
 
         // Sign up first user with invite code
         userService.signUp(testUser, inviteCode)
+
+        // Get confirmation code for first user
+        val pendingRegistration1 = transaction {
+            PendingRegistrationEntity.find { 
+                (PendingRegistrations.email eq testUser.email)
+            }.first()
+        }
+        val confirmationCode1 = pendingRegistration1.id.value.toString()
+
+        // Confirm registration for first user
+        userService.confirmRegistration(confirmationCode1)
         val user1 = findUserByLogin(testUser.login)!!
+
         val nextInviteCode = userService.generateInviteCode(user1.id)
 
+        // Sign up second user with invite code
         userService.signUp(testUser2, nextInviteCode)
+
+        // Get confirmation code for second user
+        val pendingRegistration2 = transaction {
+            PendingRegistrationEntity.find { 
+                (PendingRegistrations.email eq testUser2.email)
+            }.first()
+        }
+        val confirmationCode2 = pendingRegistration2.id.value.toString()
+
+        // Confirm registration for second user
+        userService.confirmRegistration(confirmationCode2)
         val user2 = findUserByLogin(testUser2.login)!!
+
         return user1.id to user2.id
     }
 
@@ -294,6 +322,17 @@ abstract class UnitTestBase {
 
         // Sign up first user with invite code
         userService.signUp(testUser, inviteCode)
+
+        // Get confirmation code for first user
+        val pendingRegistration1 = transaction {
+            PendingRegistrationEntity.find { 
+                (PendingRegistrations.email eq testUser.email)
+            }.first()
+        }
+        val confirmationCode1 = pendingRegistration1.id.value.toString()
+
+        // Confirm registration for first user
+        userService.confirmRegistration(confirmationCode1)
         var userEntity = findUserByLogin(testUser.login)!!
         users.add(userEntity.id to testUser.login)
 
@@ -302,6 +341,17 @@ abstract class UnitTestBase {
             val nextInviteCode = userService.generateInviteCode(userEntity.id)
             val randomUser = UserDto.Registration(login = UUID.randomUUID().toString(), email = "${UUID.randomUUID()}@mail.com", password = "123", nickname = UUID.randomUUID().toString(), language = Language.KK, timezone = "Asia/Qostanay")
             userService.signUp(randomUser, nextInviteCode)
+
+            // Get confirmation code for random user
+            val pendingRegistration = transaction {
+                PendingRegistrationEntity.find { 
+                    (PendingRegistrations.email eq randomUser.email)
+                }.first()
+            }
+            val confirmationCode = pendingRegistration.id.value.toString()
+
+            // Confirm registration for random user
+            userService.confirmRegistration(confirmationCode)
             userEntity = findUserByLogin(randomUser.login)!!
             users.add(userEntity.id to randomUser.login)
             --i

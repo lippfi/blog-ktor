@@ -6,7 +6,9 @@ import fi.lipp.blog.data.Language
 import fi.lipp.blog.data.UserDto
 import fi.lipp.blog.domain.FriendLabelEntity
 import fi.lipp.blog.domain.PasswordResetCodeEntity
+import fi.lipp.blog.domain.PendingRegistrationEntity
 import fi.lipp.blog.domain.UserEntity
+import fi.lipp.blog.model.exceptions.ConfirmationCodeInvalidOrExpiredException
 import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.repository.*
 import fi.lipp.blog.stubs.ApplicationPropertiesStub
@@ -85,7 +87,7 @@ class UserServiceTests : UnitTestBase() {
     }
 
     @Test
-    fun `successful registration`() {
+    fun `successful registration creates pending registration`() {
         transaction {
             // Get system user to generate invite code
             val systemUserId = userService.getOrCreateSystemUser()
@@ -94,8 +96,71 @@ class UserServiceTests : UnitTestBase() {
             var foundUser = findUserByLogin(testUser.login)
             assertNull(foundUser)
 
+            // Verify email was sent
+            val emailCaptor = argumentCaptor<String>()
+            val subjectCaptor = argumentCaptor<String>()
+            val recipientCaptor = argumentCaptor<String>()
+
             userService.signUp(testUser, inviteCode)
+
+            // Verify user is not created yet
             foundUser = findUserByLogin(testUser.login)
+            assertNull(foundUser)
+
+            // Verify pending registration exists
+            val pendingRegistration = transaction {
+                PendingRegistrationEntity.find { 
+                    (PendingRegistrations.email eq testUser.email) or
+                    (PendingRegistrations.login eq testUser.login) or
+                    (PendingRegistrations.nickname eq testUser.nickname)
+                }.firstOrNull()
+            }
+
+            assertNotNull(pendingRegistration)
+            assertEquals(testUser.email, pendingRegistration!!.email)
+            assertEquals(testUser.login, pendingRegistration.login)
+            assertEquals(testUser.nickname, pendingRegistration.nickname)
+            assertTrue(encoder.matches(testUser.password, pendingRegistration.password))
+
+            // Verify email was sent
+            verify(mailService).sendEmail(
+                subjectCaptor.capture(),
+                emailCaptor.capture(),
+                recipientCaptor.capture()
+            )
+
+            assertEquals("Confirm Your Registration", subjectCaptor.lastValue)
+            assertTrue(emailCaptor.lastValue.contains("Confirmation code"))
+            assertEquals(testUser.email, recipientCaptor.lastValue)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `confirm registration creates user`() {
+        transaction {
+            // Get system user to generate invite code
+            val systemUserId = userService.getOrCreateSystemUser()
+            val inviteCode = userService.generateInviteCode(systemUserId)
+
+            // Create pending registration
+            userService.signUp(testUser, inviteCode)
+
+            // Get confirmation code
+            val pendingRegistration = transaction {
+                PendingRegistrationEntity.find { 
+                    (PendingRegistrations.email eq testUser.email)
+                }.first()
+            }
+
+            val confirmationCode = pendingRegistration.id.value.toString()
+
+            // Confirm registration
+            val token = userService.confirmRegistration(confirmationCode)
+
+            // Verify user is created
+            val foundUser = findUserByLogin(testUser.login)
             assertNotNull(foundUser)
 
             assertEquals(testUser.login, foundUser.login)
@@ -103,6 +168,49 @@ class UserServiceTests : UnitTestBase() {
             assertEquals(testUser.nickname, foundUser.nickname)
             assertTrue(encoder.matches(testUser.password, foundUser.password))
             assertNow(foundUser.registrationTime)
+
+            // Verify pending registration is deleted
+            val pendingRegistrationAfterConfirmation = transaction {
+                PendingRegistrationEntity.find { 
+                    (PendingRegistrations.email eq testUser.email)
+                }.firstOrNull()
+            }
+
+            assertNull(pendingRegistrationAfterConfirmation)
+
+            // Verify token is returned
+            assertNotNull(token)
+            assertTrue(token.isNotEmpty())
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `confirm registration with invalid code throws exception`() {
+        transaction {
+            assertThrows(ConfirmationCodeInvalidOrExpiredException::class.java) {
+                userService.confirmRegistration("invalid-code")
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `pending registration reserves email login and nickname`() {
+        transaction {
+            // Get system user to generate invite code
+            val systemUserId = userService.getOrCreateSystemUser()
+            val inviteCode = userService.generateInviteCode(systemUserId)
+
+            // Create pending registration
+            userService.signUp(testUser, inviteCode)
+
+            // Verify email, login, and nickname are reserved
+            assertTrue(userService.isEmailBusy(testUser.email))
+            assertTrue(userService.isLoginBusy(testUser.login))
+            assertTrue(userService.isNicknameBusy(testUser.nickname))
 
             rollback()
         }
@@ -115,11 +223,23 @@ class UserServiceTests : UnitTestBase() {
             val systemUserId = userService.getOrCreateSystemUser()
             val inviteCode = userService.generateInviteCode(systemUserId)
 
-            var foundUser = findUserByLogin(testUser.login)
-            assertNull(foundUser)
-
+            // Create pending registration
             userService.signUp(testUser, inviteCode)
-            foundUser = findUserByLogin(testUser.login)
+
+            // Get confirmation code
+            val pendingRegistration = transaction {
+                PendingRegistrationEntity.find { 
+                    (PendingRegistrations.email eq testUser.email)
+                }.first()
+            }
+
+            val confirmationCode = pendingRegistration.id.value.toString()
+
+            // Confirm registration
+            userService.confirmRegistration(confirmationCode)
+
+            // Verify user is created
+            val foundUser = findUserByLogin(testUser.login)
             assertNotNull(foundUser)
 
             val nextInviteCode = userService.generateInviteCode(foundUser.id)
@@ -141,11 +261,23 @@ class UserServiceTests : UnitTestBase() {
             val systemUserId = userService.getOrCreateSystemUser()
             val inviteCode = userService.generateInviteCode(systemUserId)
 
-            var foundUser = findUserByLogin(testUser.login)
-            assertNull(foundUser)
-
+            // Create pending registration
             userService.signUp(testUser, inviteCode)
-            foundUser = findUserByLogin(testUser.login)
+
+            // Get confirmation code
+            val pendingRegistration = transaction {
+                PendingRegistrationEntity.find { 
+                    (PendingRegistrations.email eq testUser.email)
+                }.first()
+            }
+
+            val confirmationCode = pendingRegistration.id.value.toString()
+
+            // Confirm registration
+            userService.confirmRegistration(confirmationCode)
+
+            // Verify user is created
+            val foundUser = findUserByLogin(testUser.login)
             assertNotNull(foundUser)
 
             val nextInviteCode = userService.generateInviteCode(foundUser.id)
@@ -170,7 +302,20 @@ class UserServiceTests : UnitTestBase() {
             var foundUser = findUserByLogin(testUser.login)
             assertNull(foundUser)
 
+            // Create pending registration
             userService.signUp(testUser, inviteCode)
+
+            // Get confirmation code
+            val pendingRegistration = transaction {
+                PendingRegistrationEntity.find { 
+                    (PendingRegistrations.email eq testUser.email)
+                }.first()
+            }
+            val confirmationCode = pendingRegistration.id.value.toString()
+
+            // Confirm registration
+            userService.confirmRegistration(confirmationCode)
+
             foundUser = findUserByLogin(testUser.login)
             assertNotNull(foundUser)
 
@@ -193,7 +338,20 @@ class UserServiceTests : UnitTestBase() {
             val systemUserId = userService.getOrCreateSystemUser()
             val inviteCode = userService.generateInviteCode(systemUserId)
 
+            // Create pending registration
             userService.signUp(testUser, inviteCode)
+
+            // Get confirmation code
+            val pendingRegistration = transaction {
+                PendingRegistrationEntity.find { 
+                    (PendingRegistrations.email eq testUser.email)
+                }.first()
+            }
+            val confirmationCode = pendingRegistration.id.value.toString()
+
+            // Confirm registration
+            userService.confirmRegistration(confirmationCode)
+
             userService.signIn(UserDto.Login(testUser.login, testUser.password))
             rollback()
         }
@@ -206,7 +364,20 @@ class UserServiceTests : UnitTestBase() {
             val systemUserId = userService.getOrCreateSystemUser()
             val inviteCode = userService.generateInviteCode(systemUserId)
 
+            // Create pending registration
             userService.signUp(testUser, inviteCode)
+
+            // Get confirmation code
+            val pendingRegistration = transaction {
+                PendingRegistrationEntity.find { 
+                    (PendingRegistrations.email eq testUser.email)
+                }.first()
+            }
+            val confirmationCode = pendingRegistration.id.value.toString()
+
+            // Confirm registration
+            userService.confirmRegistration(confirmationCode)
+
             assertThrows(WrongPasswordException::class.java) {
                 userService.signIn(UserDto.Login(testUser.login, "wrong" + testUser.password))
             }
@@ -221,7 +392,20 @@ class UserServiceTests : UnitTestBase() {
             val systemUserId = userService.getOrCreateSystemUser()
             val inviteCode = userService.generateInviteCode(systemUserId)
 
+            // Create pending registration
             userService.signUp(testUser, inviteCode)
+
+            // Get confirmation code
+            val pendingRegistration = transaction {
+                PendingRegistrationEntity.find { 
+                    (PendingRegistrations.email eq testUser.email)
+                }.first()
+            }
+            val confirmationCode = pendingRegistration.id.value.toString()
+
+            // Confirm registration
+            userService.confirmRegistration(confirmationCode)
+
             assertThrows(UserNotFoundException::class.java) {
                 userService.signIn(UserDto.Login("unknown" + testUser.login, testUser.password))
             }
@@ -236,15 +420,27 @@ class UserServiceTests : UnitTestBase() {
             val systemUserId = userService.getOrCreateSystemUser()
             val inviteCode = userService.generateInviteCode(systemUserId)
 
+            // Create pending registration
             userService.signUp(testUser, inviteCode)
+
+            // Get confirmation code
+            val pendingRegistration = transaction {
+                PendingRegistrationEntity.find { 
+                    (PendingRegistrations.email eq testUser.email)
+                }.first()
+            }
+            val confirmationCode = pendingRegistration.id.value.toString()
+
+            // Confirm registration
+            userService.confirmRegistration(confirmationCode)
 
             val userEntity = findUserByLogin(testUser.login)!!
             val registrationTime = userEntity.registrationTime
             val newUser = UserDto.Registration(testUser.login, "new" + testUser.email, "new" + testUser.password, "new" + testUser.nickname, language = Language.EN, timezone = "Asia/Seoul")
             userService.update(userEntity.id, newUser, testUser.password)
 
-            val updatedUser = findUserByLogin(newUser.login)!!
-            assertEquals(newUser.login, updatedUser.login)
+            val updatedUser = findUserByLogin(testUser.login)!!
+            assertEquals(testUser.login, updatedUser.login)
             assertEquals(newUser.email, updatedUser.email)
             assertEquals(newUser.nickname, updatedUser.nickname)
             assertTrue(encoder.matches(newUser.password, updatedUser.password))
@@ -261,15 +457,27 @@ class UserServiceTests : UnitTestBase() {
             val systemUserId = userService.getOrCreateSystemUser()
             val inviteCode = userService.generateInviteCode(systemUserId)
 
+            // Create pending registration
             userService.signUp(testUser, inviteCode)
+
+            // Get confirmation code
+            val pendingRegistration = transaction {
+                PendingRegistrationEntity.find { 
+                    (PendingRegistrations.email eq testUser.email)
+                }.first()
+            }
+            val confirmationCode = pendingRegistration.id.value.toString()
+
+            // Confirm registration
+            userService.confirmRegistration(confirmationCode)
 
             val userEntity = findUserByLogin(testUser.login)!!
             val registrationTime = userEntity.registrationTime
             val newUser = UserDto.Registration(testUser.login, "new" + testUser.email, testUser.password, testUser.nickname, language = Language.EN, timezone = "Asia/Seoul")
             userService.update(userEntity.id, newUser, testUser.password)
 
-            val updatedUser = findUserByLogin(newUser.login)!!
-            assertEquals(newUser.login, updatedUser.login)
+            val updatedUser = findUserByLogin(testUser.login)!!
+            assertEquals(testUser.login, updatedUser.login)
             assertEquals(newUser.email, updatedUser.email)
             assertEquals(newUser.nickname, updatedUser.nickname)
             assertTrue(encoder.matches(newUser.password, updatedUser.password))
@@ -286,15 +494,27 @@ class UserServiceTests : UnitTestBase() {
             val systemUserId = userService.getOrCreateSystemUser()
             val inviteCode = userService.generateInviteCode(systemUserId)
 
+            // Create pending registration
             userService.signUp(testUser, inviteCode)
+
+            // Get confirmation code
+            val pendingRegistration = transaction {
+                PendingRegistrationEntity.find { 
+                    (PendingRegistrations.email eq testUser.email)
+                }.first()
+            }
+            val confirmationCode = pendingRegistration.id.value.toString()
+
+            // Confirm registration
+            userService.confirmRegistration(confirmationCode)
 
             val userEntity = findUserByLogin(testUser.login)!!
             val registrationTime = userEntity.registrationTime
             val newUser = UserDto.Registration(testUser.login, testUser.email, testUser.password, "new" + testUser.nickname, language = Language.EN, timezone = "Asia/Seoul")
             userService.update(userEntity.id, newUser, testUser.password)
 
-            val updatedUser = findUserByLogin(newUser.login)!!
-            assertEquals(newUser.login, updatedUser.login)
+            val updatedUser = findUserByLogin(testUser.login)!!
+            assertEquals(testUser.login, updatedUser.login)
             assertEquals(newUser.email, updatedUser.email)
             assertEquals(newUser.nickname, updatedUser.nickname)
             assertTrue(encoder.matches(newUser.password, updatedUser.password))
@@ -311,7 +531,19 @@ class UserServiceTests : UnitTestBase() {
             val systemUserId = userService.getOrCreateSystemUser()
             val inviteCode = userService.generateInviteCode(systemUserId)
 
+            // Create pending registration
             userService.signUp(testUser, inviteCode)
+
+            // Get confirmation code
+            val pendingRegistration = transaction {
+                PendingRegistrationEntity.find { 
+                    (PendingRegistrations.email eq testUser.email)
+                }.first()
+            }
+            val confirmationCode = pendingRegistration.id.value.toString()
+
+            // Confirm registration
+            userService.confirmRegistration(confirmationCode)
 
             val userEntity = findUserByLogin(testUser.login)!!
             val registrationTime = userEntity.registrationTime
@@ -320,7 +552,7 @@ class UserServiceTests : UnitTestBase() {
                 userService.update(userEntity.id, newUser, "wrong" + testUser.password)
             }
 
-            val updatedUser = findUserByLogin(newUser.login)!!
+            val updatedUser = findUserByLogin(testUser.login)!!
             assertEquals(testUser.login, updatedUser.login)
             assertEquals(testUser.email, updatedUser.email)
             assertEquals(testUser.nickname, updatedUser.nickname)
@@ -368,7 +600,20 @@ class UserServiceTests : UnitTestBase() {
             val systemUserId = userService.getOrCreateSystemUser()
             val inviteCode = userService.generateInviteCode(systemUserId)
 
+            // Create pending registration
             userService.signUp(testUser, inviteCode)
+
+            // Get confirmation code
+            val pendingRegistration = transaction {
+                PendingRegistrationEntity.find { 
+                    (PendingRegistrations.email eq testUser.email)
+                }.first()
+            }
+            val confirmationCode = pendingRegistration.id.value.toString()
+
+            // Confirm registration
+            userService.confirmRegistration(confirmationCode)
+
             val foundUser = findUserByLogin(testUser.login)!!
             userService.sendPasswordResetEmail(foundUser.email)
 
@@ -744,7 +989,20 @@ class UserServiceTests : UnitTestBase() {
             val systemUserId = userService.getOrCreateSystemUser()
             val inviteCode = userService.generateInviteCode(systemUserId)
 
+            // Create pending registration
             userService.signUp(testUser, inviteCode)
+
+            // Get confirmation code
+            val pendingRegistration = transaction {
+                PendingRegistrationEntity.find { 
+                    (PendingRegistrations.email eq testUser.email)
+                }.first()
+            }
+            val confirmationCode = pendingRegistration.id.value.toString()
+
+            // Confirm registration
+            userService.confirmRegistration(confirmationCode)
+
             val userId1 = findUserByLogin(testUser.login)!!.id
 
             userService.addAvatar(userId1, listOf(avatarUpload1, avatarUpload2))
@@ -956,7 +1214,20 @@ class UserServiceTests : UnitTestBase() {
             val systemUserId = userService.getOrCreateSystemUser()
             val inviteCode = userService.generateInviteCode(systemUserId)
 
+            // Create pending registration
             userService.signUp(testUser, inviteCode)
+
+            // Get confirmation code
+            val pendingRegistration = transaction {
+                PendingRegistrationEntity.find { 
+                    (PendingRegistrations.email eq testUser.email)
+                }.first()
+            }
+            val confirmationCode = pendingRegistration.id.value.toString()
+
+            // Confirm registration
+            userService.confirmRegistration(confirmationCode)
+
             val userId1 = findUserByLogin(testUser.login)!!.id
 
             val request = FriendRequestDto.Create("nonexistent_user", "Let's be friends!", null)

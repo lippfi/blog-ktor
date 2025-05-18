@@ -8,8 +8,25 @@ import kotlin.jvm.Throws
 interface UserService {
     fun generateInviteCode(userId: UUID): String
 
+    /**
+     * First step of registration - creates a pending registration and sends confirmation email
+     * @throws InviteCodeRequiredException if invite code is required but not provided
+     * @throws InvalidInviteCodeException if provided invite code is invalid
+     * @throws EmailIsBusyException if email is already in use
+     * @throws LoginIsBusyException if login is already in use
+     * @throws NicknameIsBusyException if nickname is already in use
+     */
     @Throws(InviteCodeRequiredException::class, InvalidInviteCodeException::class, EmailIsBusyException::class, LoginIsBusyException::class, NicknameIsBusyException::class)
     fun signUp(user: UserDto.Registration, inviteCode: String)
+
+    /**
+     * Second step of registration - confirms email and creates a user
+     * @param confirmationCode the confirmation code sent to the user's email
+     * @return JWT token for the newly created user
+     * @throws ConfirmationCodeInvalidOrExpiredException if confirmation code is invalid or expired
+     */
+    @Throws(ConfirmationCodeInvalidOrExpiredException::class)
+    fun confirmRegistration(confirmationCode: String): String
 
     /**
      * @return JWT token
@@ -29,8 +46,19 @@ interface UserService {
     fun sendPasswordResetEmail(userIdentifier: String)
     fun performPasswordReset(resetCode: String, newPassword: String)
 
+    /**
+     * Check if email is already in use by a registered user
+     */
     fun isEmailBusy(email: String): Boolean
+
+    /**
+     * Check if login is already in use by a registered user
+     */
     fun isLoginBusy(login: String): Boolean
+
+    /**
+     * Check if nickname is already in use by a registered user
+     */
     fun isNicknameBusy(nickname: String): Boolean
 
     fun getAvatars(userId: UUID): List<BlogFile>

@@ -12,7 +12,6 @@ import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 
 // POOL
-// Multistep registration & email confirmation
 // Cascade delete and stuff
 // TODO API documentation
 // TODO Integration tests

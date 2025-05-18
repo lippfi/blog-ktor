@@ -5,6 +5,7 @@ import fi.lipp.blog.domain.*
 import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.plugins.createJwtToken
 import fi.lipp.blog.repository.*
+import java.util.UUID
 import fi.lipp.blog.service.*
 import kotlinx.datetime.toKotlinLocalDateTime
 import org.jetbrains.exposed.dao.id.EntityID
@@ -53,31 +54,95 @@ class UserServiceImpl(
             throw InvalidTimezoneException()
         }
 
+        // Check if email, login, or nickname is already in use by a registered user
         if (isEmailBusy(user.email)) throw EmailIsBusyException()
         if (isLoginBusy(user.login)) throw LoginIsBusyException()
         if (isNicknameBusy(user.nickname)) throw NicknameIsBusyException()
-        transaction {
-            val userId = Users.insertAndGetId {
+
+        // Create pending registration
+        val pendingRegistrationId = transaction {
+            PendingRegistrations.insertAndGetId {
                 it[email] = user.email
                 it[password] = encoder.encode(user.password)
+                it[login] = user.login
                 it[nickname] = user.nickname
-                it[Users.inviteCode] = inviteCodeEntity?.id
-
-                it[sex] = Sex.UNDEFINED
-                it[nsfw] = NSFWPolicy.HIDE
+                it[PendingRegistrations.inviteCode] = inviteCodeEntity?.id
                 it[timezone] = timezoneParsed.id
                 it[language] = user.language
             }
+        }
+
+        // Send confirmation email
+        mailService.sendEmail(
+            subject = "Confirm Your Registration",
+            text = """
+                Thank you for registering! Please confirm your email address by clicking the link below:
+
+                Confirmation code: $pendingRegistrationId
+
+                This confirmation is valid for 24 hours. After that, you'll need to register again.
+
+                If you did not register on our site, please ignore this email.
+            """.trimIndent(),
+            recipient = user.email
+        )
+    }
+
+    @Throws(ConfirmationCodeInvalidOrExpiredException::class)
+    override fun confirmRegistration(confirmationCode: String): String {
+        val pendingRegistration = transaction {
+            val uuid = try {
+                UUID.fromString(confirmationCode)
+            } catch (e: Exception) {
+                throw ConfirmationCodeInvalidOrExpiredException()
+            }
+
+            val pendingRegistration = PendingRegistrationEntity.findById(uuid)
+                ?.takeIf { it.isValid }
+                ?: throw ConfirmationCodeInvalidOrExpiredException()
+
+            pendingRegistration
+        }
+
+        // Create the user from the pending registration
+        val userId = transaction {
+            // Check again if email, login, or nickname is already in use by a registered user
+            // This is necessary in case someone registered with the same details
+            // after the pending registration was created but before it was confirmed
+            if (getUserByEmail(pendingRegistration.email) != null) throw EmailIsBusyException()
+            if (getDiaryByLogin(pendingRegistration.login) != null) throw LoginIsBusyException()
+            if (getUserByNickname(pendingRegistration.nickname) != null) throw NicknameIsBusyException()
+
+            val userId = Users.insertAndGetId {
+                it[email] = pendingRegistration.email
+                it[password] = pendingRegistration.password // Already encoded
+                it[nickname] = pendingRegistration.nickname
+                it[inviteCode] = pendingRegistration.inviteCode
+
+                it[sex] = Sex.UNDEFINED
+                it[nsfw] = NSFWPolicy.HIDE
+                it[timezone] = pendingRegistration.timezone
+                it[language] = pendingRegistration.language
+            }
+
             Diaries.insert {
                 it[name] = "Unnamed blog"
                 it[subtitle] = ""
-                it[login] = user.login
+                it[login] = pendingRegistration.login
                 it[owner] = userId
                 it[type] = DiaryType.PERSONAL
                 it[defaultReadGroup] = accessGroupService.everyoneGroupUUID
                 it[defaultCommentGroup] = accessGroupService.registeredGroupUUID
             }
+
+            // Delete the pending registration
+            pendingRegistration.delete()
+
+            userId.value
         }
+
+        // Return JWT token for the new user
+        return createJwtToken(userId)
     }
 
     override fun signIn(user: UserDto.Login): String {
@@ -209,9 +274,37 @@ class UserServiceImpl(
         )
     }
 
-    override fun isEmailBusy(email: String): Boolean = getUserByEmail(email) != null
-    override fun isLoginBusy(login: String): Boolean = getDiaryByLogin(login) != null
-    override fun isNicknameBusy(nickname: String): Boolean = getUserByNickname(nickname) != null
+    override fun isEmailBusy(email: String): Boolean = getUserByEmail(email) != null || isEmailReserved(email)
+    override fun isLoginBusy(login: String): Boolean = getDiaryByLogin(login) != null || isLoginReserved(login)
+    override fun isNicknameBusy(nickname: String): Boolean = getUserByNickname(nickname) != null || isNicknameReserved(nickname)
+
+    private fun isEmailReserved(email: String): Boolean = getPendingRegistrationByEmail(email) != null
+    private fun isLoginReserved(login: String): Boolean = getPendingRegistrationByLogin(login) != null
+    private fun isNicknameReserved(nickname: String): Boolean = getPendingRegistrationByNickname(nickname) != null
+
+    private fun getPendingRegistrationByEmail(email: String): PendingRegistrationEntity? {
+        return transaction { 
+            PendingRegistrationEntity.find { PendingRegistrations.email eq email }
+                .filter { it.isValid }
+                .firstOrNull() 
+        }
+    }
+
+    private fun getPendingRegistrationByLogin(login: String): PendingRegistrationEntity? {
+        return transaction { 
+            PendingRegistrationEntity.find { PendingRegistrations.login eq login }
+                .filter { it.isValid }
+                .firstOrNull() 
+        }
+    }
+
+    private fun getPendingRegistrationByNickname(nickname: String): PendingRegistrationEntity? {
+        return transaction { 
+            PendingRegistrationEntity.find { PendingRegistrations.nickname eq nickname }
+                .filter { it.isValid }
+                .firstOrNull() 
+        }
+    }
 
     private fun getUserByEmail(email: String): UserEntity? {
         return transaction { UserEntity.find { Users.email eq email }.firstOrNull() }
@@ -746,9 +839,36 @@ class UserServiceImpl(
             timezone = "Asia/Nicosia",
             language = Language.EN,
         )
-        signUp(systemUser, "")
 
-        return getUserByLogin(systemUser.login)!!.id.value
+        // Create the system user directly, bypassing the 2-step registration process
+        val timezoneParsed = kotlinx.datetime.TimeZone.of(systemUser.timezone)
+        val userId = transaction {
+            val userId = Users.insertAndGetId {
+                it[email] = systemUser.email
+                it[password] = encoder.encode(systemUser.password)
+                it[nickname] = systemUser.nickname
+                it[inviteCode] = null
+
+                it[sex] = Sex.UNDEFINED
+                it[nsfw] = NSFWPolicy.HIDE
+                it[timezone] = timezoneParsed.id
+                it[language] = systemUser.language
+            }
+
+            Diaries.insert {
+                it[name] = "Unnamed blog"
+                it[subtitle] = ""
+                it[login] = systemUser.login
+                it[owner] = userId
+                it[type] = DiaryType.PERSONAL
+                it[defaultReadGroup] = accessGroupService.everyoneGroupUUID
+                it[defaultCommentGroup] = accessGroupService.registeredGroupUUID
+            }
+
+            userId.value
+        }
+
+        return userId
     }
 
     override fun getUserLanguage(userId: UUID): Language? {

@@ -23,7 +23,13 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService)
             val user = call.receive<UserDto.Registration>()
             val inviteCode = call.request.queryParameters["invite-code"] ?: ""
             userService.signUp(user, inviteCode)
-            call.respondText("User signed up successfully")
+            call.respondText("Registration initiated. Please check your email to confirm your account.")
+        }
+
+        post("/confirm-registration") {
+            val confirmationCode = call.request.queryParameters["code"] ?: ""
+            val token = userService.confirmRegistration(confirmationCode)
+            call.respondText(token)
         }
 
         post("/sign-in") {
@@ -45,8 +51,8 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService)
         }
 
         get("/is-nickname-busy") {
-            val email = call.request.queryParameters["nickname"] ?: ""
-            val isBusy = userService.isEmailBusy(email)
+            val nickname = call.request.queryParameters["nickname"] ?: ""
+            val isBusy = userService.isNicknameBusy(nickname)
             call.respondText(isBusy.toString())
         }
 
