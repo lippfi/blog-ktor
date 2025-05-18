@@ -1,3 +1,6 @@
 package fi.lipp.blog.model.exceptions
 
-class MessageUpdateException : RuntimeException("Message can only be updated if it is unread or was sent less than 30 minutes ago")
+class MessageUpdateException : BlogException(
+    messageKey = "message_cant_be_updated",
+    code = 500,
+)

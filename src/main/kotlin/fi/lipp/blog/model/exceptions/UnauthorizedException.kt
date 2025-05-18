@@ -1,3 +1,9 @@
 package fi.lipp.blog.model.exceptions
 
-class UnauthorizedException: BlogException("Unauthorized", 401)
+/**
+ * Exception thrown when a user attempts to access a resource without proper authorization.
+ */
+class UnauthorizedException: BlogException(
+    messageKey = "unauthorized",
+    code = 401
+)

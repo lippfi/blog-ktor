@@ -1,31 +1,49 @@
 package fi.lipp.blog.model.exceptions
 
+/**
+ * Exception thrown when a user tries to send a friend request that already exists.
+ */
 class FriendRequestAlreadyExistsException : BlogException(
-    "Friend request already exists",
-    409
+    messageKey = "friend_request_already_exists",
+    code = 409
 )
 
+/**
+ * Exception thrown when a user tries to send a friend request to someone who is already their friend.
+ */
 class AlreadyFriendsException : BlogException(
-    "Users are already friends",
-    409
+    messageKey = "already_friends",
+    code = 409
 )
 
+/**
+ * Exception thrown when a friend request is not found.
+ */
 class FriendRequestNotFoundException : BlogException(
-    "Friend request not found",
-    404
+    messageKey = "friend_request_not_found",
+    code = 404
 )
 
+/**
+ * Exception thrown when a user tries to accept or decline a friend request they did not receive.
+ */
 class NotRequestRecipientException : BlogException(
-    "User is not the recipient of this friend request",
-    403
+    messageKey = "not_request_recipient",
+    code = 403
 )
 
+/**
+ * Exception thrown when a user tries to perform an action that requires friendship with another user.
+ */
 class NotFriendsException : BlogException(
-    "Users are not friends",
-    404
+    messageKey = "not_friends",
+    code = 404
 )
 
+/**
+ * Exception thrown when a user tries to cancel a friend request they did not send.
+ */
 class NotRequestSenderException : BlogException(
-    "User is not the sender of this friend request",
-    403
+    messageKey = "not_request_sender",
+    code = 403
 )

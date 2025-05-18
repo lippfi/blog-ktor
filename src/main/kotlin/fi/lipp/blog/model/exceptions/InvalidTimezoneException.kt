@@ -1,3 +1,9 @@
 package fi.lipp.blog.model.exceptions
 
-class InvalidTimezoneException : BlogException("Invalid timezone", 400)
+/**
+ * Exception thrown when an invalid timezone is specified.
+ */
+class InvalidTimezoneException : BlogException(
+    messageKey = "invalid_timezone",
+    code = 400
+)

@@ -1,3 +1,9 @@
 package fi.lipp.blog.model.exceptions
 
-class WrongUserException : BlogException("User not found", 404)
+/**
+ * Exception thrown when an operation is attempted with the wrong user.
+ */
+class WrongUserException : BlogException(
+    messageKey = "wrong_user",
+    code = 404
+)

@@ -1,3 +1,9 @@
 package fi.lipp.blog.model.exceptions
 
-class CommentNotFoundException : BlogException("Comment not found", 404)
+/**
+ * Exception thrown when a comment is not found.
+ */
+class CommentNotFoundException : BlogException(
+    messageKey = "comment_not_found",
+    code = 404
+)

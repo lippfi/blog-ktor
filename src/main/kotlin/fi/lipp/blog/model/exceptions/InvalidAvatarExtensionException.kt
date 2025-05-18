@@ -1,3 +1,9 @@
 package fi.lipp.blog.model.exceptions
 
-class InvalidAvatarExtensionException : BlogException("Invalid avatar file extension", 400)
+/**
+ * Exception thrown when an avatar with an invalid file extension is uploaded.
+ */
+class InvalidAvatarExtensionException : BlogException(
+    messageKey = "invalid_avatar_extension",
+    code = 400
+)

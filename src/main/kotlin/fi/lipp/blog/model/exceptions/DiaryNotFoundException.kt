@@ -1,3 +1,9 @@
 package fi.lipp.blog.model.exceptions
 
-class DiaryNotFoundException : BlogException("Diary not found", 404)
+/**
+ * Exception thrown when a diary is not found.
+ */
+class DiaryNotFoundException : BlogException(
+    messageKey = "diary_not_found",
+    code = 409
+)

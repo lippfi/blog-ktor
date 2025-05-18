@@ -1,3 +1,9 @@
 package fi.lipp.blog.model.exceptions
 
-class AlreadyFollowingException : BlogException("Already following this user", 400)
+/**
+ * Exception thrown when a user tries to follow another user they are already following.
+ */
+class AlreadyFollowingException : BlogException(
+    messageKey = "already_following",
+    code = 400
+)

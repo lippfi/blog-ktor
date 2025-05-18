@@ -1,3 +1,9 @@
 package fi.lipp.blog.model.exceptions
 
-class AvatarNotFoundException: BlogException("Avatar not found", 404)
+/**
+ * Exception thrown when an avatar is not found.
+ */
+class AvatarNotFoundException: BlogException(
+    messageKey = "avatar_not_found",
+    code = 404
+)

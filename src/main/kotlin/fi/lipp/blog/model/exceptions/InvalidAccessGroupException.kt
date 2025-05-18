@@ -1,3 +1,9 @@
 package fi.lipp.blog.model.exceptions
 
-class InvalidAccessGroupException : BlogException("Invalid access group", 403)
+/**
+ * Exception thrown when an invalid access group is specified.
+ */
+class InvalidAccessGroupException : BlogException(
+    messageKey = "invalid_access_group",
+    code = 403
+)

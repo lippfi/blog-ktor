@@ -1,3 +1,9 @@
 package fi.lipp.blog.model.exceptions
 
-class InvalidAvatarDimensionsException : BlogException("Avatar dimensions must be 100x100 pixels", 400)
+/**
+ * Exception thrown when an avatar with invalid dimensions is uploaded.
+ */
+class InvalidAvatarDimensionsException : BlogException(
+    messageKey = "invalid_avatar_dimensions",
+    code = 400
+)

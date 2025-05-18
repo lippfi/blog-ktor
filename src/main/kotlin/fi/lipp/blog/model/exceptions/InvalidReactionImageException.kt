@@ -1,3 +1,6 @@
 package fi.lipp.blog.model.exceptions
 
-class InvalidReactionImageException : Exception("Invalid reaction image file extension. Only .jpg, .jpeg, .png, and .gif are allowed.")
+class InvalidReactionImageException : BlogException(
+    messageKey = "invalid_reaction_image",
+    code = 400,
+)

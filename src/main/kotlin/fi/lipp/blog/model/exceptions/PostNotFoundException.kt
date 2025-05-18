@@ -1,3 +1,9 @@
 package fi.lipp.blog.model.exceptions
 
-class PostNotFoundException : BlogException("Post not found", 404)
+/**
+ * Exception thrown when a post is not found.
+ */
+class PostNotFoundException : BlogException(
+    messageKey = "post_not_found",
+    code = 404
+)

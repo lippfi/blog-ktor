@@ -1,3 +1,9 @@
 package fi.lipp.blog.model.exceptions
 
-class WrongPasswordException : BlogException("Wrong password", 401)
+/**
+ * Exception thrown when a user provides an incorrect password.
+ */
+class WrongPasswordException : BlogException(
+    messageKey = "wrong_password",
+    code = 401
+)

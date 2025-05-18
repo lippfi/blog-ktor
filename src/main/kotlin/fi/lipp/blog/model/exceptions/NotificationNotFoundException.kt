@@ -1,3 +1,6 @@
 package fi.lipp.blog.model.exceptions
 
-class NotificationNotFoundException : Exception("Notification not found")
+class NotificationNotFoundException : BlogException(
+    messageKey = "notification_not_found",
+    code = 404,
+)

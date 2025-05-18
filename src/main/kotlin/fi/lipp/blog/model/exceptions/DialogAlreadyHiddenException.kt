@@ -1,3 +1,6 @@
 package fi.lipp.blog.model.exceptions
 
-class DialogAlreadyHiddenException : RuntimeException("Dialog is already hidden for this user")
+class DialogAlreadyHiddenException : BlogException(
+    messageKey = "dialog_already_hidden",
+    code = 409
+)

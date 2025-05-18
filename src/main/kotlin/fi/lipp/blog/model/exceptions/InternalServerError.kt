@@ -1,3 +1,9 @@
 package fi.lipp.blog.model.exceptions
 
-class InternalServerError: BlogException("Internal server error", 500)
+/**
+ * Exception thrown when an unexpected internal server error occurs.
+ */
+class InternalServerError: BlogException(
+    messageKey = "internal_server_error",
+    code = 500
+)

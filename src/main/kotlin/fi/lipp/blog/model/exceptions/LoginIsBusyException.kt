@@ -1,3 +1,9 @@
 package fi.lipp.blog.model.exceptions
 
-class LoginIsBusyException : BlogException("Login is already taken", 409)
+/**
+ * Exception thrown when a user tries to register with a login that is already in use.
+ */
+class LoginIsBusyException : BlogException(
+    messageKey = "login_is_busy",
+    code = 409
+)
