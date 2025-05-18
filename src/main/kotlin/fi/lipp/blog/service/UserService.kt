@@ -145,4 +145,12 @@ interface UserService {
      * @return ID of the system user
      */
     fun getOrCreateSystemUser(): UUID
+
+    /**
+     * Get the language preference for a user.
+     * 
+     * @param userId The ID of the user
+     * @return The user's language preference, or null if the user doesn't exist
+     */
+    fun getUserLanguage(userId: UUID): Language?
 }

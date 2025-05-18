@@ -750,4 +750,10 @@ class UserServiceImpl(
 
         return getUserByLogin(systemUser.login)!!.id.value
     }
+
+    override fun getUserLanguage(userId: UUID): Language? {
+        return transaction {
+            UserEntity.findById(userId)?.language
+        }
+    }
 }

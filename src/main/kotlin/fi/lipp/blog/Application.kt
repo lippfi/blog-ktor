@@ -12,19 +12,18 @@ import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 
 // POOL
+// Multistep registration & email confirmation
 // Cascade delete and stuff
 // TODO API documentation
 // TODO Integration tests
 // TODO Cors
 
 // POST-FRONTEND
-// Do I need reaction ids if names are unique?
-// Allow post owners to delete comments of other users
-// Friends access group
+// Settings
 // Communities
+// Allow post owners to delete comments of other users
 
 // THIRD ITERATION
-// Review and localize all exceptions
 // Caches
 // Custom website design css
 // Multiple diary styles (switch between them)
