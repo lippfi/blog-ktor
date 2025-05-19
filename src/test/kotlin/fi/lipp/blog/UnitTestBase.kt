@@ -79,6 +79,7 @@ abstract class UnitTestBase {
                     InviteCodes,
                     PasswordResets,
                     PendingRegistrations,
+                    PendingEmailChanges,
                     Posts,
                     PostTags,
                     Comments,

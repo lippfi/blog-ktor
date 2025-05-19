@@ -2,6 +2,7 @@ package fi.lipp.blog.service
 
 import fi.lipp.blog.data.*
 import fi.lipp.blog.model.exceptions.*
+import kotlinx.datetime.LocalDate
 import java.util.UUID
 import kotlin.jvm.Throws
 
@@ -34,11 +35,8 @@ interface UserService {
     @Throws(UserNotFoundException::class, WrongPasswordException::class)
     fun signIn(user: UserDto.Login): String
 
-    fun updateAdditionalInfo(userId: UUID, info: UserDto.AdditionalInfo)
 
     fun getUserInfo(login: String): UserDto.ProfileInfo
-
-    fun update(userId: UUID, user: UserDto.Registration, oldPassword: String)
 
     /**
      * @param userIdentifier is either login, email or nickname (any unique user identifier)
@@ -181,4 +179,29 @@ interface UserService {
      * @return The user's language preference, or null if the user doesn't exist
      */
     fun getUserLanguage(userId: UUID): Language?
+
+    fun update(userId: UUID, user: UserDto.Registration, oldPassword: String)
+    fun updateAdditionalInfo(userId: UUID, info: UserDto.AdditionalInfo)
+
+    /**
+     * First step of email update - creates a pending email change and sends confirmation email
+     * @throws EmailIsBusyException if email is already in use
+     */
+    @Throws(EmailIsBusyException::class)
+    fun updateEmail(userId: UUID, email: String)
+
+    /**
+     * Second step of email update - confirms email change
+     * @param confirmationCode the confirmation code sent to the user's email
+     * @throws ConfirmationCodeInvalidOrExpiredException if confirmation code is invalid or expired
+     */
+    @Throws(ConfirmationCodeInvalidOrExpiredException::class)
+    fun confirmEmailUpdate(confirmationCode: String)
+    fun updateNickname(userId: UUID, nickname: String)
+    fun updatePassword(userId: UUID, newPassword: String, oldPassword: String)
+    fun updateSex(userId: UUID, sex: Sex)
+    fun updateTimezone(userId: UUID, timezone: String)
+    fun updateLanguage(userId: UUID, language: Language)
+    fun updateNSFWPolicy(userId: UUID, nsfw: NSFWPolicy)
+    fun updateBirthDate(userId: UUID, birthDate: LocalDate)
 }

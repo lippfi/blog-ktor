@@ -3,10 +3,13 @@ package fi.lipp.blog
 import fi.lipp.blog.data.FileUploadData
 import fi.lipp.blog.data.FriendRequestDto
 import fi.lipp.blog.data.Language
+import fi.lipp.blog.data.NSFWPolicy
+import fi.lipp.blog.data.Sex
 import fi.lipp.blog.data.UserDto
 import fi.lipp.blog.domain.FriendLabelEntity
 import fi.lipp.blog.domain.PasswordResetCodeEntity
 import fi.lipp.blog.domain.PendingRegistrationEntity
+import fi.lipp.blog.domain.PendingEmailChangeEntity
 import fi.lipp.blog.domain.UserEntity
 import fi.lipp.blog.model.exceptions.ConfirmationCodeInvalidOrExpiredException
 import fi.lipp.blog.model.exceptions.*
@@ -24,6 +27,8 @@ import org.junit.BeforeClass
 import org.mockito.Mockito.verify
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
+import org.mockito.kotlin.whenever
+import org.mockito.kotlin.any
 import java.io.File
 import java.util.*
 import kotlin.test.*
@@ -451,7 +456,426 @@ class UserServiceTests : UnitTestBase() {
     }
 
     @Test
-    fun `updating only email`() {
+    fun `updating email creates pending change and sends confirmation email`() {
+        transaction {
+            // Get system user to generate invite code
+            val systemUserId = userService.getOrCreateSystemUser()
+            val inviteCode = userService.generateInviteCode(systemUserId)
+
+            // Create pending registration
+            userService.signUp(testUser, inviteCode)
+
+            // Get confirmation code
+            val pendingRegistration = transaction {
+                PendingRegistrationEntity.find { 
+                    (PendingRegistrations.email eq testUser.email)
+                }.first()
+            }
+            val confirmationCode = pendingRegistration.id.value.toString()
+
+            // Confirm registration
+            userService.confirmRegistration(confirmationCode)
+
+            // Request email update
+            val userEntity = findUserByLogin(testUser.login)!!
+            val originalEmail = userEntity.email
+            val newEmail = "new" + testUser.email
+
+            // Capture email service calls
+            val subjectCaptor = argumentCaptor<String>()
+            val textCaptor = argumentCaptor<String>()
+            val recipientCaptor = argumentCaptor<String>()
+
+            // Reset and setup mock
+            org.mockito.Mockito.reset(mailService)
+            org.mockito.Mockito.doNothing().`when`(mailService).sendEmail(subjectCaptor.capture(), textCaptor.capture(), recipientCaptor.capture())
+
+            userService.updateEmail(userEntity.id, newEmail)
+
+            // Verify email is not updated yet
+            val userAfterRequest = findUserByLogin(testUser.login)!!
+            assertEquals(originalEmail, userAfterRequest.email)
+
+            // Verify confirmation email was sent
+            verify(mailService).sendEmail(any(), any(), any())
+            assertEquals("Confirm Your Email Change", subjectCaptor.lastValue)
+            assertTrue(textCaptor.lastValue.contains("Confirmation code"))
+            assertEquals(newEmail, recipientCaptor.lastValue)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `confirm email update changes email`() {
+        transaction {
+            // Get system user to generate invite code
+            val systemUserId = userService.getOrCreateSystemUser()
+            val inviteCode = userService.generateInviteCode(systemUserId)
+
+            // Create pending registration
+            userService.signUp(testUser, inviteCode)
+
+            // Get confirmation code
+            val pendingRegistration = transaction {
+                PendingRegistrationEntity.find { 
+                    (PendingRegistrations.email eq testUser.email)
+                }.first()
+            }
+            val confirmationCode = pendingRegistration.id.value.toString()
+
+            // Confirm registration
+            userService.confirmRegistration(confirmationCode)
+
+            // Request email update
+            val userEntity = findUserByLogin(testUser.login)!!
+            val originalEmail = userEntity.email
+            val newEmail = "new" + testUser.email
+
+            // Capture email service calls
+            val subjectCaptor = argumentCaptor<String>()
+            val textCaptor = argumentCaptor<String>()
+            val recipientCaptor = argumentCaptor<String>()
+
+            // Reset and setup mock
+            org.mockito.Mockito.reset(mailService)
+            org.mockito.Mockito.doNothing().`when`(mailService).sendEmail(subjectCaptor.capture(), textCaptor.capture(), recipientCaptor.capture())
+
+            userService.updateEmail(userEntity.id, newEmail)
+
+            // Get the pending email change confirmation code
+            val pendingEmailChange = transaction {
+                PendingEmailChangeEntity.find { 
+                    PendingEmailChanges.user eq userEntity.id
+                }.first()
+            }
+
+            val emailChangeConfirmationCode = pendingEmailChange.id.value.toString()
+
+            // Reset captors for the confirmation email
+            org.mockito.Mockito.reset(mailService)
+            org.mockito.Mockito.doNothing().`when`(mailService).sendEmail(subjectCaptor.capture(), textCaptor.capture(), recipientCaptor.capture())
+
+            // Confirm email update
+            userService.confirmEmailUpdate(emailChangeConfirmationCode)
+
+            // Verify email is updated
+            val userAfterConfirmation = findUserByLogin(testUser.login)!!
+            assertEquals(newEmail, userAfterConfirmation.email)
+
+            // Verify notification email was sent to old address
+            verify(mailService).sendEmail(any(), any(), any())
+            assertEquals("Your Email Has Been Changed", subjectCaptor.lastValue)
+            assertTrue(textCaptor.lastValue.contains("has been successfully changed"))
+            assertEquals(originalEmail, recipientCaptor.lastValue)
+
+            // Verify pending email change is deleted
+            val pendingEmailChangeAfterConfirmation = transaction {
+                PendingEmailChangeEntity.find { 
+                    PendingEmailChanges.user eq userEntity.id
+                }.firstOrNull()
+            }
+
+            assertNull(pendingEmailChangeAfterConfirmation)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `confirm email update with invalid code throws exception`() {
+        transaction {
+            assertThrows(ConfirmationCodeInvalidOrExpiredException::class.java) {
+                userService.confirmEmailUpdate("invalid-code")
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `update nickname changes user nickname`() {
+        transaction {
+            // Create a user
+            val (userId, _) = signUsersUp()
+
+            // Get original nickname
+            val originalUser = findUserByLogin(testUser.login)!!
+            val originalNickname = originalUser.nickname
+
+            // Update nickname
+            val newNickname = "new_nickname"
+            userService.updateNickname(userId, newNickname)
+
+            // Verify nickname was updated
+            val updatedUser = findUserByLogin(testUser.login)!!
+            assertEquals(newNickname, updatedUser.nickname)
+            assertNotEquals(originalNickname, updatedUser.nickname)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `update nickname with busy nickname throws exception`() {
+        transaction {
+            // Create two users
+            val (userId1, userId2) = signUsersUp()
+
+            // Try to update first user's nickname to second user's nickname
+            assertThrows(NicknameIsBusyException::class.java) {
+                userService.updateNickname(userId1, testUser2.nickname)
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `update nickname with non-existent user throws exception`() {
+        transaction {
+            // Try to update non-existent user's nickname
+            val nonExistentUserId = UUID.randomUUID()
+            assertThrows(UserNotFoundException::class.java) {
+                userService.updateNickname(nonExistentUserId, "new_nickname")
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `update password changes user password`() {
+        transaction {
+            // Create a user
+            val (userId, _) = signUsersUp()
+
+            // Get original password
+            val originalUser = findUserByLogin(testUser.login)!!
+            val originalPassword = originalUser.password
+
+            // Update password
+            val newPassword = "new_password"
+            userService.updatePassword(userId, newPassword, testUser.password)
+
+            // Verify password was updated
+            val updatedUser = findUserByLogin(testUser.login)!!
+            assertNotEquals(originalPassword, updatedUser.password)
+            assertTrue(encoder.matches(newPassword, updatedUser.password))
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `update password with wrong old password throws exception`() {
+        transaction {
+            // Create a user
+            val (userId, _) = signUsersUp()
+
+            // Try to update password with wrong old password
+            assertThrows(WrongPasswordException::class.java) {
+                userService.updatePassword(userId, "new_password", "wrong_password")
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `update password with non-existent user throws exception`() {
+        transaction {
+            // Try to update non-existent user's password
+            val nonExistentUserId = UUID.randomUUID()
+            assertThrows(UserNotFoundException::class.java) {
+                userService.updatePassword(nonExistentUserId, "new_password", "old_password")
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `update sex changes user sex`() {
+        transaction {
+            // Create a user
+            val (userId, _) = signUsersUp()
+
+            // Update sex
+            userService.updateSex(userId, Sex.MALE)
+
+            // Verify sex was updated in the database
+            val userEntity = transaction {
+                UserEntity.findById(userId) ?: throw UserNotFoundException()
+            }
+            assertEquals(Sex.MALE, userEntity.sex)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `update sex with non-existent user throws exception`() {
+        transaction {
+            // Try to update non-existent user's sex
+            val nonExistentUserId = UUID.randomUUID()
+            assertThrows(UserNotFoundException::class.java) {
+                userService.updateSex(nonExistentUserId, Sex.MALE)
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `update timezone changes user timezone`() {
+        transaction {
+            // Create a user
+            val (userId, _) = signUsersUp()
+
+            // Update timezone
+            val newTimezone = "America/New_York"
+            userService.updateTimezone(userId, newTimezone)
+
+            // Verify timezone was updated in the database
+            val userEntity = transaction {
+                UserEntity.findById(userId) ?: throw UserNotFoundException()
+            }
+            assertEquals(newTimezone, userEntity.timezone)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `update timezone with invalid timezone throws exception`() {
+        transaction {
+            // Create a user
+            val (userId, _) = signUsersUp()
+
+            // Try to update timezone with invalid timezone
+            assertThrows(InvalidTimezoneException::class.java) {
+                userService.updateTimezone(userId, "Invalid/Timezone")
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `update timezone with non-existent user throws exception`() {
+        transaction {
+            // Try to update non-existent user's timezone
+            val nonExistentUserId = UUID.randomUUID()
+            assertThrows(UserNotFoundException::class.java) {
+                userService.updateTimezone(nonExistentUserId, "America/New_York")
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `update language changes user language`() {
+        transaction {
+            // Create a user
+            val (userId, _) = signUsersUp()
+
+            // Update language
+            val newLanguage = Language.RU
+            userService.updateLanguage(userId, newLanguage)
+
+            // Verify language was updated in the database
+            val userEntity = transaction {
+                UserEntity.findById(userId) ?: throw UserNotFoundException()
+            }
+            assertEquals(newLanguage, userEntity.language)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `update language with non-existent user throws exception`() {
+        transaction {
+            // Try to update non-existent user's language
+            val nonExistentUserId = UUID.randomUUID()
+            assertThrows(UserNotFoundException::class.java) {
+                userService.updateLanguage(nonExistentUserId, Language.RU)
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `update NSFW policy changes user NSFW policy`() {
+        transaction {
+            // Create a user
+            val (userId, _) = signUsersUp()
+
+            // Update NSFW policy
+            val newNSFWPolicy = NSFWPolicy.SHOW
+            userService.updateNSFWPolicy(userId, newNSFWPolicy)
+
+            // Verify NSFW policy was updated in the database
+            val userEntity = transaction {
+                UserEntity.findById(userId) ?: throw UserNotFoundException()
+            }
+            assertEquals(newNSFWPolicy, userEntity.nsfw)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `update NSFW policy with non-existent user throws exception`() {
+        transaction {
+            // Try to update non-existent user's NSFW policy
+            val nonExistentUserId = UUID.randomUUID()
+            assertThrows(UserNotFoundException::class.java) {
+                userService.updateNSFWPolicy(nonExistentUserId, NSFWPolicy.SHOW)
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `update birth date changes user birth date`() {
+        transaction {
+            // Create a user
+            val (userId, _) = signUsersUp()
+
+            // Update birth date
+            val newBirthDate = kotlinx.datetime.LocalDate(1990, 1, 1)
+            userService.updateBirthDate(userId, newBirthDate)
+
+            // Verify birth date was updated in the database
+            val userEntity = transaction {
+                UserEntity.findById(userId) ?: throw UserNotFoundException()
+            }
+            assertEquals(newBirthDate, userEntity.birthdate)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `update birth date with non-existent user throws exception`() {
+        transaction {
+            // Try to update non-existent user's birth date
+            val nonExistentUserId = UUID.randomUUID()
+            assertThrows(UserNotFoundException::class.java) {
+                userService.updateBirthDate(nonExistentUserId, kotlinx.datetime.LocalDate(1990, 1, 1))
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `updating only email with old method`() {
         transaction {
             // Get system user to generate invite code
             val systemUserId = userService.getOrCreateSystemUser()

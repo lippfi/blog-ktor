@@ -7,6 +7,7 @@ import fi.lipp.blog.plugins.createJwtToken
 import fi.lipp.blog.repository.*
 import java.util.UUID
 import fi.lipp.blog.service.*
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.toKotlinLocalDateTime
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.*
@@ -167,6 +168,147 @@ class UserServiceImpl(
                 timezone = timezoneParsed.id
                 language = info.language
                 birthdate = info.birthDate
+            }
+        }
+    }
+
+    override fun updateEmail(userId: UUID, email: String) {
+        transaction {
+            val userEntity = UserEntity.findById(userId) ?: throw UserNotFoundException()
+            if (userEntity.email != email && isEmailBusy(email)) throw EmailIsBusyException()
+
+            // Create pending email change
+            val pendingEmailChangeId = PendingEmailChanges.insertAndGetId {
+                it[user] = userEntity.id
+                it[newEmail] = email
+            }
+
+            // Send confirmation email
+            mailService.sendEmail(
+                subject = "Confirm Your Email Change",
+                text = """
+                    You have requested to change your email address. Please confirm this change by using the confirmation code below:
+
+                    Confirmation code: $pendingEmailChangeId
+
+                    This confirmation is valid for 24 hours. After that, you'll need to request the email change again.
+
+                    If you did not request this change, please ignore this email and ensure your account is secure.
+                """.trimIndent(),
+                recipient = email
+            )
+        }
+    }
+
+    override fun confirmEmailUpdate(confirmationCode: String) {
+        transaction {
+            val uuid = try {
+                UUID.fromString(confirmationCode)
+            } catch (e: Exception) {
+                throw ConfirmationCodeInvalidOrExpiredException()
+            }
+
+            val pendingEmailChange = PendingEmailChangeEntity.findById(uuid)
+                ?.takeIf { it.isValid }
+                ?: throw ConfirmationCodeInvalidOrExpiredException()
+
+            val userEntity = pendingEmailChange.user
+
+            // Check again if email is already in use
+            // This is necessary in case someone registered with the same email
+            // after the pending email change was created but before it was confirmed
+            if (userEntity.email != pendingEmailChange.newEmail && isEmailBusy(pendingEmailChange.newEmail)) {
+                throw EmailIsBusyException()
+            }
+
+            // Store old email for notification
+            val oldEmail = userEntity.email
+
+            // Update the user's email
+            userEntity.email = pendingEmailChange.newEmail
+
+            // Delete the pending email change
+            pendingEmailChange.delete()
+
+            // Send confirmation email to old address
+            mailService.sendEmail(
+                subject = "Your Email Has Been Changed",
+                text = """
+                    Your email address has been successfully changed to ${pendingEmailChange.newEmail}.
+
+                    If you did not request this change, please contact support immediately.
+                """.trimIndent(),
+                recipient = oldEmail
+            )
+        }
+    }
+
+    override fun updateNickname(userId: UUID, nickname: String) {
+        transaction {
+            val userEntity = UserEntity.findById(userId) ?: throw UserNotFoundException()
+            if (userEntity.nickname != nickname && isNicknameBusy(nickname)) throw NicknameIsBusyException()
+            userEntity.apply {
+                this.nickname = nickname
+            }
+        }
+    }
+
+    override fun updatePassword(userId: UUID, newPassword: String, oldPassword: String) {
+        transaction {
+            val userEntity = UserEntity.findById(userId) ?: throw UserNotFoundException()
+            if (!encoder.matches(oldPassword, userEntity.password)) throw WrongPasswordException()
+            userEntity.apply {
+                password = encoder.encode(newPassword)
+            }
+        }
+    }
+
+    override fun updateSex(userId: UUID, sex: Sex) {
+        transaction {
+            val userEntity = UserEntity.findById(userId) ?: throw UserNotFoundException()
+            userEntity.apply {
+                this.sex = sex
+            }
+        }
+    }
+
+    override fun updateTimezone(userId: UUID, timezone: String) {
+        val timezoneParsed = try {
+            kotlinx.datetime.TimeZone.of(timezone)
+        } catch (e: Exception) {
+            throw InvalidTimezoneException()
+        }
+        transaction {
+            val userEntity = UserEntity.findById(userId) ?: throw UserNotFoundException()
+            userEntity.apply {
+                this.timezone = timezoneParsed.id
+            }
+        }
+    }
+
+    override fun updateLanguage(userId: UUID, language: Language) {
+        transaction {
+            val userEntity = UserEntity.findById(userId) ?: throw UserNotFoundException()
+            userEntity.apply {
+                this.language = language
+            }
+        }
+    }
+
+    override fun updateNSFWPolicy(userId: UUID, nsfw: NSFWPolicy) {
+        transaction {
+            val userEntity = UserEntity.findById(userId) ?: throw UserNotFoundException()
+            userEntity.apply {
+                this.nsfw = nsfw
+            }
+        }
+    }
+
+    override fun updateBirthDate(userId: UUID, birthDate: LocalDate) {
+        transaction {
+            val userEntity = UserEntity.findById(userId) ?: throw UserNotFoundException()
+            userEntity.apply {
+                this.birthdate = birthDate
             }
         }
     }
