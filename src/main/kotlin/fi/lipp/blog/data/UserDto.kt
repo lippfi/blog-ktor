@@ -58,7 +58,9 @@ sealed interface UserDto {
         @Serializable(with = UUIDSerializer::class)
         val defaultReadGroup: UUID,
         @Serializable(with = UUIDSerializer::class)
-        val defaultCommentGroup: UUID
+        val defaultCommentGroup: UUID,
+        @Serializable(with = UUIDSerializer::class)
+        val defaultReactGroup: UUID,
     )
 
     @Serializable

@@ -133,6 +133,7 @@ class UserServiceImpl(
                 it[type] = DiaryType.PERSONAL
                 it[defaultReadGroup] = accessGroupService.everyoneGroupUUID
                 it[defaultCommentGroup] = accessGroupService.registeredGroupUUID
+                it[defaultReactGroup] = accessGroupService.friendsGroupUUID
             }
 
             NotificationSettingsEntity.new {
@@ -1012,6 +1013,7 @@ class UserServiceImpl(
                 it[type] = DiaryType.PERSONAL
                 it[defaultReadGroup] = accessGroupService.everyoneGroupUUID
                 it[defaultCommentGroup] = accessGroupService.registeredGroupUUID
+                it[defaultReactGroup] = accessGroupService.friendsGroupUUID
             }
 
             userId.value

@@ -11,13 +11,14 @@ class DiaryEntity(id: EntityID<UUID>) : UUIDEntity(id) {
 
     var name by Diaries.name
     var subtitle by Diaries.subtitle
-    
+
     var login: String by Diaries.login
     val creationTime by Diaries.creationTime
 
     val owner by Diaries.owner
     var style by Diaries.style
-    
+
     var defaultReadGroup by Diaries.defaultReadGroup
     var defaultCommentGroup by Diaries.defaultCommentGroup
+    var defaultReactGroup by Diaries.defaultReactGroup
 }

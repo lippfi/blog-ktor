@@ -26,17 +26,21 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
         transaction {
             val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
             if (diaryEntity.owner.value != userId) throw WrongUserException()
-            
+
+            // Check if the access groups exist and are associated with this diary or are global
             val readGroup = AccessGroupEntity.findById(info.defaultReadGroup) ?: throw InvalidAccessGroupException()
-            if (readGroup.diaryId != diaryEntity.id) throw InvalidAccessGroupException()
+            if (readGroup.diaryId != null && readGroup.diaryId != diaryEntity.id) throw InvalidAccessGroupException()
             val commentGroup = AccessGroupEntity.findById(info.defaultCommentGroup) ?: throw InvalidAccessGroupException()
-            if (commentGroup.diaryId != diaryEntity.id) throw InvalidAccessGroupException()
-            
+            if (commentGroup.diaryId != null && commentGroup.diaryId != diaryEntity.id) throw InvalidAccessGroupException()
+            val reactGroup = AccessGroupEntity.findById(info.defaultReactGroup) ?: throw InvalidAccessGroupException()
+            if (reactGroup.diaryId != null && reactGroup.diaryId != diaryEntity.id) throw InvalidAccessGroupException()
+
             diaryEntity.apply { 
                 name = info.name
                 subtitle = info.subtitle
                 defaultReadGroup = readGroup.id
                 defaultCommentGroup = commentGroup.id
+                defaultReactGroup = reactGroup.id
             }
         }
     }
@@ -61,6 +65,70 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
     override fun getDiaryStyleFile(diaryLogin: String): String? {
         val blogFile = getStyleFile(diaryLogin)
         return blogFile?.let { storageService.getFileURL(it) }
+    }
+
+    override fun updateDiaryName(userId: UUID, diaryLogin: String, name: String) {
+        transaction {
+            val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
+            if (diaryEntity.owner.value != userId) throw WrongUserException()
+
+            diaryEntity.apply {
+                this.name = name
+            }
+        }
+    }
+
+    override fun updateDiarySubtitle(userId: UUID, diaryLogin: String, subtitle: String) {
+        transaction {
+            val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
+            if (diaryEntity.owner.value != userId) throw WrongUserException()
+
+            diaryEntity.apply {
+                this.subtitle = subtitle
+            }
+        }
+    }
+
+    override fun updateDiaryDefaultReadGroup(userId: UUID, diaryLogin: String, groupId: UUID) {
+        transaction {
+            val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
+            if (diaryEntity.owner.value != userId) throw WrongUserException()
+
+            val readGroup = AccessGroupEntity.findById(groupId) ?: throw InvalidAccessGroupException()
+            if (readGroup.diaryId != null && readGroup.diaryId != diaryEntity.id) throw InvalidAccessGroupException()
+
+            diaryEntity.apply {
+                defaultReadGroup = readGroup.id
+            }
+        }
+    }
+
+    override fun updateDiaryDefaultCommentGroup(userId: UUID, diaryLogin: String, groupId: UUID) {
+        transaction {
+            val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
+            if (diaryEntity.owner.value != userId) throw WrongUserException()
+
+            val commentGroup = AccessGroupEntity.findById(groupId) ?: throw InvalidAccessGroupException()
+            if (commentGroup.diaryId != null && commentGroup.diaryId != diaryEntity.id) throw InvalidAccessGroupException()
+
+            diaryEntity.apply {
+                defaultCommentGroup = commentGroup.id
+            }
+        }
+    }
+
+    override fun updateDiaryDefaultReactGroup(userId: UUID, diaryLogin: String, groupId: UUID) {
+        transaction {
+            val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
+            if (diaryEntity.owner.value != userId) throw WrongUserException()
+
+            val reactGroup = AccessGroupEntity.findById(groupId) ?: throw InvalidAccessGroupException()
+            if (reactGroup.diaryId != null && reactGroup.diaryId != diaryEntity.id) throw InvalidAccessGroupException()
+
+            diaryEntity.apply {
+                defaultReactGroup = reactGroup.id
+            }
+        }
     }
 
     private fun getStyleFile(diaryLogin: String): BlogFile? {
