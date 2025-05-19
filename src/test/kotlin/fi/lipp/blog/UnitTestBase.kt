@@ -96,6 +96,7 @@ abstract class UnitTestBase {
                     HiddenDialogs,
                     UserFollows,
                     CommentReactions,
+                    NotificationSettings,
                 )
             }
             startKoin {

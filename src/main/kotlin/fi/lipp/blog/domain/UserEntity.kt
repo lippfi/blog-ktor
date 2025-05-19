@@ -26,13 +26,7 @@ class UserEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var language: Language by Users.language
     var birthdate: LocalDate? by Users.birthdate
 
-    // Notification settings
-    var notifyAboutComments: Boolean by Users.notifyAboutComments
-    var notifyAboutReplies: Boolean by Users.notifyAboutReplies
-    var notifyAboutPostReactions: Boolean by Users.notifyAboutPostReactions
-    var notifyAboutCommentReactions: Boolean by Users.notifyAboutCommentReactions
-    var notifyAboutPrivateMessages: Boolean by Users.notifyAboutPrivateMessages
-    var notifyAboutMentions: Boolean by Users.notifyAboutMentions
+    // Storage quota and avatar settings
     var storageQuota: StorageQuota by Users.storageQuota
     var primaryAvatar: EntityID<UUID>? by Users.primaryAvatar
 }

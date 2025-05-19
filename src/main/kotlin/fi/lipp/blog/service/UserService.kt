@@ -68,11 +68,6 @@ interface UserService {
     fun uploadAvatar(userId: UUID, avatarUri: String)
 
     /**
-     * Update user's notification settings
-     */
-    fun updateNotificationSettings(userId: UUID, settings: NotificationSettings)
-
-    /**
      * Send a friend request to another user
      * @throws UserNotFoundException if target user doesn't exist
      * @throws FriendRequestAlreadyExistsException if request already exists
@@ -204,4 +199,8 @@ interface UserService {
     fun updateLanguage(userId: UUID, language: Language)
     fun updateNSFWPolicy(userId: UUID, nsfw: NSFWPolicy)
     fun updateBirthDate(userId: UUID, birthDate: LocalDate)
+    /**
+     * Update user's notification settings
+     */
+    fun updateNotificationSettings(userId: UUID, settings: NotificationSettings)
 }

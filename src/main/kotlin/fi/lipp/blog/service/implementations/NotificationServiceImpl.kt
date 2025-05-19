@@ -15,6 +15,25 @@ import java.util.*
 
 class NotificationServiceImpl : NotificationService {
 
+    /**
+     * Helper method to get notification settings entity for a user.
+     * Returns the entity or null if not found.
+     */
+    private fun getNotificationSettingsEntity(userId: UUID): NotificationSettingsEntity {
+        return NotificationSettingsEntity.find { 
+            NotificationSettings.user eq userId
+        }.single()
+    }
+
+    /**
+     * Helper method to check if a specific notification setting is enabled for a user.
+     * Returns true if the setting is enabled or if no settings are found (default behavior).
+     */
+    private fun isNotificationEnabled(userId: UUID, setting: (NotificationSettingsEntity) -> Boolean): Boolean {
+        val entity = getNotificationSettingsEntity(userId)
+        return entity.let(setting)
+    }
+
     override fun getNotifications(userId: UUID): List<NotificationDto> = transaction {
         Notifications
             .select { Notifications.recipient eq userId }
@@ -61,7 +80,7 @@ class NotificationServiceImpl : NotificationService {
             subscribedUsers.remove(authorId)
 
             val parentCommentUser = CommentEntity.findById(commentId)?.parentComment?.value
-                ?.takeIf { UserEntity.findById(it)?.notifyAboutReplies == true }
+                ?.takeIf { isNotificationEnabled(it) { entity -> entity.notifyAboutReplies } }
             if (parentCommentUser != null) {
                 subscribedUsers.remove(parentCommentUser)
                 if (parentCommentUser != authorId) {
@@ -86,7 +105,7 @@ class NotificationServiceImpl : NotificationService {
     override fun notifyAboutPostReaction(postId: UUID) {
         transaction {
             val postAuthor = PostEntity.findById(postId)?.authorId ?: return@transaction
-            val shouldBeNotified = UserEntity.findById(postAuthor)?.notifyAboutPostReactions ?: return@transaction
+            val shouldBeNotified = isNotificationEnabled(postAuthor.value) { entity -> entity.notifyAboutPostReactions }
             if (shouldBeNotified) {
                 Notifications.insert {
                     it[type] = NotificationType.POST_REACTION
@@ -115,7 +134,7 @@ class NotificationServiceImpl : NotificationService {
     override fun notifyAboutCommentReaction(commentId: UUID) {
         transaction {
             val commentAuthor = CommentEntity.findById(commentId)?.authorId ?: return@transaction
-            val shouldBeNotified = UserEntity.findById(commentAuthor)?.notifyAboutCommentReactions ?: return@transaction
+            val shouldBeNotified = isNotificationEnabled(commentAuthor.value) { entity -> entity.notifyAboutCommentReactions }
             if (shouldBeNotified) {
                 Notifications.insert {
                     it[type] = NotificationType.COMMENT_REACTION
@@ -132,8 +151,7 @@ class NotificationServiceImpl : NotificationService {
             if (postEntity.authorId.value != userId) throw WrongUserException()
 
             val diaryOwnerByLogin = DiaryEntity.find { Diaries.login eq mentionLogin }.singleOrNull()?.owner ?: return@transaction
-            val mentionedUser = UserEntity.findById(diaryOwnerByLogin)!!
-            val shouldBeNotified = mentionedUser.notifyAboutMentions
+            val shouldBeNotified = isNotificationEnabled(diaryOwnerByLogin.value) { entity -> entity.notifyAboutMentions }
             if (shouldBeNotified) {
                 Notifications.insert {
                     it[type] = NotificationType.POST_MENTION
@@ -150,8 +168,7 @@ class NotificationServiceImpl : NotificationService {
             if (commentEntity.authorId.value != userId) throw WrongUserException()
 
             val diaryOwnerByLogin = DiaryEntity.find { Diaries.login eq mentionLogin }.singleOrNull()?.owner ?: return@transaction
-            val mentionedUser = UserEntity.findById(diaryOwnerByLogin)!!
-            val shouldBeNotified = mentionedUser.notifyAboutMentions
+            val shouldBeNotified = isNotificationEnabled(diaryOwnerByLogin.value) { entity -> entity.notifyAboutMentions }
             if (shouldBeNotified) {
                 Notifications.insert {
                     it[type] = NotificationType.COMMENT_MENTION

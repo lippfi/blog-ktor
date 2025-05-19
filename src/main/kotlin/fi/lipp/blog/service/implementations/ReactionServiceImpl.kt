@@ -21,6 +21,25 @@ class ReactionServiceImpl(
     private val reactionDatabaseSeeder: ReactionDatabaseSeeder
 ) : ReactionService {
 
+    /**
+     * Helper method to get notification settings entity for a user.
+     * Returns the entity or null if not found.
+     */
+    private fun getNotificationSettingsEntity(userId: UUID): NotificationSettingsEntity? {
+        return NotificationSettingsEntity.find { 
+            fi.lipp.blog.repository.NotificationSettings.user eq userId 
+        }.firstOrNull()
+    }
+
+    /**
+     * Helper method to check if a specific notification setting is enabled for a user.
+     * Returns true if the setting is enabled or if no settings are found (default behavior).
+     */
+    private fun isNotificationEnabled(userId: UUID, setting: (NotificationSettingsEntity) -> Boolean): Boolean {
+        val entity = getNotificationSettingsEntity(userId)
+        return entity?.let(setting) ?: true
+    }
+
     private val cachedBasicReactions: List<ReactionPackDto> by lazy {
         // Ensure reactions are seeded
         reactionDatabaseSeeder.seed()
@@ -125,7 +144,7 @@ class ReactionServiceImpl(
                         }
 
                         val postAuthor = UserEntity.findById(postEntity.authorId.value)!!
-                        if (postAuthor.id.value != viewer.userId && postAuthor.notifyAboutPostReactions) {
+                        if (postAuthor.id.value != viewer.userId && isNotificationEnabled(postAuthor.id.value) { entity -> entity.notifyAboutPostReactions }) {
                             notificationService.notifyAboutPostReaction(postEntity.id.value)
                         }
                     }
@@ -144,7 +163,7 @@ class ReactionServiceImpl(
                         }
 
                         val postAuthor = UserEntity.findById(postEntity.authorId.value)!!
-                        if (postAuthor.notifyAboutPostReactions) {
+                        if (isNotificationEnabled(postAuthor.id.value) { entity -> entity.notifyAboutPostReactions }) {
                             notificationService.notifyAboutPostReaction(postEntity.id.value)
                         }
                     }

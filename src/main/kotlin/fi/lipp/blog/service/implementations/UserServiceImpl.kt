@@ -15,7 +15,6 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.LocalDateTime
-import java.util.*
 import kotlin.jvm.Throws
 
 class UserServiceImpl(
@@ -134,6 +133,16 @@ class UserServiceImpl(
                 it[type] = DiaryType.PERSONAL
                 it[defaultReadGroup] = accessGroupService.everyoneGroupUUID
                 it[defaultCommentGroup] = accessGroupService.registeredGroupUUID
+            }
+
+            NotificationSettingsEntity.new {
+                user = UserEntity.findById(userId)!!
+                notifyAboutComments = true
+                notifyAboutReplies = true
+                notifyAboutPostReactions = true
+                notifyAboutCommentReactions = true
+                notifyAboutPrivateMessages = true
+                notifyAboutMentions = true
             }
 
             // Delete the pending registration
@@ -330,18 +339,12 @@ class UserServiceImpl(
         return transaction { 
             val diaryEntity = DiaryEntity.find { Diaries.login eq login }.singleOrNull() ?: throw DiaryNotFoundException()
             val userEntity = UserEntity.findById(diaryEntity.owner) ?: throw UserNotFoundException()
+
             UserDto.ProfileInfo(
                 login = diaryEntity.login,
                 email = userEntity.email,
                 nickname = userEntity.nickname,
                 registrationTime = userEntity.registrationTime,
-                notificationSettings = NotificationSettings(
-                    notifyAboutComments = userEntity.notifyAboutComments,
-                    notifyAboutReplies = userEntity.notifyAboutReplies,
-                    notifyAboutPostReactions = userEntity.notifyAboutPostReactions,
-                    notifyAboutCommentReactions = userEntity.notifyAboutCommentReactions,
-                    notifyAboutPrivateMessages = userEntity.notifyAboutPrivateMessages
-                )
             )
         }
     }
@@ -571,15 +574,19 @@ class UserServiceImpl(
         }
     }
 
-    override fun updateNotificationSettings(userId: UUID, settings: NotificationSettings) {
+    override fun updateNotificationSettings(userId: UUID, settings: fi.lipp.blog.data.NotificationSettings) {
         transaction {
-            val userEntity = UserEntity.findById(userId) ?: throw UserNotFoundException()
-            userEntity.apply {
+            val notificationSettingsEntity = NotificationSettingsEntity.find {
+                fi.lipp.blog.repository.NotificationSettings.user eq userId 
+            }.single()
+
+            notificationSettingsEntity.apply {
                 notifyAboutComments = settings.notifyAboutComments
                 notifyAboutReplies = settings.notifyAboutReplies
                 notifyAboutPostReactions = settings.notifyAboutPostReactions
                 notifyAboutCommentReactions = settings.notifyAboutCommentReactions
                 notifyAboutPrivateMessages = settings.notifyAboutPrivateMessages
+                notifyAboutMentions = settings.notifyAboutMentions
             }
         }
     }

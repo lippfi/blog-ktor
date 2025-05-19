@@ -14,7 +14,6 @@ sealed interface UserDto {
         val email: String,
         val nickname: String,
         val registrationTime: LocalDateTime,
-        val notificationSettings: NotificationSettings,
     ) : UserDto
 
     @Serializable

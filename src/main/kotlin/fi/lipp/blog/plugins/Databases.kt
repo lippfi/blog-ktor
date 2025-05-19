@@ -15,7 +15,7 @@ fun Application.configureDatabases() {
         password = ""
     )
     transaction {
-        SchemaUtils.create(Users, UserUploads, Diaries, InviteCodes, PasswordResets, Files, UserAvatars, Tags, Posts, PostTags, AccessGroups, CustomGroupUsers, Comments, Dialogs, Messages, HiddenDialogs, Reactions, PendingRegistrations, PendingEmailChanges)
+        SchemaUtils.create(Users, UserUploads, Diaries, InviteCodes, PasswordResets, Files, UserAvatars, Tags, Posts, PostTags, AccessGroups, CustomGroupUsers, Comments, Dialogs, Messages, HiddenDialogs, Reactions, PendingRegistrations, PendingEmailChanges, NotificationSettings)
     }
 
     // Initialize database with seeders
