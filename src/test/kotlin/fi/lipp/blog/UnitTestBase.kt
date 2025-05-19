@@ -255,19 +255,13 @@ abstract class UnitTestBase {
 
     @After
     fun cleanStoredFiles() {
-        transaction {
-            val testFile = FileUploadData(
-                fullName = "test.png",
-                inputStream = ByteArrayInputStream(ByteArray(10))
-            )
-            val user = findUserByLogin(testUser.login)
-            if (user != null) {
-                val storedFile = storageService.store(user.id, listOf(testFile))[0]
-                val file = storageService.getFile(storedFile)
-                val userDir = file.parentFile.parentFile // Go up to user's directory
-                if (userDir.exists()) {
-                    userDir.walkBottomUp().forEach<File> { f: File ->
-                        f.delete()
+        // Delete all files in the base path
+        val basePath = (properties as ApplicationPropertiesStub).basePath.toFile()
+        if (basePath.exists()) {
+            basePath.listFiles()?.forEach { dir ->
+                if (dir.isDirectory) {
+                    dir.walkBottomUp().forEach { file ->
+                        file.delete()
                     }
                 }
             }
