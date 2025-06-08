@@ -8,6 +8,8 @@ interface AccessGroupService {
     val registeredGroupUUID: UUID
     val friendsGroupUUID: UUID
 
+    fun getDefaultAccessGroups(): Map<String, UUID>
+
     fun getAccessGroups(userId: UUID, diaryLogin: String): List<Pair<String, UUID>>
     fun createAccessGroup(userId: UUID, diaryLogin: String, groupName: String)
     fun deleteAccessGroup(userId: UUID, groupId: UUID)

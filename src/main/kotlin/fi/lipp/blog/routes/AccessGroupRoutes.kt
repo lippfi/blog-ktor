@@ -12,8 +12,12 @@ import io.ktor.server.routing.*
 import java.util.*
 
 fun Route.accessGroupRoutes(accessGroupService: AccessGroupService) {
-    authenticate {
         route("/access-groups") {
+            get("/default") {
+                val groups = accessGroupService.getDefaultAccessGroups()
+                call.respond(groups)
+            }
+            authenticate {
             get {
                 val diaryLogin = call.request.queryParameters["diary"] ?: return@get call.respond(
                     HttpStatusCode.BadRequest,

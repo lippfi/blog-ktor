@@ -25,7 +25,7 @@ class AccessGroupServiceImpl : AccessGroupService {
 
     private val commonGroupList = mutableListOf(
         "everyone" to everyoneGroupUUID,
-        "registered users" to registeredGroupUUID,
+        "registered" to registeredGroupUUID,
         "private" to privateGroupUUID,
         "friends" to friendsGroupUUID,
     )
@@ -43,6 +43,10 @@ class AccessGroupServiceImpl : AccessGroupService {
                 it[ordinal] = 0
             }.value
         }
+    }
+
+    override fun getDefaultAccessGroups(): Map<String, UUID> {
+        return commonGroupList.toMap()
     }
 
     override fun getAccessGroups(userId: UUID, diaryLogin: String): List<Pair<String, UUID>> {
