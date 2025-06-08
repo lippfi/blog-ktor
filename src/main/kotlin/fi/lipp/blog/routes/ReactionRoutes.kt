@@ -31,6 +31,12 @@ fun Route.reactionRoutes(reactionService: ReactionService) {
             call.respond(reactions)
         }
 
+        get("/search-names") {
+            val names = (call.request.queryParameters["names"] ?: "").split(",").map { it.trim() }
+            val reactions = reactionService.getReactions(names)
+            call.respond(reactions)
+        }
+
         authenticate {
             post("/create") {
                 val name = call.request.queryParameters["name"] ?: throw IllegalArgumentException("Missing name parameter")
