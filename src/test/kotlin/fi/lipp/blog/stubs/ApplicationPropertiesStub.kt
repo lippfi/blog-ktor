@@ -8,10 +8,7 @@ import kotlin.io.path.Path
 class ApplicationPropertiesStub : ApplicationProperties {
     val basePath = Path("src", "test", "output")
 
-    override val emailHost = "emailHost"
-    override val emailPort = "emailPort"
-    override val emailAddress = "emailAddress"
-    override val emailPassword = "emailPassword"
+    override val resendAPIKey: String = ""
 
     override fun avatarsDirectory(userLogin: String): Path = basePath.resolve("avatars")
     override fun imagesDirectory(userLogin: String): Path = basePath.resolve("images")

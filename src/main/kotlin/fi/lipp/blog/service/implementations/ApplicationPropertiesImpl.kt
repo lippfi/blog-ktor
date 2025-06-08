@@ -6,10 +6,7 @@ import io.ktor.server.application.*
 import kotlin.io.path.Path
 
 class ApplicationPropertiesImpl(private val environment: ApplicationEnvironment) : ApplicationProperties {
-    override val emailHost = environment.config.property("mail.host").getString()
-    override val emailPort = environment.config.property("mail.port").getString()
-    override val emailAddress = environment.config.property("mail.email").getString()
-    override val emailPassword = environment.config.property("mail.password").getString()
+    override val resendAPIKey = environment.config.property("mail.api-key").getString()
 
     override fun avatarsDirectory(userLogin: String) = Path(environment.config.property("directory.avatars").getString().replace("{userLogin}", userLogin))
     override fun imagesDirectory(userLogin: String) = Path(environment.config.property("directory.images").getString().replace("{userLogin}", userLogin))

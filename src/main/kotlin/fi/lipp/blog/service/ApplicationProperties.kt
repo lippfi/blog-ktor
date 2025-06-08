@@ -4,10 +4,7 @@ import java.nio.file.Path
 import fi.lipp.blog.data.StorageQuota
 
 interface ApplicationProperties {
-    val emailHost: String
-    val emailPort: String
-    val emailAddress: String
-    val emailPassword: String
+    val resendAPIKey: String
 
     fun avatarsDirectory(userLogin: String): Path
     fun imagesDirectory(userLogin: String): Path
