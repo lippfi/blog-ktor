@@ -66,7 +66,12 @@ abstract class UnitTestBase {
         @JvmStatic
         @BeforeClass
         fun setUpClass() {
-            Database.connect("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;", driver = "org.h2.Driver")
+            Database.connect(
+                url = "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;",
+                user = "root",
+                driver = "org.h2.Driver",
+                password = ""
+            )
             transaction {
                 SchemaUtils.create(
                     Users,
@@ -168,6 +173,8 @@ abstract class UnitTestBase {
         protected val userService get() = org.koin.core.context.GlobalContext.get().get<UserService>()
         @JvmStatic
         protected val reactionService get() = org.koin.core.context.GlobalContext.get().get<ReactionService>()
+        @JvmStatic
+        protected val postService get() = org.koin.core.context.GlobalContext.get().get<PostService>()
 
         @JvmStatic
         protected val notificationService get() = org.koin.core.context.GlobalContext.get().get<NotificationService>()

@@ -20,9 +20,6 @@ import java.util.*
 import kotlin.test.*
 
 class FollowingTests : UnitTestBase() {
-    private val userService: UserService by inject(UserService::class.java)
-    private val postService: PostService by inject(PostService::class.java)
-    private val accessGroupService: AccessGroupService by inject(AccessGroupService::class.java)
     private lateinit var user1Id: UUID
     private lateinit var user2Id: UUID
     private lateinit var user3Id: UUID
@@ -157,5 +154,4 @@ class FollowingTests : UnitTestBase() {
             rollback()
         }
     }
-
 }

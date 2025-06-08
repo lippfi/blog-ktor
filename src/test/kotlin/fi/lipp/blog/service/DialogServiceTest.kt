@@ -26,13 +26,9 @@ import kotlin.test.assertTrue
 class DialogServiceTest : UnitTestBase() {
     @Test
     fun `test send and get message`() {
-        // Create first user
-        userService.signUp(testUser, "")
+        // Create and register users
+        val (user1Id, user2Id) = signUsersUp()
         val user1 = findUserByLogin(testUser.login)!!
-
-        // Create second user with invite code
-        val inviteCode = userService.generateInviteCode(user1.id)
-        userService.signUp(testUser2, inviteCode)
         val user2 = findUserByLogin(testUser2.login)!!
 
         // Send message
@@ -54,13 +50,9 @@ class DialogServiceTest : UnitTestBase() {
 
     @Test
     fun `test get messages by user login`() {
-        // Create first user
-        userService.signUp(testUser, "")
+        // Create and register users
+        val (user1Id, user2Id) = signUsersUp()
         val user1 = findUserByLogin(testUser.login)!!
-
-        // Create second user with invite code
-        val inviteCode = userService.generateInviteCode(user1.id)
-        userService.signUp(testUser2, inviteCode)
         val user2 = findUserByLogin(testUser2.login)!!
 
         // Send messages
@@ -78,8 +70,8 @@ class DialogServiceTest : UnitTestBase() {
 
     @Test
     fun `test error - get messages with non-existent user`() {
-        // Create user
-        userService.signUp(testUser, "")
+        // Create and register users
+        val (user1Id, _) = signUsersUp()
         val user = findUserByLogin(testUser.login)!!
 
         // Try to get messages with non-existent user
@@ -90,13 +82,9 @@ class DialogServiceTest : UnitTestBase() {
 
     @Test
     fun `test update message`() {
-        // Create first user
-        userService.signUp(testUser, "")
+        // Create and register users
+        val (user1Id, user2Id) = signUsersUp()
         val user1 = findUserByLogin(testUser.login)!!
-
-        // Create second user with invite code
-        val inviteCode = userService.generateInviteCode(user1.id)
-        userService.signUp(testUser2, inviteCode)
         val user2 = findUserByLogin(testUser2.login)!!
 
         val initialText = "Initial message"
@@ -118,13 +106,9 @@ class DialogServiceTest : UnitTestBase() {
 
     @Test
     fun `test delete message`() {
-        // Create first user
-        userService.signUp(testUser, "")
+        // Create and register users
+        val (user1Id, user2Id) = signUsersUp()
         val user1 = findUserByLogin(testUser.login)!!
-
-        // Create second user with invite code
-        val inviteCode = userService.generateInviteCode(user1.id)
-        userService.signUp(testUser2, inviteCode)
         val user2 = findUserByLogin(testUser2.login)!!
 
         dialogService.sendMessage(user1.id, user2.login, MessageDto.Create(avatarUri = "test-avatar.jpg", content = "Message to delete"))
@@ -144,13 +128,9 @@ class DialogServiceTest : UnitTestBase() {
 
     @Test
     fun `test hide dialog`() {
-        // Create first user
-        userService.signUp(testUser, "")
+        // Create and register users
+        val (user1Id, user2Id) = signUsersUp()
         val user1 = findUserByLogin(testUser.login)!!
-
-        // Create second user with invite code
-        val inviteCode = userService.generateInviteCode(user1.id)
-        userService.signUp(testUser2, inviteCode)
         val user2 = findUserByLogin(testUser2.login)!!
 
         dialogService.sendMessage(user1.id, user2.login, MessageDto.Create(avatarUri = "test-avatar.jpg", content = "Test message"))
@@ -169,26 +149,11 @@ class DialogServiceTest : UnitTestBase() {
 
     @Test
     fun `test error - non participant cannot access dialog`() {
-        // Create first user
-        userService.signUp(testUser, "")
-        val user1 = findUserByLogin(testUser.login)!!
-
-        // Create second user with invite code from first user
-        val inviteCode1 = userService.generateInviteCode(user1.id)
-        userService.signUp(testUser2, inviteCode1)
-        val user2 = findUserByLogin(testUser2.login)!!
-
-        // Create third user with invite code from first user
-        val inviteCode2 = userService.generateInviteCode(user1.id)
-        userService.signUp(UserDto.Registration(
-            login = "thirduser",
-            email = "third@mail.com",
-            password = "password123",
-            nickname = "third_user",
-            language = Language.EN,
-            timezone = "Europe/Moscow"
-        ), inviteCode2)
-        val user3 = findUserByLogin("thirduser")!!
+        // Create and register three users
+        val users = signUsersUp(3)
+        val user1 = findUserByLogin(users[0].second)!!
+        val user2 = findUserByLogin(users[1].second)!!
+        val user3 = findUserByLogin(users[2].second)!!
 
         // Create dialog between user1 and user2
         dialogService.sendMessage(user1.id, user2.login, MessageDto.Create(avatarUri = "test-avatar.jpg", content = "Test message"))
@@ -203,13 +168,9 @@ class DialogServiceTest : UnitTestBase() {
 
     @Test
     fun `test error - cannot update others message`() {
-        // Create first user
-        userService.signUp(testUser, "")
+        // Create and register users
+        val (user1Id, user2Id) = signUsersUp()
         val user1 = findUserByLogin(testUser.login)!!
-
-        // Create second user with invite code
-        val inviteCode = userService.generateInviteCode(user1.id)
-        userService.signUp(testUser2, inviteCode)
         val user2 = findUserByLogin(testUser2.login)!!
 
         dialogService.sendMessage(user1.id, user2.login, MessageDto.Create(avatarUri = "test-avatar.jpg", content = "Original message"))
@@ -227,8 +188,8 @@ class DialogServiceTest : UnitTestBase() {
 
     @Test
     fun `test error - cannot send message to non-existent user`() {
-        // Create user
-        userService.signUp(testUser, "")
+        // Create and register users
+        val (user1Id, _) = signUsersUp()
         val user = findUserByLogin(testUser.login)!!
 
         // Try to send message to non-existent user
@@ -239,13 +200,9 @@ class DialogServiceTest : UnitTestBase() {
 
     @Test
     fun `test message read status behavior`() {
-        // Create first user
-        userService.signUp(testUser, "")
+        // Create and register users
+        val (user1Id, user2Id) = signUsersUp()
         val user1 = findUserByLogin(testUser.login)!!
-
-        // Create second user with invite code
-        val inviteCode = userService.generateInviteCode(user1.id)
-        userService.signUp(testUser2, inviteCode)
         val user2 = findUserByLogin(testUser2.login)!!
 
         // Send message from user1 to user2
@@ -291,13 +248,9 @@ class DialogServiceTest : UnitTestBase() {
 
     @Test
     fun `test multiple messages in dialog with ordering`() {
-        // Create first user
-        userService.signUp(testUser, "")
+        // Create and register users
+        val (user1Id, user2Id) = signUsersUp()
         val user1 = findUserByLogin(testUser.login)!!
-
-        // Create second user with invite code
-        val inviteCode = userService.generateInviteCode(user1.id)
-        userService.signUp(testUser2, inviteCode)
         val user2 = findUserByLogin(testUser2.login)!!
 
         // Send multiple messages from both users
@@ -341,26 +294,11 @@ class DialogServiceTest : UnitTestBase() {
 
     @Test
     fun `test multiple dialogs with different users`() {
-        // Create first user (main user)
-        userService.signUp(testUser, "")
-        val user1 = findUserByLogin(testUser.login)!!
-
-        // Create second user
-        val inviteCode1 = userService.generateInviteCode(user1.id)
-        userService.signUp(testUser2, inviteCode1)
-        val user2 = findUserByLogin(testUser2.login)!!
-
-        // Create third user
-        val inviteCode2 = userService.generateInviteCode(user1.id)
-        userService.signUp(UserDto.Registration(
-            login = "thirduser",
-            email = "third@mail.com",
-            password = "password123",
-            nickname = "third_user",
-            language = Language.EN,
-            timezone = "Europe/Moscow"
-        ), inviteCode2)
-        val user3 = findUserByLogin("thirduser")!!
+        // Create and register three users
+        val users = signUsersUp(3)
+        val user1 = findUserByLogin(users[0].second)!!
+        val user2 = findUserByLogin(users[1].second)!!
+        val user3 = findUserByLogin(users[2].second)!!
 
         // Create dialogs by sending messages
         dialogService.sendMessage(user1.id, user2.login, MessageDto.Create(avatarUri = "test-avatar.jpg", content = "Message to user2"))
@@ -389,13 +327,9 @@ class DialogServiceTest : UnitTestBase() {
 
     @Test
     fun `test dialog state after message deletion`() {
-        // Create first user
-        userService.signUp(testUser, "")
+        // Create and register users
+        val (user1Id, user2Id) = signUsersUp()
         val user1 = findUserByLogin(testUser.login)!!
-
-        // Create second user with invite code
-        val inviteCode = userService.generateInviteCode(user1.id)
-        userService.signUp(testUser2, inviteCode)
         val user2 = findUserByLogin(testUser2.login)!!
 
         // Send multiple messages
@@ -444,13 +378,9 @@ class DialogServiceTest : UnitTestBase() {
 
     @Test
     fun `test message pagination`() {
-        // Create first user
-        userService.signUp(testUser, "")
+        // Create and register users
+        val (user1Id, user2Id) = signUsersUp()
         val user1 = findUserByLogin(testUser.login)!!
-
-        // Create second user with invite code
-        val inviteCode = userService.generateInviteCode(user1.id)
-        userService.signUp(testUser2, inviteCode)
         val user2 = findUserByLogin(testUser2.login)!!
 
         // Send multiple messages to create enough data for pagination
@@ -496,13 +426,9 @@ class DialogServiceTest : UnitTestBase() {
 
     @Test
     fun `test error - cannot hide already hidden dialog`() {
-        // Create first user
-        userService.signUp(testUser, "")
+        // Create and register users
+        val (user1Id, user2Id) = signUsersUp()
         val user1 = findUserByLogin(testUser.login)!!
-
-        // Create second user with invite code
-        val inviteCode = userService.generateInviteCode(user1.id)
-        userService.signUp(testUser2, inviteCode)
         val user2 = findUserByLogin(testUser2.login)!!
 
         // Create a dialog by sending a message

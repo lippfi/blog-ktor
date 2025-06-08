@@ -3,13 +3,16 @@ package fi.lipp.blog
 import fi.lipp.blog.data.FileType
 import fi.lipp.blog.data.FileUploadData
 import fi.lipp.blog.data.UserDto
+import fi.lipp.blog.domain.PendingRegistrationEntity
 import fi.lipp.blog.model.exceptions.InvalidReactionImageException
+import fi.lipp.blog.repository.PendingRegistrations
 import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import javax.imageio.ImageIO
 import kotlin.test.*
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 
 class StorageServiceTests : UnitTestBase() {
     private lateinit var registeredUser: UserDto.FullProfileInfo
@@ -23,6 +26,18 @@ class StorageServiceTests : UnitTestBase() {
 
             // Sign up test user with invite code
             userService.signUp(testUser, inviteCode)
+
+            // Get confirmation code for the user
+            val pendingRegistration = transaction {
+                PendingRegistrationEntity.find { 
+                    (PendingRegistrations.email eq testUser.email)
+                }.first()
+            }
+            val confirmationCode = pendingRegistration.id.value.toString()
+
+            // Confirm registration for the user
+            userService.confirmRegistration(confirmationCode)
+
             registeredUser = findUserByLogin(testUser.login)!!
         }
     }
