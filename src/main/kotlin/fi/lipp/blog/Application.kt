@@ -11,36 +11,35 @@ import org.koin.dsl.module
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 
+// Restrict reactions to posts
+// Settings
+// Profile page
+// Communities
+// Allow post owners to delete comments of other users
+// TODO what about Pages? Are they ready? Should I have start page or some order on them? Should pages have visibility? Own links?
+// Ignore list
+// Custom website design css
+// Multiple diary styles (switch between them)
+// Device sessions && token invalidation
+// Online and activity
+// TODO telegram integration
+
 // POOL
 // Cascade delete and stuff
 // TODO API documentation
 // TODO Integration tests
 // TODO Cors
 
-// POST-FRONTEND
-// Settings
-// Communities
-// Allow post owners to delete comments of other users
-
 // THIRD ITERATION
 // Caches
-// Custom website design css
-// Multiple diary styles (switch between them)
-// Device sessions && token invalidation
 // background music
-// Ignore list
 // TODO diary backup & diary restore
 // TODO post backups & drafts : 1
 
-// FORTH ITERATION
-// TODO telegram integration
-
 // LOWEST PRIORITY
-// Multiple languages
 // TODO moderation
 // TODO banned users
 // TODO todo lists : 8
-// TODO what about Pages? Are they ready? Should I have start page or some order on them? Should pages have visibility? Own links?
 // TODO more application properties (invite code valid time, time before regeneration codes etc) : 1
 fun main(args: Array<String>) {
     io.ktor.server.netty.EngineMain.main(args)
