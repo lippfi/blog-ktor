@@ -43,6 +43,14 @@ sealed interface UserDto {
     ) : UserDto
 
     @Serializable
+    data class SessionInfo(
+        val login: String,
+        val nickname: String,
+        val language: Language,
+        val nsfw: NSFWPolicy,
+    ) : UserDto
+
+    @Serializable
     data class AdditionalInfo(
         val sex: Sex,
         val timezone: String,

@@ -9,6 +9,8 @@ import kotlin.jvm.Throws
 interface UserService {
     fun generateInviteCode(userId: UUID): String
 
+    fun getCurrentSessionInfo(userId: UUID): UserDto.SessionInfo
+
     /**
      * First step of registration - creates a pending registration and sends confirmation email
      * @throws InviteCodeRequiredException if invite code is required but not provided

@@ -5,7 +5,6 @@ import fi.lipp.blog.data.NotificationSettings
 import fi.lipp.blog.data.UserDto
 import fi.lipp.blog.data.toFileUploadDatas
 import fi.lipp.blog.plugins.userId
-import fi.lipp.blog.service.DiaryService
 import fi.lipp.blog.service.ReactionService
 import fi.lipp.blog.service.UserService
 import io.ktor.http.*
@@ -57,6 +56,11 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService)
         }
 
         authenticate {
+            get("/session-info") {
+                val sessionInfo = userService.getCurrentSessionInfo(userId)
+                call.respond(sessionInfo)
+            }
+
             get("/create-invite-code") {
                 val code = userService.generateInviteCode(userId)
                 call.respondText(code)

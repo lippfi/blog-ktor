@@ -34,11 +34,25 @@ class UserServiceImpl(
         return inviteCode.value.toString()
     }
 
+    override fun getCurrentSessionInfo(userId: UUID): UserDto.SessionInfo {
+        return transaction {
+            val userEntity = UserEntity.findById(userId) ?: throw UserNotFoundException()
+            val userDiary = DiaryEntity.find { (Diaries.owner eq userId) and (Diaries.type eq DiaryType.PERSONAL) }.singleOrNull() ?: throw DiaryNotFoundException()
+
+            UserDto.SessionInfo(
+                login = userDiary.login,
+                nickname = userEntity.nickname,
+                language = userEntity.language,
+                nsfw = userEntity.nsfw
+            )
+        }
+    }
+
     @Throws(InviteCodeRequiredException::class, InvalidInviteCodeException::class, EmailIsBusyException::class, LoginIsBusyException::class, NicknameIsBusyException::class)
     override fun signUp(user: UserDto.Registration, inviteCode: String) {
         val inviteCodeEntity = transaction {
-            if (inviteCode.isEmpty()) {
-                if (Users.selectAll().count() > 0) throw InviteCodeRequiredException()
+            if (inviteCode.trim().isEmpty()) {
+                if (Users.selectAll().count() > 1) throw InviteCodeRequiredException()
                 null
             } else {
                 val uuid = UUID.fromString(inviteCode)
@@ -78,7 +92,7 @@ class UserServiceImpl(
             text = """
                 Thank you for registering! Please confirm your email address by clicking the link below:
 
-                Confirmation code: $pendingRegistrationId
+                Confirmation code: ${pendingRegistrationId.value}
 
                 This confirmation is valid for 24 hours. After that, you'll need to register again.
 
