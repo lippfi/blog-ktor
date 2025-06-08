@@ -13,6 +13,8 @@ interface ReactionService {
     fun searchReactionsByName(namePattern: String): List<ReactionDto.View>
     fun getUserRecentReactions(userId: UUID, limit: Int = 50): List<ReactionDto.View>
 
+    fun getReactions(names: List<String>): List<ReactionDto.View>
+
     // Post reactions
     fun addReaction(viewer: Viewer, diaryLogin: String, uri: String, reactionName: String)
     fun removeReaction(viewer: Viewer, diaryLogin: String, uri: String, reactionName: String)

@@ -234,6 +234,12 @@ class ReactionServiceImpl(
         }
     }
 
+    override fun getReactions(names: List<String>): List<ReactionDto.View> {
+        return transaction {
+            ReactionEntity.find { Reactions.name inList names }.map { toReactionView(it) }
+        }
+    }
+
     override fun addCommentReaction(viewer: Viewer, commentId: UUID, reactionName: String) {
         val userId = (viewer as? Viewer.Registered)?.userId
         transaction {
