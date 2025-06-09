@@ -138,6 +138,12 @@ fun Route.postRoutes(postService: PostService, reactionService: ReactionService)
                 postService.deleteComment(userId, commentId)
                 call.respondText("Comment deleted successfully")
             }
+
+            post {
+                val post = call.receive<PostDto.Create>()
+                val createdPost = postService.addPost(userId, post)
+                call.respond(createdPost)
+            }
         }
     }
 }
