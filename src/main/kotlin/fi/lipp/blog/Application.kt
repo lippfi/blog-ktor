@@ -57,6 +57,7 @@ fun Application.module() {
         allowHost("localhost:5173")
         allowHeader(HttpHeaders.ContentType)
         allowHeader(HttpHeaders.Authorization)
+        allowMethod(HttpMethod.Delete)
         allowCredentials = true
         allowNonSimpleContentTypes = true
     }
