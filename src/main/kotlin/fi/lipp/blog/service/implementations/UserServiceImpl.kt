@@ -540,7 +540,7 @@ class UserServiceImpl(
         }
     }
 
-    override fun addAvatar(userId: UUID, files: List<FileUploadData>) {
+    override fun addAvatar(userId: UUID, files: List<FileUploadData>): List<String> {
         val existingMaxOrdinal = transaction {
             UserAvatars.slice(UserAvatars.ordinal.max())
                 .select { UserAvatars.user eq userId }
@@ -568,6 +568,8 @@ class UserServiceImpl(
                 }
             }
         }
+
+        return newAvatars.map { storageService.getFileURL(it) }
     }
 
     override fun deleteAvatar(userId: UUID, avatarUri: String) {

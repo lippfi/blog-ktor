@@ -97,7 +97,7 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService)
             }
 
             post("/reorder-avatars") {
-                val permutation = call.receive<List<UUID>>()
+                val permutation = call.receive<List<String>>().map { UUID.fromString(it) }
                 userService.reorderAvatars(userId, permutation)
                 call.respondText("Avatars reordered successfully")
             }
@@ -105,8 +105,8 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService)
             post("/add-avatar") {
                 val multipart = call.receiveMultipart()
                 val files = multipart.toFileUploadDatas()
-                userService.addAvatar(userId, files)
-                call.respondText("Avatar added successfully")
+                val avatarUrls = userService.addAvatar(userId, files)
+                call.respond(avatarUrls)
             }
 
             delete("/delete-avatar") {
