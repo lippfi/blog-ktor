@@ -59,7 +59,8 @@ sealed interface PostDto {
         @Serializable(with = UUIDSerializer::class)
         val commentReactionGroupId: UUID,
 
-        var tags : Set<String>,
+        @Serializable
+        var tags : List<String>,
         val classes : String,
 
         val isPreface : Boolean,
