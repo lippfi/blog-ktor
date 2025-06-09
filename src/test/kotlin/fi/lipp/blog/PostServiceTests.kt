@@ -514,8 +514,8 @@ class PostServiceTests : UnitTestBase() {
 
             // Create post with CUSTOM access
             groupService.createAccessGroup(user1Id, user1Login, "Custom Group")
-            val customGroupUUID = groupService.getAccessGroups(user1Id, user1Login)
-                .find { it.first == "Custom Group" }!!.second
+            val customGroupUUID = UUID.fromString(groupService.getAccessGroups(user1Id, user1Login)
+                .content["Custom Group"]!!)
 
             val post3 = createPostPostData(title = "post3", readGroup = customGroupUUID)
             postService.addPost(user1Id, post3)
@@ -567,12 +567,10 @@ class PostServiceTests : UnitTestBase() {
 
             // Create custom groups
             groupService.createAccessGroup(user1Id, user1Login, "Friends")
-            val friendsGroupUUID = groupService.getAccessGroups(user1Id, user1Login)
-                .find { it.first == "Friends" }!!.second
+            val friendsGroupUUID = UUID.fromString(groupService.getAccessGroups(user1Id, user1Login).content["Friends"])
 
             groupService.createAccessGroup(user1Id, user1Login, "Family")
-            val familyGroupUUID = groupService.getAccessGroups(user1Id, user1Login)
-                .find { it.first == "Family" }!!.second
+            val familyGroupUUID = UUID.fromString(groupService.getAccessGroups(user1Id, user1Login).content["Family"])
 
             // Add user2 to Friends group and user3 to Family group
             groupService.addUserToGroup(user1Id, user2Login, friendsGroupUUID)
@@ -725,8 +723,7 @@ class PostServiceTests : UnitTestBase() {
 
             // Create post with CUSTOM access (should be visible only to group members)
             groupService.createAccessGroup(user1Id, user1Login, "Custom Group")
-            val customGroupUUID = groupService.getAccessGroups(user1Id, user1Login)
-                .find { it.first == "Custom Group" }!!.second
+            val customGroupUUID = UUID.fromString(groupService.getAccessGroups(user1Id, user1Login).content["Custom Group"])
 
             val post3 = createPostPostData(title = "custom post", readGroup = customGroupUUID)
             postService.addPost(user1Id, post3)
@@ -947,10 +944,10 @@ class PostServiceTests : UnitTestBase() {
             val (user1, login1) = users[0]
 
             groupService.createAccessGroup(user1, login1, "empty group")
-            val emptyGroupUUID = groupService.getAccessGroups(user1, login1).find { it.first == "empty group" }!!.second
+            val emptyGroupUUID = UUID.fromString(groupService.getAccessGroups(user1, login1).content["empty group"])
 
             groupService.createAccessGroup(user1, login1, "team members")
-            val teamGroupUUID = groupService.getAccessGroups(user1, login1).find { it.first == "team members" }!!.second
+            val teamGroupUUID = UUID.fromString(groupService.getAccessGroups(user1, login1).content["team members"])
             groupService.addUserToGroup(user1, users[2].second, teamGroupUUID)
             groupService.addUserToGroup(user1, users[4].second, teamGroupUUID)
             groupService.addUserToGroup(user1, users[6].second, teamGroupUUID)

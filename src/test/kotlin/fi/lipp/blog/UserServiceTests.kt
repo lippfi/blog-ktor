@@ -1116,9 +1116,9 @@ class UserServiceTests : UnitTestBase() {
             // Modify the image dimensions by wrapping it in a new FileUploadData
             val modifiedInputStream = avatarFile1.inputStream().use { input ->
                 val originalImage = ImageIO.read(input)
-                val resizedImage = java.awt.image.BufferedImage(200, 200, originalImage.type)
+                val resizedImage = java.awt.image.BufferedImage(200, 250, originalImage.type)
                 val g = resizedImage.createGraphics()
-                g.drawImage(originalImage, 0, 0, 200, 200, null)
+                g.drawImage(originalImage, 0, 0, 200, 250, null)
                 g.dispose()
 
                 val outputStream = java.io.ByteArrayOutputStream()

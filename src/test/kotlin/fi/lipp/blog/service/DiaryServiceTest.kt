@@ -59,9 +59,9 @@ class DiaryServiceTest : UnitTestBase() {
 
             // Get the created groups
             val groups = groupService.getAccessGroups(userId, diaryLogin)
-            val readGroup = groups.find { it.first == "Read Group" }!!.second
-            val commentGroup = groups.find { it.first == "Comment Group" }!!.second
-            val reactGroup = groups.find { it.first == "React Group" }!!.second
+            val readGroup = UUID.fromString(groups.content["Read Group"])
+            val commentGroup = UUID.fromString(groups.content["Comment Group"])
+            val reactGroup = UUID.fromString(groups.content["React Group"])
 
             // Create diary info
             val diaryInfo = UserDto.DiaryInfo(
@@ -139,9 +139,9 @@ class DiaryServiceTest : UnitTestBase() {
 
             // Get the created groups
             val groups = groupService.getAccessGroups(userId1, diaryLogin)
-            val readGroup = groups.find { it.first == "Read Group" }!!.second
-            val commentGroup = groups.find { it.first == "Comment Group" }!!.second
-            val reactGroup = groups.find { it.first == "React Group" }!!.second
+            val readGroup = UUID.fromString(groups.content["Read Group"])
+            val commentGroup = UUID.fromString(groups.content["Comment Group"])
+            val reactGroup = UUID.fromString(groups.content["React Group"])
 
             // Create diary info
             val diaryInfo = UserDto.DiaryInfo(
@@ -324,7 +324,7 @@ class DiaryServiceTest : UnitTestBase() {
 
             // Get the created group
             val groups = groupService.getAccessGroups(userId, diaryLogin)
-            val newGroup = groups.find { it.first == "New Read Group" }!!.second
+            val newGroup = UUID.fromString(groups.content["New Read Group"])
 
             // Update default read group
             diaryService.updateDiaryDefaultReadGroup(userId, diaryLogin, newGroup)
@@ -350,7 +350,7 @@ class DiaryServiceTest : UnitTestBase() {
 
             // Get the created group
             val groups = groupService.getAccessGroups(userId, diaryLogin)
-            val newGroup = groups.find { it.first == "New Comment Group" }!!.second
+            val newGroup = UUID.fromString(groups.content["New Comment Group"])
 
             // Update default comment group
             diaryService.updateDiaryDefaultCommentGroup(userId, diaryLogin, newGroup)
@@ -376,7 +376,7 @@ class DiaryServiceTest : UnitTestBase() {
 
             // Get the created group
             val groups = groupService.getAccessGroups(userId, diaryLogin)
-            val newGroup = groups.find { it.first == "New React Group" }!!.second
+            val newGroup = UUID.fromString(groups.content["New React Group"])
 
             // Update default react group
             diaryService.updateDiaryDefaultReactGroup(userId, diaryLogin, newGroup)
