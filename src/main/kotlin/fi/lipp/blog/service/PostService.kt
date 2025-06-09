@@ -5,7 +5,8 @@ import fi.lipp.blog.model.Page
 import fi.lipp.blog.model.Pageable
 import fi.lipp.blog.model.TagPolicy
 import kotlinx.datetime.LocalDateTime
-import org.koin.java.KoinJavaComponent.inject
+import java.security.MessageDigest
+import java.util.Base64
 import java.util.UUID
 
 interface PostService {
@@ -63,8 +64,14 @@ sealed interface Viewer {
     class Registered(val userId: UUID) : Viewer
     class Anonymous(ip: String, fingerprint: String) : Viewer {
         companion object {
-            val password: PasswordEncoder by inject(PasswordEncoder::class.java)
+            private val digest = MessageDigest.getInstance("SHA-256")
         }
-        val ipFingerprint = password.encode(ip + fingerprint) 
+
+        val ipFingerprint: String
+
+        init {
+            val hashedBytes = digest.digest((ip + fingerprint).toByteArray(Charsets.UTF_8))
+            ipFingerprint = Base64.getEncoder().encodeToString(hashedBytes)
+        }
     }
 }
