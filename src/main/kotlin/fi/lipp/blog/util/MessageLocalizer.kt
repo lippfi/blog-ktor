@@ -31,14 +31,23 @@ object MessageLocalizer {
     /**
      * Get the localized message for the given message key and language.
      * If language is null, the default language (English) is used.
+     * Optional parameters can be provided to replace placeholders in the message.
      *
      * @param messageKey The key for the message to localize
      * @param language The language to use for localization, or null to use default
-     * @return The localized message
+     * @param params Optional vararg of Pairs where the first value is the placeholder name and the second is the replacement value
+     * @return The localized message with placeholders replaced
      */
-    fun getLocalizedMessage(messageKey: String, language: Language? = null): String {
+    fun getLocalizedMessage(messageKey: String, language: Language? = null, vararg params: Pair<String, String>): String {
         val actualLanguage = language ?: defaultLanguage
-        return getLocalizedMessageInternal(messageKey, actualLanguage)
+        var message = getLocalizedMessageInternal(messageKey, actualLanguage)
+
+        // Replace parameters in the message
+        params.forEach { (key, value) ->
+            message = message.replace("{{$key}}", value)
+        }
+
+        return message
     }
 
     /**

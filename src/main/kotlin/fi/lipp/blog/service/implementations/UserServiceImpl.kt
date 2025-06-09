@@ -5,6 +5,7 @@ import fi.lipp.blog.domain.*
 import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.plugins.createJwtToken
 import fi.lipp.blog.repository.*
+import fi.lipp.blog.util.MessageLocalizer
 import java.util.UUID
 import fi.lipp.blog.service.*
 import kotlinx.datetime.LocalDate
@@ -87,17 +88,18 @@ class UserServiceImpl(
         }
 
         // Send confirmation email
+        val subject = MessageLocalizer.getLocalizedMessage(
+            messageKey = "email_subject_registration_confirm",
+            language = user.language
+        )
+        val body = MessageLocalizer.getLocalizedMessage(
+            messageKey = "email_body_registration_confirm",
+            language = user.language,
+            "confirmationCode" to pendingRegistrationId.value.toString()
+        )
         mailService.sendEmail(
-            subject = "Confirm Your Registration",
-            text = """
-                Thank you for registering! Please confirm your email address by clicking the link below:
-
-                Confirmation code: ${pendingRegistrationId.value}
-
-                This confirmation is valid for 24 hours. After that, you'll need to register again.
-
-                If you did not register on our site, please ignore this email.
-            """.trimIndent(),
+            subject = subject,
+            text = body,
             recipient = user.email
         )
     }
@@ -208,17 +210,18 @@ class UserServiceImpl(
             }
 
             // Send confirmation email
+            val subject = MessageLocalizer.getLocalizedMessage(
+                messageKey = "email_subject_email_change_confirm",
+                language = userEntity.language
+            )
+            val body = MessageLocalizer.getLocalizedMessage(
+                messageKey = "email_body_email_change_confirm",
+                language = userEntity.language,
+                "confirmationCode" to pendingEmailChangeId.toString()
+            )
             mailService.sendEmail(
-                subject = "Confirm Your Email Change",
-                text = """
-                    You have requested to change your email address. Please confirm this change by using the confirmation code below:
-
-                    Confirmation code: $pendingEmailChangeId
-
-                    This confirmation is valid for 24 hours. After that, you'll need to request the email change again.
-
-                    If you did not request this change, please ignore this email and ensure your account is secure.
-                """.trimIndent(),
+                subject = subject,
+                text = body,
                 recipient = email
             )
         }
@@ -255,13 +258,18 @@ class UserServiceImpl(
             pendingEmailChange.delete()
 
             // Send confirmation email to old address
+            val subject = MessageLocalizer.getLocalizedMessage(
+                messageKey = "email_subject_email_changed",
+                language = userEntity.language
+            )
+            val body = MessageLocalizer.getLocalizedMessage(
+                messageKey = "email_body_email_changed",
+                language = userEntity.language,
+                "newEmail" to pendingEmailChange.newEmail
+            )
             mailService.sendEmail(
-                subject = "Your Email Has Been Changed",
-                text = """
-                    Your email address has been successfully changed to ${pendingEmailChange.newEmail}.
-
-                    If you did not request this change, please contact support immediately.
-                """.trimIndent(),
+                subject = subject,
+                text = body,
                 recipient = oldEmail
             )
         }
@@ -401,17 +409,19 @@ class UserServiceImpl(
             }
         }
 
+        val subject = MessageLocalizer.getLocalizedMessage(
+            messageKey = "email_subject_password_reset",
+            language = userEntity.language
+        )
+        val body = MessageLocalizer.getLocalizedMessage(
+            messageKey = "email_body_password_reset",
+            language = userEntity.language,
+            "resetCode" to resetCode.toString()
+        )
         mailService.sendEmail(
-            subject = "Password Reset",
-            text = """
-                You recently requested to reset your password. Please use the code below to proceed with setting a new password:
-
-                Reset code: $resetCode
-
-                Enter this code on the password reset page to continue. This code will expire in 30 minutes for security reasons.
-                If you did not request a password reset, please ignore this email and do not share this code with anyone. Your password remains secure as long as this code stays private.
-            """.trimMargin(),
-            userEntity.email
+            subject = subject,
+            text = body,
+            recipient = userEntity.email
         )
     }
 
@@ -423,14 +433,18 @@ class UserServiceImpl(
                 password = encoder.encode(newPassword)
             }
         }
+        val subject = MessageLocalizer.getLocalizedMessage(
+            messageKey = "email_subject_password_changed",
+            language = userEntity.language
+        )
+        val body = MessageLocalizer.getLocalizedMessage(
+            messageKey = "email_body_password_changed",
+            language = userEntity.language
+        )
         mailService.sendEmail(
-            subject = "Password Change Notification",
-            text = """
-                Your password has been successfully changed. If you did not initiate this change, please ensure that your email access is secure and that no unauthorized parties can access your account. It is also recommended that you try to reset your password again immediately.
-
-                If you requested this change, no further action is needed. For your security, please do not share your password with anyone.
-            """.trimMargin(),
-            userEntity.email
+            subject = subject,
+            text = body,
+            recipient = userEntity.email
         )
     }
 

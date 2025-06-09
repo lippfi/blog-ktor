@@ -11,7 +11,7 @@ import org.koin.dsl.module
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 
-// Restrict reactions to posts
+// MVP
 // Settings
 // Profile page
 // Communities
@@ -22,9 +22,10 @@ import org.koin.logger.slf4jLogger
 // Multiple diary styles (switch between them)
 // Device sessions && token invalidation
 // Online and activity
-// TODO telegram integration
 
 // POOL
+// TODO telegram integration
+// Restrict reactions to posts
 // Cascade delete and stuff
 // TODO API documentation
 // TODO Integration tests
