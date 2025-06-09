@@ -50,13 +50,14 @@ class AccessGroupServiceImpl : AccessGroupService {
         return SerializableMap(commonGroupList.associate { it.first to it.second.toString() })
     }
 
-    override fun getAccessGroups(userId: UUID, diaryLogin: String): List<Pair<String, UUID>> {
+    override fun getAccessGroups(userId: UUID, diaryLogin: String): SerializableMap {
         return transaction {
             val diaryEntity = findDiaryByLogin(diaryLogin)
             if (userId != diaryEntity.owner.value ) throw WrongUserException()
 
             val diaryGroups = AccessGroupEntity.find { AccessGroups.diary eq diaryEntity.id }.toList()
-            commonGroupList + diaryGroups.map { it.name to it.id.value }
+            val groupMap = (commonGroupList + diaryGroups.map { it.name to it.id.value }).associate { it.first to it.second.toString() }
+            SerializableMap(groupMap)
         }
     }
 

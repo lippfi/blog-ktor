@@ -11,7 +11,7 @@ interface AccessGroupService {
 
     fun getDefaultAccessGroups(): SerializableMap
 
-    fun getAccessGroups(userId: UUID, diaryLogin: String): List<Pair<String, UUID>>
+    fun getAccessGroups(userId: UUID, diaryLogin: String): SerializableMap
     fun createAccessGroup(userId: UUID, diaryLogin: String, groupName: String)
     fun deleteAccessGroup(userId: UUID, groupId: UUID)
 
