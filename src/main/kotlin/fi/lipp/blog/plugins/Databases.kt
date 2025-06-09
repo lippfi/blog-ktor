@@ -1,5 +1,6 @@
 package fi.lipp.blog.plugins
 
+import fi.lipp.blog.domain.Notifications
 import fi.lipp.blog.repository.*
 import fi.lipp.blog.service.implementations.DatabaseInitializer
 import io.ktor.server.application.*
@@ -9,13 +10,43 @@ import org.koin.core.context.GlobalContext.get
 
 fun Application.configureDatabases() {
     Database.connect(
-        url = "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1",
+        url = "jdbc:h2:file:./data/blog;DB_CLOSE_DELAY=-1",
         user = "root",
         driver = "org.h2.Driver",
         password = ""
     )
     transaction {
-        SchemaUtils.create(Users, UserUploads, Diaries, InviteCodes, PasswordResets, Files, UserAvatars, Tags, Posts, PostTags, AccessGroups, CustomGroupUsers, Comments, Dialogs, Messages, HiddenDialogs, Reactions, PendingRegistrations, PendingEmailChanges, NotificationSettings)
+        SchemaUtils.create(
+            Users,
+            Files,
+            UserAvatars,
+            Tags,
+            Diaries,
+            AccessGroups,
+            CustomGroupUsers,
+            InviteCodes,
+            PasswordResets,
+            PendingRegistrations,
+            PendingEmailChanges,
+            Posts,
+            PostTags,
+            Comments,
+            Reactions,
+            PostReactions,
+            AnonymousPostReactions,
+            UserUploads,
+            FriendRequests,
+            Friends,
+            FriendLabels,
+            Notifications,
+            Dialogs,
+            Messages,
+            HiddenDialogs,
+            UserFollows,
+            CommentReactions,
+            NotificationSettings,
+            PostSubscriptions,
+        )
     }
 
     // Initialize database with seeders
