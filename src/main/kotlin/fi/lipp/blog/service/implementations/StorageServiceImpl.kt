@@ -69,7 +69,7 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
 
         val image = ImageIO.read(bytes.inputStream())
 
-        if (image.width != 100 || image.height != 100) {
+        if (image.width != image.height) {
             throw InvalidAvatarDimensionsException()
         }
 
@@ -151,7 +151,7 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
 
             trackUpload(userId, totalSize)
         }
-        return blogFiles
+        return blogFiles.toMutableList()
     }
 
     private fun ensureDirectoryExists(path: Path) {
