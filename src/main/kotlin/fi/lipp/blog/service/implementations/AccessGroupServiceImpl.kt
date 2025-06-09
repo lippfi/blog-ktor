@@ -12,6 +12,7 @@ import fi.lipp.blog.repository.Diaries
 import fi.lipp.blog.repository.Friends
 import fi.lipp.blog.service.AccessGroupService
 import fi.lipp.blog.service.Viewer
+import fi.lipp.blog.util.SerializableMap
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -45,8 +46,8 @@ class AccessGroupServiceImpl : AccessGroupService {
         }
     }
 
-    override fun getDefaultAccessGroups(): Map<String, UUID> {
-        return commonGroupList.toMap()
+    override fun getDefaultAccessGroups(): SerializableMap {
+        return SerializableMap(commonGroupList.associate { it.first to it.second.toString() })
     }
 
     override fun getAccessGroups(userId: UUID, diaryLogin: String): List<Pair<String, UUID>> {

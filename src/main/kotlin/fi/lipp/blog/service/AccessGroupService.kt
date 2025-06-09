@@ -1,5 +1,6 @@
 package fi.lipp.blog.service
 
+import fi.lipp.blog.util.SerializableMap
 import java.util.UUID
 
 interface AccessGroupService {
@@ -8,7 +9,7 @@ interface AccessGroupService {
     val registeredGroupUUID: UUID
     val friendsGroupUUID: UUID
 
-    fun getDefaultAccessGroups(): Map<String, UUID>
+    fun getDefaultAccessGroups(): SerializableMap
 
     fun getAccessGroups(userId: UUID, diaryLogin: String): List<Pair<String, UUID>>
     fun createAccessGroup(userId: UUID, diaryLogin: String, groupName: String)
