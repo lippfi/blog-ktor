@@ -15,7 +15,7 @@ fun Route.storageRoutes(storageService: StorageService) {
             post("/upload") {
                 val multipart = call.receiveMultipart()
                 val files = multipart.toFileUploadDatas()
-                val storedFiles = storageService.store(userId, files)
+                val storedFiles = storageService.store(userId, files).map { storageService.getFileURL(it) }
                 call.respond(storedFiles)
             }
         }
