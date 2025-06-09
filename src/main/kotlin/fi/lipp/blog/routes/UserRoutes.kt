@@ -55,6 +55,19 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService)
             call.respondText(isBusy.toString())
         }
 
+        post("/send-password-reset-email") {
+            val userIdentifier = call.receive<String>()
+            userService.sendPasswordResetEmail(userIdentifier)
+            call.respondText("Password reset email sent")
+        }
+
+        post("/reset-password") {
+            val resetCode = call.request.queryParameters["code"] ?: ""
+            val newPassword = call.receive<String>()
+            userService.performPasswordReset(resetCode, newPassword)
+            call.respondText("Password reset successfully")
+        }
+
         authenticate {
             get("/session-info") {
                 val sessionInfo = userService.getCurrentSessionInfo(userId)
@@ -76,19 +89,6 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService)
                 val info = call.receive<UserDto.AdditionalInfo>()
                 userService.updateAdditionalInfo(userId, info)
                 call.respondText("User info updated successfully")
-            }
-
-            post("/send-password-reset-email") {
-                val userIdentifier = call.receive<String>()
-                userService.sendPasswordResetEmail(userIdentifier)
-                call.respondText("Password reset email sent")
-            }
-
-            post("/reset-password") {
-                val resetCode = call.request.queryParameters["code"] ?: ""
-                val newPassword = call.receive<String>()
-                userService.performPasswordReset(resetCode, newPassword)
-                call.respondText("Password reset successfully")
             }
 
             get("/avatars") {
