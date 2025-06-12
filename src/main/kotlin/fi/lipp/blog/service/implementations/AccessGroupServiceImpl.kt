@@ -3,6 +3,7 @@ package fi.lipp.blog.service.implementations
 import fi.lipp.blog.data.AccessGroupType
 import fi.lipp.blog.domain.AccessGroupEntity
 import fi.lipp.blog.domain.DiaryEntity
+import fi.lipp.blog.domain.PostEntity
 import fi.lipp.blog.model.exceptions.DiaryNotFoundException
 import fi.lipp.blog.model.exceptions.InvalidAccessGroupException
 import fi.lipp.blog.model.exceptions.WrongUserException
@@ -10,9 +11,11 @@ import fi.lipp.blog.repository.AccessGroups
 import fi.lipp.blog.repository.CustomGroupUsers
 import fi.lipp.blog.repository.Diaries
 import fi.lipp.blog.repository.Friends
+import fi.lipp.blog.repository.Posts
 import fi.lipp.blog.service.AccessGroupService
 import fi.lipp.blog.service.Viewer
 import fi.lipp.blog.util.SerializableMap
+import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -95,6 +98,29 @@ class AccessGroupServiceImpl : AccessGroupService {
             val diaryId = accessGroupEntity.diaryId?.value ?: throw InvalidAccessGroupException()
             val diaryEntity = DiaryEntity.findById(diaryId) ?: throw DiaryNotFoundException()
             if (userId != diaryEntity.owner.value) throw WrongUserException()
+
+            PostEntity.find { Posts.readGroup eq groupId }.forEach {
+                it.readGroupId = EntityID(privateGroupUUID, AccessGroups)
+            }
+            PostEntity.find { Posts.commentGroup eq groupId }.forEach {
+                it.commentGroupId = EntityID(privateGroupUUID, AccessGroups)
+            }
+            PostEntity.find { Posts.reactionGroup eq groupId }.forEach {
+                it.reactionGroupId = EntityID(privateGroupUUID, AccessGroups)
+            }
+            PostEntity.find { Posts.commentReactionGroup eq groupId }.forEach {
+                it.commentReactionGroupId = EntityID(privateGroupUUID, AccessGroups)
+            }
+
+            if (diaryEntity.defaultReadGroup.value == groupId) {
+                diaryEntity.defaultReadGroup = EntityID(privateGroupUUID, AccessGroups)
+            }
+            if (diaryEntity.defaultCommentGroup.value == groupId) {
+                diaryEntity.defaultCommentGroup = EntityID(privateGroupUUID, AccessGroups)
+            }
+            if (diaryEntity.defaultReactGroup.value == groupId) {
+                diaryEntity.defaultReactGroup = EntityID(privateGroupUUID, AccessGroups)
+            }
 
             accessGroupEntity.delete()
         }
