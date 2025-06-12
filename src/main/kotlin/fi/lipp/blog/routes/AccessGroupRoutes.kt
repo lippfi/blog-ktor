@@ -1,7 +1,6 @@
 package fi.lipp.blog.routes
 
 import fi.lipp.blog.plugins.userId
-import fi.lipp.blog.plugins.viewer
 import fi.lipp.blog.service.AccessGroupService
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -13,11 +12,20 @@ import java.util.*
 
 fun Route.accessGroupRoutes(accessGroupService: AccessGroupService) {
         route("/access-groups") {
-            get("/default") {
-                val groups = accessGroupService.getDefaultAccessGroups()
+            get("/basic") {
+                val groups = accessGroupService.getBasicAccessGroups()
                 call.respond(groups)
             }
             authenticate {
+                get("/default") {
+                    val diaryLogin = call.request.queryParameters["diary"] ?: return@get call.respond(
+                        HttpStatusCode.BadRequest,
+                        "Missing login"
+                    )
+                    val groups = accessGroupService.getDefaultAccessGroups(userId, diaryLogin)
+                    call.respond(groups)
+                }
+
             get {
                 val diaryLogin = call.request.queryParameters["diary"] ?: return@get call.respond(
                     HttpStatusCode.BadRequest,

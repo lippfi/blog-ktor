@@ -46,8 +46,19 @@ class AccessGroupServiceImpl : AccessGroupService {
         }
     }
 
-    override fun getDefaultAccessGroups(): SerializableMap {
+    override fun getBasicAccessGroups(): SerializableMap {
         return SerializableMap(commonGroupList.associate { it.first to it.second.toString() })
+    }
+
+    override fun getDefaultAccessGroups(userId: UUID, diaryLogin: String): SerializableMap {
+        val diaryEntity = transaction { findDiaryByLogin(diaryLogin) }.takeIf { it.owner.value == userId } ?: throw WrongUserException()
+        return SerializableMap(
+            mapOf(
+                "read" to diaryEntity.defaultReadGroup.value.toString(),
+                "comment" to diaryEntity.defaultCommentGroup.value.toString(),
+                "react" to diaryEntity.defaultReactGroup.value.toString(),
+            )
+        )
     }
 
     override fun getAccessGroups(userId: UUID, diaryLogin: String): SerializableMap {

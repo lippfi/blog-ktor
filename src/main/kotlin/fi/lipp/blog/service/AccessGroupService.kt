@@ -9,7 +9,8 @@ interface AccessGroupService {
     val registeredGroupUUID: UUID
     val friendsGroupUUID: UUID
 
-    fun getDefaultAccessGroups(): SerializableMap
+    fun getBasicAccessGroups(): SerializableMap
+    fun getDefaultAccessGroups(userId: UUID, diaryLogin: String): SerializableMap
 
     fun getAccessGroups(userId: UUID, diaryLogin: String): SerializableMap
     fun createAccessGroup(userId: UUID, diaryLogin: String, groupName: String)
