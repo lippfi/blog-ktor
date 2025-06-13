@@ -30,8 +30,8 @@ class AccessGroupServiceImpl : AccessGroupService {
     private val commonGroupList = mutableListOf(
         "everyone" to everyoneGroupUUID,
         "registered" to registeredGroupUUID,
-        "private" to privateGroupUUID,
         "friends" to friendsGroupUUID,
+        "private" to privateGroupUUID,
     )
 
     private fun getOrCreateDefaultGroup(groupType: AccessGroupType): UUID {
