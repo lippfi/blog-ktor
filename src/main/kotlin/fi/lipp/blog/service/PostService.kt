@@ -4,7 +4,7 @@ import fi.lipp.blog.data.*
 import fi.lipp.blog.model.Page
 import fi.lipp.blog.model.Pageable
 import fi.lipp.blog.model.TagPolicy
-import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalDate
 import java.security.MessageDigest
 import java.util.Base64
 import java.util.UUID
@@ -22,8 +22,8 @@ interface PostService {
         diaryLogin: String?,
         text: String?,
         tags: Pair<TagPolicy, Set<String>>?,
-        from: LocalDateTime?,
-        to: LocalDateTime?,
+        from: LocalDate?,
+        to: LocalDate?,
         pageable: Pageable,
     ): Page<PostDto.View>
 

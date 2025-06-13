@@ -15,7 +15,7 @@ import io.ktor.server.auth.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalDate
 import org.jetbrains.exposed.sql.SortOrder
 import java.util.*
 
@@ -48,8 +48,8 @@ fun Route.postRoutes(postService: PostService, reactionService: ReactionService)
                 val diary = call.request.queryParameters["diary"]
                 val text = call.request.queryParameters["text"]
                 val tags = call.request.queryParameters["tags"]?.split(",")?.toSet()
-                val from = call.request.queryParameters["from"]?.let { LocalDateTime.parse(it) }
-                val to = call.request.queryParameters["to"]?.let { LocalDateTime.parse(it) }
+                val from = call.request.queryParameters["from"]?.let { LocalDate.parse(it) }
+                val to = call.request.queryParameters["to"]?.let { LocalDate.parse(it) }
                 val pageable = Pageable(
                     page = call.request.queryParameters["page"]?.toInt() ?: 0,
                     size = call.request.queryParameters["size"]?.toInt() ?: 10,

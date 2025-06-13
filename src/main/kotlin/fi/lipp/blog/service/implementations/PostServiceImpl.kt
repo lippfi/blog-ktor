@@ -22,6 +22,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.kotlin.datetime.date
 import java.util.*
 import kotlin.math.ceil
 import kotlin.random.Random
@@ -76,8 +77,8 @@ class PostServiceImpl(
         diaryLogin: String?,
         text: String?,
         tags: Pair<TagPolicy, Set<String>>?,
-        from: LocalDateTime?,
-        to: LocalDateTime?,
+        from: LocalDate?,
+        to: LocalDate?,
         pageable: Pageable,
     ): Page<PostDto.View> {
         val userId = (viewer as? Viewer.Registered)?.userId
@@ -127,8 +128,8 @@ class PostServiceImpl(
                     text?.let { andWhere { Posts.text.regexp(stringParam(text), false) or Posts.title.regexp(stringParam(text), false) } }
                     authorId?.let { andWhere { Posts.author eq authorId } }
                     diaryId?.let { andWhere { Posts.diary eq diaryId } }
-                    from?.let { andWhere { Posts.creationTime greaterEq it } }
-                    to?.let { andWhere { Posts.creationTime lessEq it } }
+                    from?.let { andWhere { Posts.creationTime greaterEq it.atTime(0, 0) } }
+                    to?.let { andWhere { Posts.creationTime lessEq it.atTime(23, 59, 59) } }
                 }
                 .apply {
                     tags?.let { (policy, tagSet) ->
