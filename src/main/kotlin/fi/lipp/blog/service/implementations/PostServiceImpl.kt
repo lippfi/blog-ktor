@@ -329,7 +329,7 @@ class PostServiceImpl(
             val newUri = if ((post.uri.isNotEmpty() && post.uri != postEntity.uri) || (post.title != postEntity.title)) {
                 checkOrCreateUri(userId, post.title, post.uri)
             } else {
-                post.uri
+                postEntity.uri
             }
 
             val (readGroup, commentGroup, reactionGroup) = getReadAndCommentGroups(
