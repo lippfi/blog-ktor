@@ -58,6 +58,7 @@ fun Application.module() {
         allowHeader(HttpHeaders.ContentType)
         allowHeader(HttpHeaders.Authorization)
         allowMethod(HttpMethod.Delete)
+        allowMethod(HttpMethod.Put)
         allowCredentials = true
         allowNonSimpleContentTypes = true
     }
