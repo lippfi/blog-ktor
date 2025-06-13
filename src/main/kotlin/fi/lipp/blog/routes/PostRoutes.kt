@@ -53,7 +53,7 @@ fun Route.postRoutes(postService: PostService, reactionService: ReactionService)
                 val pageable = Pageable(
                     page = call.request.queryParameters["page"]?.toInt() ?: 0,
                     size = call.request.queryParameters["size"]?.toInt() ?: 10,
-                    direction = SortOrder.DESC,
+                    direction = if (call.request.queryParameters["sort"]?.lowercase() == "asc") SortOrder.ASC else SortOrder.DESC,
                 )
                 val tagPolicy = TagPolicy.valueOf(call.request.queryParameters["tagPolicy"] ?: "UNION")
 
