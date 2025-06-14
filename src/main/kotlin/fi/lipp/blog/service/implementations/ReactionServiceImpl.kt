@@ -376,4 +376,13 @@ class ReactionServiceImpl(
             }
         }
     }
+
+    override fun search(text: String): List<ReactionDto.View> {
+        return transaction {
+            ReactionEntity.find { Reactions.name like "%${text}%" }
+                .orderBy(Reactions.name to SortOrder.ASC)
+                .limit(120)
+                .map { toReactionView(it) }
+        }
+    }
 }

@@ -23,4 +23,6 @@ interface ReactionService {
     fun addCommentReaction(viewer: Viewer, commentId: UUID, reactionName: String)
     fun removeCommentReaction(viewer: Viewer, commentId: UUID, reactionName: String)
     fun getCommentReactions(commentId: UUID): List<ReactionDto.ReactionInfo>
+
+    fun search(text: String): List<ReactionDto.View>
 }

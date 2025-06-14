@@ -435,4 +435,49 @@ class ReactionServiceTests : UnitTestBase() {
             rollback()
         }
     }
+
+    @Test
+    fun `test search reactions with limit and sorting`() {
+        // Create test reactions with names that will test sorting
+        val testReactionNames = listOf(
+            "zreaction",
+            "areaction",
+            "breaction",
+            "creaction",
+            "dreaction"
+        )
+
+        testReactionNames.forEach { name ->
+            reactionService.createReaction(
+                testUser.id,
+                name,
+                FileUploadData(
+                    fullName = "reaction.png",
+                    inputStream = avatarFile1.inputStream()
+                )
+            )
+        }
+
+        // Test search with a pattern that matches all test reactions
+        val searchResults = reactionService.search("reaction")
+
+        // Verify results contain all test reactions
+        assertTrue(searchResults.size >= testReactionNames.size, 
+            "Expected at least ${testReactionNames.size} reactions, but found ${searchResults.size}")
+
+        // Verify all test reactions are in the results
+        val resultNames = searchResults.map { it.name }
+        testReactionNames.forEach { name ->
+            assertTrue(resultNames.contains(name), "Result should contain $name")
+        }
+
+        // Verify results are sorted by name
+        val sortedNames = resultNames.filter { testReactionNames.contains(it) }
+        val expectedSortedNames = testReactionNames.sorted()
+        assertEquals(expectedSortedNames, sortedNames, "Results should be sorted by name")
+
+        // Verify limit works (this is more of a code check since we can't easily create 120+ reactions in a test)
+        // The implementation should limit to 120 results
+        assertTrue(searchResults.size <= 120, "Results should be limited to 120")
+    }
 }

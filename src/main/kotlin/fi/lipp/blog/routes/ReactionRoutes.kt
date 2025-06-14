@@ -13,6 +13,12 @@ import java.util.UUID
 
 fun Route.reactionRoutes(reactionService: ReactionService) {
     route("/reactions") {
+        get("/search") {
+            val text = call.request.queryParameters["text"] ?: ""
+            val reactions = reactionService.search(text)
+            call.respond(reactions)
+        }
+
         get {
             val reactions = reactionService.getReactions()
             call.respond(reactions)
