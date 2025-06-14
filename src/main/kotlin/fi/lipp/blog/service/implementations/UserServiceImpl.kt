@@ -631,7 +631,8 @@ class UserServiceImpl(
                 .select {
                     (Users.nickname like searchPattern or (Diaries.login like searchPattern)) and
                     (Diaries.type eq DiaryType.PERSONAL) and
-                    (Diaries.owner eq Users.id)
+                    (Diaries.owner eq Users.id) and
+                    (Diaries.login neq "system")
                 }
                 .orderBy(Diaries.login)
                 .limit(10)
