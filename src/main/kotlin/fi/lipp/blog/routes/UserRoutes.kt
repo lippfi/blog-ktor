@@ -24,6 +24,12 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService)
             call.respond(users)
         }
 
+        get("/search-logins") {
+            val names = (call.request.queryParameters["logins"] ?: "").split(",").map { it.trim() }
+            val users = userService.getByLogins(names)
+            call.respond(users)
+        }
+
         post("/sign-up") {
             val user = call.receive<UserDto.Registration>()
             val inviteCode = call.request.queryParameters["invite-code"] ?: ""

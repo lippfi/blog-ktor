@@ -1942,4 +1942,59 @@ class UserServiceTests : UnitTestBase() {
             rollback()
         }
     }
+
+    @Test
+    fun `get users by logins`() {
+        transaction {
+            val (userId1, userId2) = signUsersUp()
+
+            // Get users by their logins
+            val users = userService.getByLogins(listOf(testUser.login, testUser2.login))
+
+            // Verify the correct users are returned
+            assertEquals(2, users.size)
+
+            // Check first user
+            val user1 = users.find { it.login == testUser.login }
+            assertNotNull(user1)
+            assertEquals(testUser.nickname, user1!!.nickname)
+
+            // Check second user
+            val user2 = users.find { it.login == testUser2.login }
+            assertNotNull(user2)
+            assertEquals(testUser2.nickname, user2!!.nickname)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `get users by logins with empty list`() {
+        transaction {
+            // Get users with empty login list
+            val users = userService.getByLogins(emptyList())
+
+            // Verify empty list is returned
+            assertEquals(0, users.size)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `get users by logins with nonexistent login`() {
+        transaction {
+            val (userId1, userId2) = signUsersUp()
+
+            // Get users with a mix of existing and nonexistent logins
+            val users = userService.getByLogins(listOf(testUser.login, "nonexistent-login"))
+
+            // Verify only existing users are returned
+            assertEquals(1, users.size)
+            assertEquals(testUser.login, users[0].login)
+            assertEquals(testUser.nickname, users[0].nickname)
+
+            rollback()
+        }
+    }
 }

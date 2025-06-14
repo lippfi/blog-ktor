@@ -650,6 +650,33 @@ class UserServiceImpl(
         }
     }
 
+    override fun getByLogins(logins: List<String>): List<UserDto.View> {
+        if (logins.isEmpty()) {
+            return emptyList()
+        }
+
+        return transaction {
+            (Users innerJoin Diaries)
+                .slice(Users.nickname, Diaries.login, Users.primaryAvatar)
+                .select {
+                    (Diaries.login inList logins) and
+                    (Diaries.type eq DiaryType.PERSONAL) and
+                    (Diaries.owner eq Users.id)
+                }
+                .map { row ->
+                    val primaryAvatarId = row[Users.primaryAvatar]?.value
+                    val primaryAvatarUrl = primaryAvatarId?.let { avatarId ->
+                        FileEntity.findById(avatarId)?.toBlogFile()?.let { storageService.getFileURL(it) }
+                    }
+                    UserDto.View(
+                        login = row[Diaries.login],
+                        nickname = row[Users.nickname],
+                        avatarUri = primaryAvatarUrl
+                    )
+                }
+        }
+    }
+
     override fun sendFriendRequest(userId: UUID, request: FriendRequestDto.Create) {
         transaction {
             val toUser = DiaryEntity.find { Diaries.login eq request.toUser }.singleOrNull()?.owner ?: throw UserNotFoundException()
