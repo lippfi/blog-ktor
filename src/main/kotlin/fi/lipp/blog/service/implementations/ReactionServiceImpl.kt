@@ -145,7 +145,7 @@ class ReactionServiceImpl(
 
                         val postAuthor = UserEntity.findById(postEntity.authorId.value)!!
                         if (postAuthor.id.value != viewer.userId && isNotificationEnabled(postAuthor.id.value) { entity -> entity.notifyAboutPostReactions }) {
-                            notificationService.notifyAboutPostReaction(postEntity.id.value)
+                            notificationService.notifyAboutPostReaction(viewer.userId, postEntity.id.value)
                         }
                     }
                 }
@@ -162,10 +162,11 @@ class ReactionServiceImpl(
                             it[reaction] = reactionId
                         }
 
-                        val postAuthor = UserEntity.findById(postEntity.authorId.value)!!
-                        if (isNotificationEnabled(postAuthor.id.value) { entity -> entity.notifyAboutPostReactions }) {
-                            notificationService.notifyAboutPostReaction(postEntity.id.value)
-                        }
+                        // TODO no sender for notification
+//                        val postAuthor = UserEntity.findById(postEntity.authorId.value)!!
+//                        if (isNotificationEnabled(postAuthor.id.value) { entity -> entity.notifyAboutPostReactions }) {
+//                            notificationService.notifyAboutPostReaction(postEntity.id.value)
+//                        }
                     }
                 }
             }

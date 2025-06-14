@@ -37,7 +37,7 @@ interface NotificationService {
     /**
      * Notify about a reaction on a post
      */
-    fun notifyAboutPostReaction(postId: UUID)
+    fun notifyAboutPostReaction(userId: UUID, postId: UUID)
 
     /**
      * Notify about a repost of a post

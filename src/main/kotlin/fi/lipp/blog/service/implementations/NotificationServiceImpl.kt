@@ -102,12 +102,13 @@ class NotificationServiceImpl : NotificationService {
         }
     }
 
-    override fun notifyAboutPostReaction(postId: UUID) {
+    override fun notifyAboutPostReaction(userId: UUID, postId: UUID) {
         transaction {
             val postAuthor = PostEntity.findById(postId)?.authorId ?: return@transaction
-            val shouldBeNotified = isNotificationEnabled(postAuthor.value) { entity -> entity.notifyAboutPostReactions }
+            val shouldBeNotified = userId != postAuthor.value && isNotificationEnabled(postAuthor.value) { entity -> entity.notifyAboutPostReactions }
             if (shouldBeNotified) {
                 Notifications.insert {
+                    it[sender] = EntityID(userId, Users)
                     it[type] = NotificationType.POST_REACTION
                     it[recipient] = postAuthor
                     it[relatedPost] = EntityID(postId, Posts)
