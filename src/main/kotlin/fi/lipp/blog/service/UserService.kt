@@ -205,4 +205,6 @@ interface UserService {
      * Update user's notification settings
      */
     fun updateNotificationSettings(userId: UUID, settings: NotificationSettings)
+
+    fun search(text: String): List<UserDto.View>
 }

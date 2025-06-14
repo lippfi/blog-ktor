@@ -622,6 +622,33 @@ class UserServiceImpl(
         }
     }
 
+    override fun search(text: String): List<UserDto.View> {
+        return transaction {
+            val searchPattern = "%${text.trim()}%"
+
+            (Users innerJoin Diaries)
+                .slice(Users.nickname, Diaries.login, Users.primaryAvatar)
+                .select {
+                    (Users.nickname like searchPattern or (Diaries.login like searchPattern)) and
+                    (Diaries.type eq DiaryType.PERSONAL) and
+                    (Diaries.owner eq Users.id)
+                }
+                .orderBy(Diaries.login)
+                .limit(10)
+                .map { row ->
+                    val primaryAvatarId = row[Users.primaryAvatar]?.value
+                    val primaryAvatarUrl = primaryAvatarId?.let { avatarId ->
+                        FileEntity.findById(avatarId)?.toBlogFile()?.let { storageService.getFileURL(it) }
+                    }
+                    UserDto.View(
+                        login = row[Diaries.login],
+                        nickname = row[Users.nickname],
+                        avatarUri = primaryAvatarUrl
+                    )
+                }
+        }
+    }
+
     override fun sendFriendRequest(userId: UUID, request: FriendRequestDto.Create) {
         transaction {
             val toUser = DiaryEntity.find { Diaries.login eq request.toUser }.singleOrNull()?.owner ?: throw UserNotFoundException()
