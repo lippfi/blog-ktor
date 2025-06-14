@@ -15,18 +15,13 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import java.util.*
-import kotlin.collections.emptyList
 
 fun Route.userRoutes(userService: UserService, reactionService: ReactionService) {
     route("/user") {
         get("/search") {
-            val text = call.request.queryParameters["text"]
-            if (text == null) {
-                call.respond(emptyList<UserDto.View>())
-            } else {
-                val users = userService.search(text)
-                call.respond(users)
-            }
+            val text = call.request.queryParameters["text"] ?: ""
+            val users = userService.search(text)
+            call.respond(users)
         }
 
         post("/sign-up") {
