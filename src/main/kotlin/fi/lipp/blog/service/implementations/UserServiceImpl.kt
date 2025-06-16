@@ -572,6 +572,30 @@ class UserServiceImpl(
         return newAvatars.map { storageService.getFileURL(it) }
     }
 
+    override fun addAvatar(userId: UUID, avatarUri: String) {
+        val uuidRegex = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}".toRegex()
+        val avatarIdString = uuidRegex.find(avatarUri)?.value ?: return
+        val avatarId = try {
+            UUID.fromString(avatarIdString)
+        } catch (e: IllegalArgumentException) {
+            throw IllegalArgumentException("Invalid avatar URI: $avatarUri")
+        }
+        transaction {
+            val fileEntity = FileEntity.findById(avatarId) ?: throw IllegalArgumentException("Invalid avatar ID: $avatarIdString")
+
+            val maxOrdinal = UserAvatars.slice(UserAvatars.ordinal.max())
+                .select { UserAvatars.user eq userId }
+                .firstOrNull()
+                ?.get(UserAvatars.ordinal.max()) ?: 0
+
+            UserAvatars.insert {
+                it[UserAvatars.user] = EntityID(userId, Users)
+                it[UserAvatars.avatar] = fileEntity.id
+                it[UserAvatars.ordinal] = maxOrdinal
+            }
+        }
+    }
+
     override fun deleteAvatar(userId: UUID, avatarUri: String) {
         val uuidRegex = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}".toRegex()
         val avatarIdString = uuidRegex.find(avatarUri)?.value ?: return

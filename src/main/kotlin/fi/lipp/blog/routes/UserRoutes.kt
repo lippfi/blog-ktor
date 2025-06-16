@@ -121,6 +121,16 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService)
                 call.respond(avatarUrls)
             }
 
+            post("/add-avatar-by-uri") {
+                val avatarUri = call.request.queryParameters["uri"]
+                if (avatarUri == null) {
+                    call.respond(HttpStatusCode.BadRequest, "Missing avatar uri query parameter")
+                    return@post
+                }
+                userService.addAvatar(userId, avatarUri)
+                call.respondText("Avatar added successfully")
+            }
+
             delete("/delete-avatar") {
                 val avatarUri = call.request.queryParameters["uri"]
                 if (avatarUri == null) {

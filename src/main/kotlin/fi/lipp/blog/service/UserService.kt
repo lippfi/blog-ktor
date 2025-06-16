@@ -65,6 +65,7 @@ interface UserService {
     fun getAvatarUrls(userId: UUID): List<String>
     fun reorderAvatars(userId: UUID, permutation: List<UUID>)
     fun addAvatar(userId: UUID, files: List<FileUploadData>): List<String>
+    fun addAvatar(userId: UUID, avatarUri: String)
     fun deleteAvatar(userId: UUID, avatarUri: String)
     fun changePrimaryAvatar(userId: UUID, avatarUri: String)
     fun uploadAvatar(userId: UUID, avatarUri: String)
