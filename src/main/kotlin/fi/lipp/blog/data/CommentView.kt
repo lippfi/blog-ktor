@@ -43,8 +43,6 @@ sealed interface CommentDto {
     data class Update(
         @Serializable(with = UUIDSerializer::class)
         val id: UUID,
-        @Serializable(with = UUIDSerializer::class)
-        val postId: UUID,
         val avatar : String,
         val text: String,
     )
