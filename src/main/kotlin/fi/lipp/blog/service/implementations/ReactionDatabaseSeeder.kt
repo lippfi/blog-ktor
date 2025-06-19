@@ -134,7 +134,7 @@ class ReactionDatabaseSeeder(
                     inputStream = inputStream
                 )
 
-                val storedFile = storageService.storeReaction(systemUserId, fileUploadData)
+                val storedFile = storageService.storeReaction(systemUserId, fileName,fileUploadData)
                 val iconFile = FileEntity.findById(storedFile.id) ?: throw FileNotFoundException()
 
                 ReactionEntity.new {

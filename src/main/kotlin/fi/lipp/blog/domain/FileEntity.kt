@@ -10,11 +10,11 @@ import java.util.UUID
 class FileEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     companion object : UUIDEntityClass<FileEntity>(Files)
 
+    val name by Files.name
     val owner by Files.owner
-    val extension by Files.extension
     val fileType by Files.fileType
 
     fun toBlogFile(): BlogFile {
-        return BlogFile(id.value, owner.value, extension, fileType)
+        return BlogFile(id.value, owner.value, name, fileType)
     }
 }

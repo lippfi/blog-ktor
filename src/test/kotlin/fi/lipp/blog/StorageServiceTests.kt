@@ -58,7 +58,7 @@ class StorageServiceTests : UnitTestBase() {
     fun `test store reaction - valid square image`() {
         transaction {
             val file = createTestImage(100, 100)
-            val blogFile = storageService.storeReaction(registeredUser.id, file)
+            val blogFile = storageService.storeReaction(registeredUser.id, "test.jpg", file)
             assertEquals(FileType.REACTION, blogFile.type)
         }
     }
@@ -91,7 +91,7 @@ class StorageServiceTests : UnitTestBase() {
                 inputStream = ByteArrayInputStream(ByteArray(10))
             )
             assertFailsWith<InvalidReactionImageException> {
-                storageService.storeReaction(registeredUser.id, file)
+                storageService.storeReaction(registeredUser.id, "1.png",file)
             }
         }
     }
@@ -106,7 +106,7 @@ class StorageServiceTests : UnitTestBase() {
                 inputStream = ByteArrayInputStream(largeBytes)
             )
             assertFailsWith<InvalidReactionImageException> {
-                storageService.storeReaction(registeredUser.id, largeFile)
+                storageService.storeReaction(registeredUser.id, "2.png", largeFile)
             }
         }
     }
@@ -124,7 +124,7 @@ class StorageServiceTests : UnitTestBase() {
 
             // Test reaction storage
             val reactionFile = createTestImage(50, 50)
-            val storedReaction = storageService.storeReaction(registeredUser.id, reactionFile)
+            val storedReaction = storageService.storeReaction(registeredUser.id, "3.png", reactionFile)
             val reactionStoredFile = storageService.getFile(storedReaction)
             assertTrue(reactionStoredFile.parentFile.exists(), "Reaction directory should be created")
             assertTrue(reactionStoredFile.parentFile.isDirectory, "Reaction path should be a directory")

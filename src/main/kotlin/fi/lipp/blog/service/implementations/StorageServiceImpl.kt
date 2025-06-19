@@ -21,11 +21,9 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import fi.lipp.blog.service.ApplicationProperties
 import fi.lipp.blog.service.StorageService
-import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.insertAndGetId
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import java.io.File
 import java.nio.file.Path
 import java.util.UUID
@@ -43,9 +41,9 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
         }
     }
 
-    override fun storeReaction(userId: UUID, file: FileUploadData): BlogFile {
+    override fun storeReaction(userId: UUID, fileName: String, file: FileUploadData): BlogFile {
         val userLogin = getUserLogin(userId)
-        return store(userId, userLogin, listOf(file)) { file ->
+        return store(userId, userLogin, listOf(file), fileName) { file ->
             validateReaction(file)
         }[0]
     }
@@ -122,7 +120,7 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
         }
     }
 
-    private fun store(userId: UUID, userLogin: String, files: List<FileUploadData>, performChecks: (FileUploadData) -> FileUploadData): List<BlogFile> {
+    private fun store(userId: UUID, userLogin: String, files: List<FileUploadData>, fileName: String? = null, performChecks: (FileUploadData) -> FileUploadData): List<BlogFile> {
         val blogFiles = mutableListOf<BlogFile>()
         transaction {
             val validatedFiles = files.map { performChecks(it) }
@@ -140,12 +138,13 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
             }
 
             validatedFiles.forEach { file ->
-                val uuid = Files.insertAndGetId {
+                val fileName = fileName ?: (UUID.randomUUID().toString() + file.extension)
+                val fileId = Files.insertAndGetId {
+                    it[name] = fileName
                     it[owner] = userId
-                    it[extension] = file.extension
                     it[fileType] = file.type
                 }
-                val blogFile = createFile(userId, userLogin, uuid.value, file)
+                val blogFile = createFile(userId, userLogin, fileId.value, fileName, file)
                 blogFiles.add(blogFile)
             }
 
@@ -165,9 +164,8 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
         }
     }
 
-    private fun createFile(userId: UUID, userLogin: String, uuid: UUID, fileUploadData: FileUploadData): BlogFile {
+    private fun createFile(userId: UUID, userLogin: String, fileId: UUID, fileName: String, fileUploadData: FileUploadData): BlogFile {
         val path = getSavingPath(userLogin, fileUploadData.type)
-        val fileName = uuid.toString() + fileUploadData.extension
 
         ensureDirectoryExists(path)
 
@@ -177,7 +175,7 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
                 input.copyTo(output)
             }
         }
-        return BlogFile(uuid, userId, fileUploadData.extension, fileUploadData.type)
+        return BlogFile(fileId, userId, fileName, fileUploadData.type)
     }
 
     override fun getFileURL(file: BlogFile): String {

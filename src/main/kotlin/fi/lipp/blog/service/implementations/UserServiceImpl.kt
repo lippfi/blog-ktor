@@ -551,6 +551,7 @@ class UserServiceImpl(
                 ?.get(UserAvatars.ordinal.max()) ?: 0
         }
 
+        // TODO FileType.AVATAR where?
         val newAvatars = storageService.storeAvatars(userId, files)
 
         transaction {
@@ -573,45 +574,16 @@ class UserServiceImpl(
         return newAvatars.map { storageService.getFileURL(it) }
     }
 
+    // TODO remove duplication
     override fun addAvatar(userId: UUID, avatarUri: String) {
-        val uuidRegex = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}".toRegex()
-        val avatarIdString = uuidRegex.find(avatarUri)?.value ?: return
-        val avatarId = try {
-            UUID.fromString(avatarIdString)
-        } catch (e: IllegalArgumentException) {
-            throw IllegalArgumentException("Invalid avatar URI: $avatarUri")
-        }
-        transaction {
-            val fileEntity = FileEntity.findById(avatarId) ?: throw IllegalArgumentException("Invalid avatar ID: $avatarIdString")
-
-            val maxOrdinal = UserAvatars.slice(UserAvatars.ordinal.max())
-                .select { UserAvatars.user eq userId }
-                .firstOrNull()
-                ?.get(UserAvatars.ordinal.max()) ?: 0
-
-            UserAvatars.insert {
-                it[UserAvatars.user] = EntityID(userId, Users)
-                it[UserAvatars.avatar] = fileEntity.id
-                it[UserAvatars.ordinal] = maxOrdinal
-            }
-
-            val userEntity = UserEntity.findById(userId)!!
-            if (userEntity.primaryAvatar == null) {
-                userEntity.primaryAvatar = fileEntity.id
-            }
-        }
+        uploadAvatar(userId, avatarUri)
     }
 
     override fun deleteAvatar(userId: UUID, avatarUri: String) {
-        val uuidRegex = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}".toRegex()
-        val avatarIdString = uuidRegex.find(avatarUri)?.value ?: return
-        val avatarId = try {
-            UUID.fromString(avatarIdString)
-        } catch (e: IllegalArgumentException) {
-            return
-        }
         transaction {
             val user = UserEntity.findById(userId) ?: return@transaction
+            val avatarEntity = getFileEntityByUri(avatarUri)
+            val avatarId = avatarEntity.id.value
 
             UserAvatars.deleteWhere {
                 (UserAvatars.user eq EntityID(userId, Users)) and 
@@ -750,14 +722,12 @@ class UserServiceImpl(
                 throw NotRequestRecipientException()
             }
 
-            // Create friendship
             FriendshipEntity.new {
                 user1 = request.fromUser
                 user2 = request.toUser
                 createdAt = LocalDateTime.now().toKotlinLocalDateTime()
             }
 
-            // Save labels for both users
             FriendLabelEntity.new {
                 user = request.toUser
                 friend = request.fromUser
@@ -871,7 +841,6 @@ class UserServiceImpl(
 
             friendship.delete()
 
-            // Delete friend labels when removing friendship
             FriendLabelEntity.find {
                 (FriendLabels.user eq userId and (FriendLabels.friend eq friend.id)) or
                 (FriendLabels.user eq friend.id and (FriendLabels.friend eq userId))
@@ -883,13 +852,11 @@ class UserServiceImpl(
         transaction {
             val friend = getUserByLogin(friendLogin) ?: throw UserNotFoundException()
 
-            // Verify they are friends
-            val friendship = FriendshipEntity.find {
+            FriendshipEntity.find {
                 (Friends.user1 eq userId and (Friends.user2 eq friend.id)) or
                 (Friends.user1 eq friend.id and (Friends.user2 eq userId))
             }.firstOrNull() ?: throw NotFriendsException()
 
-            // Update or create label
             val existingLabel = FriendLabelEntity.find {
                 FriendLabels.user eq userId and (FriendLabels.friend eq friend.id)
             }.firstOrNull()
@@ -907,117 +874,72 @@ class UserServiceImpl(
         }
     }
 
-    private fun getDiaryByUserId(userId: UUID): DiaryEntity? {
-        return transaction { DiaryEntity.find { Diaries.owner eq userId }.firstOrNull() }
-    }
-
     override fun changePrimaryAvatar(userId: UUID, avatarUri: String) {
-        val uuidRegex = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}".toRegex()
-        val avatarIdString = uuidRegex.find(avatarUri)?.value ?: return
-        val avatarId = try {
-            UUID.fromString(avatarIdString)
-        } catch (e: IllegalArgumentException) {
-            return
-        }
-
         transaction {
-            val avatarExists = UserAvatars.select {
+            val avatarEntity = getFileEntityByUri(avatarUri)
+            val avatarId = avatarEntity.id.value
+            val avatarInUserCollection = UserAvatars.select {
                 (UserAvatars.user eq userId) and (UserAvatars.avatar eq avatarId)
             }.count() > 0
 
-            if (avatarExists) {
+            if (avatarInUserCollection) {
                 UserEntity.findById(userId)?.apply {
-                    primaryAvatar = EntityID(avatarId, Files)
+                    primaryAvatar = avatarEntity.id
                 }
             } else {
-                val fileEntity = FileEntity.findById(avatarId) ?: return@transaction
-                val file = storageService.getFile(fileEntity.toBlogFile())
-                val fileUploadData = FileUploadData(file.name, file.inputStream())
-
-                val newAvatars = storageService.storeAvatars(userId, listOf(fileUploadData))
-                if (newAvatars.isEmpty()) return@transaction
-
-                val newAvatarId = newAvatars[0].id
-
-                val maxOrdinal = UserAvatars.slice(UserAvatars.ordinal.max())
-                    .select { UserAvatars.user eq userId }
-                    .firstOrNull()
-                    ?.get(UserAvatars.ordinal.max()) ?: 0
-
-                UserAvatars.insert {
-                    it[user] = EntityID(userId, Users)
-                    it[avatar] = EntityID(newAvatarId, Files)
-                    it[ordinal] = maxOrdinal + 1
-                }
-
-                // Set as primary avatar
-                UserEntity.findById(userId)?.apply {
-                    primaryAvatar = EntityID(newAvatarId, Files)
-                }
+                reuploadFileAsUserAvatar(userId, avatarId)
             }
         }
     }
 
+    // TODO is it different from add?
     override fun uploadAvatar(userId: UUID, avatarUri: String) {
-        val uuidRegex = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}".toRegex()
-        val avatarIdString = uuidRegex.find(avatarUri)?.value ?: return
-        val avatarId = try {
-            UUID.fromString(avatarIdString)
-        } catch (_: IllegalArgumentException) {
-            throw InvalidAvatarUriException()
+        transaction {
+            val avatarEntity = getFileEntityByUri(avatarUri)
+            val avatarId = avatarEntity.id.value
+
+            val avatarInUserCollection = UserAvatars.select {
+                (UserAvatars.user eq userId) and (UserAvatars.avatar eq avatarId)
+            }.count() > 0
+
+            if (avatarInUserCollection) {
+                return@transaction
+            }
+            reuploadFileAsUserAvatar(userId, avatarId)
+        }
+    }
+
+    @Suppress("UnusedReceiverParameter")
+    private fun Transaction.getFileEntityByUri(uri: String): FileEntity {
+        val fileName = Regex("""([^/]+)/?$""").find(uri)?.groupValues?.get(1) ?: throw InvalidAvatarUriException()
+        return FileEntity.find { Files.name eq fileName }.firstOrNull() ?: throw InvalidAvatarUriException()
+    }
+
+    @Suppress("UnusedReceiverParameter")
+    private fun Transaction.reuploadFileAsUserAvatar(userId: UUID, avatarId: UUID) {
+        val fileEntity = FileEntity.findById(avatarId) ?: return
+        val file = storageService.getFile(fileEntity.toBlogFile())
+        val fileUploadData = FileUploadData(file.name, file.inputStream())
+
+        val newAvatars = storageService.storeAvatars(userId, listOf(fileUploadData))
+        if (newAvatars.isEmpty()) return
+
+        val newAvatarId = newAvatars[0].id
+
+        val maxOrdinal = UserAvatars.slice(UserAvatars.ordinal.max())
+            .select { UserAvatars.user eq userId }
+            .firstOrNull()
+            ?.get(UserAvatars.ordinal.max()) ?: 0
+
+        UserAvatars.insert {
+            it[user] = EntityID(userId, Users)
+            it[avatar] = EntityID(newAvatarId, Files)
+            it[ordinal] = maxOrdinal + 1
         }
 
-        transaction {
-            val fileInfo = (Files leftJoin UserAvatars)
-                .slice(Files.fileType, Files.extension, UserAvatars.user)
-                .select { Files.id eq avatarId }
-                .firstOrNull() ?: return@transaction
-
-            val fileType = fileInfo[Files.fileType]
-            val extension = fileInfo[Files.extension]
-
-            if (fileType == FileType.AVATAR) {
-                val maxOrdinal = UserAvatars.slice(UserAvatars.ordinal.max())
-                    .select { UserAvatars.user eq userId }
-                    .firstOrNull()
-                    ?.get(UserAvatars.ordinal.max()) ?: 0
-
-                UserAvatars.insert {
-                    it[user] = EntityID(userId, Users)
-                    it[avatar] = EntityID(avatarId, Files)
-                    it[ordinal] = maxOrdinal + 1
-                }
-
-                val user = UserEntity.findById(userId)
-                if (user?.primaryAvatar == null) {
-                    user?.primaryAvatar = EntityID(avatarId, Files)
-                }
-            } else if (fileType != FileType.AVATAR) {
-                val blogFile = BlogFile(avatarId, userId, extension, fileType)
-                val file = storageService.getFile(blogFile)
-                val fileUploadData = FileUploadData(file.name, file.inputStream())
-
-                val newAvatars = storageService.storeAvatars(userId, listOf(fileUploadData))
-                if (newAvatars.isEmpty()) return@transaction
-
-                val newAvatarId = newAvatars[0].id
-
-                val maxOrdinal = UserAvatars.slice(UserAvatars.ordinal.max())
-                    .select { UserAvatars.user eq userId }
-                    .firstOrNull()
-                    ?.get(UserAvatars.ordinal.max()) ?: 0
-
-                UserAvatars.insert {
-                    it[user] = EntityID(userId, Users)
-                    it[avatar] = EntityID(newAvatarId, Files)
-                    it[ordinal] = maxOrdinal + 1
-                }
-
-                val user = UserEntity.findById(userId)
-                if (user?.primaryAvatar == null) {
-                    user?.primaryAvatar = EntityID(newAvatarId, Files)
-                }
-            }
+        val user = UserEntity.findById(userId)
+        if (user?.primaryAvatar == null) {
+            user?.primaryAvatar = EntityID(newAvatarId, Files)
         }
     }
 

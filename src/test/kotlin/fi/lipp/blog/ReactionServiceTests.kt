@@ -29,7 +29,7 @@ class ReactionServiceTests : UnitTestBase() {
             val (userId1, userId2) = signUsersUp()
             testUser = findUserByLogin(UnitTestBase.testUser.login)!!
             testUser2 = findUserByLogin(UnitTestBase.testUser2.login)!!
-            testFile = storageService.storeReaction(testUser.id, FileUploadData(
+            testFile = storageService.storeReaction(testUser.id, "reaction.png",FileUploadData(
                 fullName = "reaction.png",
                 inputStream = avatarFile1.inputStream()
             ))

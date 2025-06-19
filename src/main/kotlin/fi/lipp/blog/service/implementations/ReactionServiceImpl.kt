@@ -85,7 +85,9 @@ class ReactionServiceImpl(
             throw ReactionNameIsTakenException()
         }
 
-        val storedFile = storageService.storeReaction(userId, icon)
+        val extension = icon.extension
+
+        val storedFile = storageService.storeReaction(userId, name + extension, icon)
 
         return transaction {
             val iconFile = FileEntity.findById(storedFile.id) ?: throw FileNotFoundException()
