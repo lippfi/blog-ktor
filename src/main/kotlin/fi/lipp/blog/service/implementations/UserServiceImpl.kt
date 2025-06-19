@@ -53,7 +53,8 @@ class UserServiceImpl(
     override fun signUp(user: UserDto.Registration, inviteCode: String) {
         val inviteCodeEntity = transaction {
             if (inviteCode.trim().isEmpty()) {
-                if (Users.selectAll().count() > 1) throw InviteCodeRequiredException()
+                // TODO enable this later
+//                if (Users.selectAll().count() > 1) throw InviteCodeRequiredException()
                 null
             } else {
                 val uuid = UUID.fromString(inviteCode)
@@ -962,8 +963,8 @@ class UserServiceImpl(
         val avatarIdString = uuidRegex.find(avatarUri)?.value ?: return
         val avatarId = try {
             UUID.fromString(avatarIdString)
-        } catch (e: IllegalArgumentException) {
-            return
+        } catch (_: IllegalArgumentException) {
+            throw InvalidAvatarUriException()
         }
 
         transaction {
@@ -974,9 +975,8 @@ class UserServiceImpl(
 
             val fileType = fileInfo[Files.fileType]
             val extension = fileInfo[Files.extension]
-            val existingUserId = fileInfo[UserAvatars.user]?.value
 
-            if (fileType == FileType.AVATAR && existingUserId != userId) {
+            if (fileType == FileType.AVATAR) {
                 val maxOrdinal = UserAvatars.slice(UserAvatars.ordinal.max())
                     .select { UserAvatars.user eq userId }
                     .firstOrNull()
