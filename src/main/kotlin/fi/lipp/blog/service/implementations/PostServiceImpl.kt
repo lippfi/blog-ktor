@@ -3,7 +3,10 @@ package fi.lipp.blog.service.implementations
 import fi.lipp.blog.data.*
 import fi.lipp.blog.model.Page
 import fi.lipp.blog.domain.*
+import fi.lipp.blog.model.DiaryPage
+import fi.lipp.blog.model.DiaryView
 import fi.lipp.blog.model.Pageable
+import fi.lipp.blog.model.PostPage
 import fi.lipp.blog.model.TagPolicy
 import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.repository.*
@@ -56,9 +59,9 @@ class PostServiceImpl(
         }
     }
 
-    override fun getPost(viewer: Viewer, diaryLogin: String, uri: String): PostDto.View {
+    override fun getPost(viewer: Viewer, diaryLogin: String, uri: String): PostPage {
         val userId = (viewer as? Viewer.Registered)?.userId
-        return transaction {
+        val post = transaction {
             val diaryEntity = findDiaryByLogin(diaryLogin)
             val diaryOwnerId = diaryEntity.owner.value
             val postEntity = PostEntity.find { (Posts.diary eq diaryEntity.id) and (Posts.uri eq uri) and (Posts.isArchived eq false) }.firstOrNull() ?: throw PostNotFoundException()
@@ -68,6 +71,56 @@ class PostServiceImpl(
             } else {
                 throw PostNotFoundException()
             }
+        }
+        val diary = getDiaryView(diaryLogin)
+        return PostPage(
+            post = post,
+            diary = diary,
+        )
+    }
+
+    override fun getDiaryPosts(
+        viewer: Viewer,
+        diaryLogin: String,
+        text: String?,
+        tags: Pair<TagPolicy, Set<String>>?,
+        from: LocalDate?,
+        to: LocalDate?,
+        pageable: Pageable
+    ): DiaryPage {
+        val order = if (text == null && tags == null && from == null && to == null && pageable.direction == SortOrder.DESC) {
+            arrayOf(Posts.isPreface to SortOrder.DESC, Posts.creationTime to SortOrder.DESC)
+        } else {
+            arrayOf(Posts.creationTime to pageable.direction)
+        }
+        val page = getPosts(
+            viewer = viewer,
+            diaryLogin = diaryLogin,
+            authorLogin = null,
+            text = text,
+            tags = tags,
+            from = from,
+            to = to,
+            pageable = pageable,
+            order = order,
+        )
+        val diary = getDiaryView(diaryLogin)
+        return DiaryPage(
+            diary = diary,
+            posts = page,
+        )
+    }
+
+    private fun getDiaryView(diaryLogin: String): DiaryView {
+        return transaction {
+            val diaryEntity = findDiaryByLogin(diaryLogin)
+            val styleFile = diaryEntity.style?.let { FileEntity.findById(it) }?.toBlogFile()
+            val styleURL = styleFile?.let { storageService.getFileURL(it) }
+            DiaryView(
+                name = diaryEntity.name,
+                subtitle = diaryEntity.subtitle,
+                style = styleURL,
+            )
         }
     }
 
@@ -80,6 +133,7 @@ class PostServiceImpl(
         from: LocalDate?,
         to: LocalDate?,
         pageable: Pageable,
+        vararg order: Pair<Expression<*>, SortOrder>
     ): Page<PostDto.View> {
         val userId = (viewer as? Viewer.Registered)?.userId
         return transaction {
@@ -150,7 +204,7 @@ class PostServiceImpl(
                         }
                     }
                 }
-                .orderBy(Posts.creationTime to pageable.direction)
+                .orderBy(*order)
                 .groupBy(Posts.id)
 
             val totalCount = query.count()

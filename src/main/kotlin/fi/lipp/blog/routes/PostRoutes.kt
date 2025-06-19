@@ -37,10 +37,31 @@ fun Route.postRoutes(postService: PostService, reactionService: ReactionService)
             }
 
             get {
-                val authorLogin = call.request.queryParameters["login"]!!
+                val diaryLogin = call.request.queryParameters["login"]!!
                 val uri = call.request.queryParameters["uri"]!!
-                val post = postService.getPost(viewer, authorLogin, uri)
+                val post = postService.getPost(viewer, diaryLogin, uri)
                 call.respond(post)
+            }
+
+            get("/diary") {
+                val diaryLogin = call.request.queryParameters["diary"]
+                if (diaryLogin == null) {
+                    call.respond(HttpStatusCode.BadRequest, "Missing diary parameter")
+                    return@get
+                }
+                val text = call.request.queryParameters["text"]
+                val tags = call.request.queryParameters["tags"]?.split(",")?.toSet()
+                val from = call.request.queryParameters["from"]?.let { LocalDate.parse(it) }
+                val to = call.request.queryParameters["to"]?.let { LocalDate.parse(it) }
+                val pageable = Pageable(
+                    page = call.request.queryParameters["page"]?.toInt() ?: 0,
+                    size = call.request.queryParameters["size"]?.toInt() ?: 10,
+                    direction = if (call.request.queryParameters["sort"]?.lowercase() == "asc") SortOrder.ASC else SortOrder.DESC,
+                )
+                val tagPolicy = TagPolicy.valueOf(call.request.queryParameters["tagPolicy"] ?: "UNION")
+
+                val posts = postService.getDiaryPosts(viewer, diaryLogin, text, tags?.let { Pair(tagPolicy, it) }, from, to, pageable)
+                call.respond(posts)
             }
 
             get("/search") {

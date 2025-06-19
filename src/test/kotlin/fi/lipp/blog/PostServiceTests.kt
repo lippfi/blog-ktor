@@ -990,14 +990,14 @@ class PostServiceTests : UnitTestBase() {
 
             val post = createPostPostData(title = "post1")
             postService.addPost(user1, post)
-            val postId = postService.getPost(Viewer.Registered(user1), testUser.login, "post1").id
+            val postId = postService.getPost(Viewer.Registered(user1), testUser.login, "post1").post.id
 
             val comment1 = CommentDto.Create(postId = postId, avatar = "my avatar", text = "oh, hi Mark")
             val comment2 = CommentDto.Create(postId = postId, avatar = "my avatar", text = "hi")
             postService.addComment(user1, comment1)
             postService.addComment(user2, comment2)
 
-            val comments = postService.getPost(Viewer.Registered(user1), testUser.login, "post1").comments
+            val comments = postService.getPost(Viewer.Registered(user1), testUser.login, "post1").post.comments
             assertEquals(2, comments.size)
             assertEquals(comment1.text, comments[0].text)
             assertEquals(comment1.avatar, comments[0].avatar)
@@ -1031,7 +1031,7 @@ class PostServiceTests : UnitTestBase() {
                 commentGroup = groupService.friendsGroupUUID
             )
             postService.addPost(user1Id, post)
-            val postId = postService.getPost(Viewer.Registered(user1Id), user1Login, "friends-comment").id
+            val postId = postService.getPost(Viewer.Registered(user1Id), user1Login, "friends-comment").post.id
 
             // Owner can always comment on their own post
             val ownerComment = CommentDto.Create(postId = postId, avatar = "avatar1", text = "Owner comment")
@@ -1064,7 +1064,7 @@ class PostServiceTests : UnitTestBase() {
             }
 
             // Verify comments
-            val comments = postService.getPost(Viewer.Registered(user1Id), user1Login, "friends-comment").comments
+            val comments = postService.getPost(Viewer.Registered(user1Id), user1Login, "friends-comment").post.comments
             assertEquals(2, comments.size)
             assertEquals("Owner comment", comments[0].text)
             assertEquals("User2 comment", comments[1].text)
@@ -1092,9 +1092,9 @@ class PostServiceTests : UnitTestBase() {
             val postView = postService.getPost(Viewer.Registered(user1Id), user1Login, "friends-react")
 
             // Verify the post was created with the friends-only reaction group
-            val postEntity = PostEntity.findById(postView.id)
+            val postEntity = PostEntity.findById(postView.post.id)
             assertNotNull(postEntity)
-            assertEquals(groupService.friendsGroupUUID, postEntity!!.reactionGroupId.value)
+            assertEquals(groupService.friendsGroupUUID, postEntity.reactionGroupId.value)
 
             // Verify friendship affects access
             // Initially user2 is not friends with user1

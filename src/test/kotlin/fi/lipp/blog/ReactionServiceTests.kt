@@ -1,9 +1,7 @@
 package fi.lipp.blog
 
 import fi.lipp.blog.data.*
-import fi.lipp.blog.domain.ReactionEntity
 import fi.lipp.blog.model.exceptions.*
-import fi.lipp.blog.repository.Reactions
 import fi.lipp.blog.service.NotificationService
 import fi.lipp.blog.service.PostService
 import fi.lipp.blog.service.ReactionService
@@ -70,7 +68,7 @@ class ReactionServiceTests : UnitTestBase() {
                 classes = "",
                 avatar = ""
             ))
-            postService.getPost(Viewer.Registered(userId), testUser.login, uri)
+            postService.getPost(Viewer.Registered(userId), testUser.login, uri).post
         }
     }
 
@@ -303,7 +301,7 @@ class ReactionServiceTests : UnitTestBase() {
         reactionService.addReaction(Viewer.Anonymous("127.0.0.2", "test2"), testUser.login, post.uri, reaction.name)
 
         // Get post and verify reaction information
-        val updatedPost = postService.getPost(Viewer.Registered(testUser.id), testUser.login, post.uri)
+        val updatedPost = postService.getPost(Viewer.Registered(testUser.id), testUser.login, post.uri).post
         assertEquals(1, updatedPost.reactions.size)
 
         val reactionInfo = updatedPost.reactions[0]

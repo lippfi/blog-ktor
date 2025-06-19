@@ -1,10 +1,15 @@
 package fi.lipp.blog.service
 
 import fi.lipp.blog.data.*
+import fi.lipp.blog.model.DiaryPage
 import fi.lipp.blog.model.Page
 import fi.lipp.blog.model.Pageable
+import fi.lipp.blog.model.PostPage
 import fi.lipp.blog.model.TagPolicy
+import fi.lipp.blog.repository.Posts
 import kotlinx.datetime.LocalDate
+import org.jetbrains.exposed.sql.Expression
+import org.jetbrains.exposed.sql.SortOrder
 import java.security.MessageDigest
 import java.util.Base64
 import java.util.UUID
@@ -14,7 +19,17 @@ interface PostService {
 
     fun getPreface(viewer: Viewer, diaryLogin: String): PostDto.View?
 
-    fun getPost(viewer: Viewer, diaryLogin: String, uri: String): PostDto.View
+    fun getPost(viewer: Viewer, diaryLogin: String, uri: String): PostPage
+
+    fun getDiaryPosts(
+        viewer: Viewer,
+        diaryLogin: String,
+        text: String?,
+        tags: Pair<TagPolicy, Set<String>>?,
+        from: LocalDate?,
+        to: LocalDate?,
+        pageable: Pageable, // order that respects preface
+    ): DiaryPage
 
     fun getPosts(
         viewer: Viewer,
@@ -25,6 +40,7 @@ interface PostService {
         from: LocalDate?,
         to: LocalDate?,
         pageable: Pageable,
+        vararg order: Pair<Expression<*>, SortOrder> = arrayOf(Posts.creationTime to pageable.direction),
     ): Page<PostDto.View>
 
     fun addPost(userId: UUID, post: PostDto.Create): PostDto.View
