@@ -537,6 +537,8 @@ class UserServiceImpl(
                     it[ordinal] = index
                 }
             }
+            val userEntity = UserEntity.findById(userId)!!
+            userEntity.primaryAvatar = permutation.firstOrNull()?.let { EntityID(it, Files) }
         }
     }
 
@@ -551,7 +553,6 @@ class UserServiceImpl(
         val newAvatars = storageService.storeAvatars(userId, files)
 
         transaction {
-            // Check if user has a primary avatar
             val user = UserEntity.findById(userId) ?: return@transaction
             val needsSetPrimary = user.primaryAvatar == null
 
@@ -562,7 +563,6 @@ class UserServiceImpl(
                     it[UserAvatars.ordinal] = existingMaxOrdinal + index + 1
                 }
 
-                // Set first avatar as primary if user doesn't have one
                 if (needsSetPrimary && index == 0) {
                     user.primaryAvatar = EntityID(avatarFile.id, Files)
                 }
@@ -593,6 +593,11 @@ class UserServiceImpl(
                 it[UserAvatars.avatar] = fileEntity.id
                 it[UserAvatars.ordinal] = maxOrdinal
             }
+
+            val userEntity = UserEntity.findById(userId)!!
+            if (userEntity.primaryAvatar == null) {
+                userEntity.primaryAvatar = fileEntity.id
+            }
         }
     }
 
@@ -607,15 +612,12 @@ class UserServiceImpl(
         transaction {
             val user = UserEntity.findById(userId) ?: return@transaction
 
-            // Delete the avatar from UserAvatars
-            UserAvatars.deleteWhere { 
+            UserAvatars.deleteWhere {
                 (UserAvatars.user eq EntityID(userId, Users)) and 
                 (avatar eq EntityID(avatarId, Files))
             }
 
-            // If this was the primary avatar, update it
             if (user.primaryAvatar?.value == avatarId) {
-                // Find the first remaining avatar
                 val firstAvatar = UserAvatars
                     .slice(UserAvatars.avatar)
                     .select { UserAvatars.user eq EntityID(userId, Users) }
@@ -623,7 +625,6 @@ class UserServiceImpl(
                     .firstOrNull()
                     ?.get(UserAvatars.avatar)
 
-                // Set it as primary or null if no avatars remain
                 user.primaryAvatar = firstAvatar
             }
         }
