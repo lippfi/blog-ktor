@@ -1053,15 +1053,29 @@ class UserServiceImpl(
 
     override fun getFollowing(userId: UUID): List<UserDto.View> {
         return transaction {
-            UserFollowEntity.find { UserFollows.follower eq userId }
-                .map { follow ->
-                    val user = follow.following
+            val followingUsers = UserFollowEntity.find { UserFollows.follower eq userId }
+                .map { it.following.id.value }
+
+            if (followingUsers.isEmpty()) {
+                return@transaction emptyList()
+            }
+
+            (Users innerJoin Diaries)
+                .slice(Users.nickname, Diaries.login, Users.primaryAvatar)
+                .select {
+                    (Users.id inList followingUsers) and
+                    (Diaries.owner eq Users.id) and
+                    (Diaries.type eq DiaryType.PERSONAL)
+                }
+                .map { row ->
+                    val primaryAvatarId = row[Users.primaryAvatar]?.value
+                    val primaryAvatarUrl = primaryAvatarId?.let { avatarId ->
+                        FileEntity.findById(avatarId)?.toBlogFile()?.let { storageService.getFileURL(it) }
+                    }
                     UserDto.View(
-                        login = getDiaryByUserId(user.id.value)?.login ?: user.nickname,
-                        nickname = user.nickname,
-                        avatarUri = user.primaryAvatar?.let { avatarId ->
-                            storageService.getFileURL(BlogFile(avatarId.value, user.id.value, "jpg", FileType.AVATAR))
-                        }
+                        login = row[Diaries.login],
+                        nickname = row[Users.nickname],
+                        avatarUri = primaryAvatarUrl
                     )
                 }
         }
@@ -1069,15 +1083,29 @@ class UserServiceImpl(
 
     override fun getFollowers(userId: UUID): List<UserDto.View> {
         return transaction {
-            UserFollowEntity.find { UserFollows.following eq userId }
-                .map { follow ->
-                    val user = follow.follower
+            val followerUsers = UserFollowEntity.find { UserFollows.following eq userId }
+                .map { it.follower.id.value }
+
+            if (followerUsers.isEmpty()) {
+                return@transaction emptyList()
+            }
+
+            (Users innerJoin Diaries)
+                .slice(Users.nickname, Diaries.login, Users.primaryAvatar)
+                .select {
+                    (Users.id inList followerUsers) and
+                    (Diaries.owner eq Users.id) and
+                    (Diaries.type eq DiaryType.PERSONAL)
+                }
+                .map { row ->
+                    val primaryAvatarId = row[Users.primaryAvatar]?.value
+                    val primaryAvatarUrl = primaryAvatarId?.let { avatarId ->
+                        FileEntity.findById(avatarId)?.toBlogFile()?.let { storageService.getFileURL(it) }
+                    }
                     UserDto.View(
-                        login = getDiaryByUserId(user.id.value)?.login ?: user.nickname,
-                        nickname = user.nickname,
-                        avatarUri = user.primaryAvatar?.let { avatarId ->
-                            storageService.getFileURL(BlogFile(avatarId.value, user.id.value, "jpg", FileType.AVATAR))
-                        }
+                        login = row[Diaries.login],
+                        nickname = row[Users.nickname],
+                        avatarUri = primaryAvatarUrl
                     )
                 }
         }
