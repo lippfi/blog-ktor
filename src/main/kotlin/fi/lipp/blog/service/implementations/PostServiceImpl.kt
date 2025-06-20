@@ -72,7 +72,7 @@ class PostServiceImpl(
                 throw PostNotFoundException()
             }
         }
-        val diary = getDiaryView(diaryLogin)
+        val diary = getDiaryView(userId, diaryLogin)
         return PostPage(
             post = post,
             diary = diary,
@@ -104,22 +104,25 @@ class PostServiceImpl(
             pageable = pageable,
             order = order,
         )
-        val diary = getDiaryView(diaryLogin)
+        val userId = if (viewer is Viewer.Registered) viewer.userId else null
+        val diary = getDiaryView(userId, diaryLogin)
         return DiaryPage(
             diary = diary,
             posts = page,
         )
     }
 
-    private fun getDiaryView(diaryLogin: String): DiaryView {
+    private fun getDiaryView(userId: UUID?, diaryLogin: String): DiaryView {
         return transaction {
             val diaryEntity = findDiaryByLogin(diaryLogin)
             val styleFile = diaryEntity.style?.let { FileEntity.findById(it) }?.toBlogFile()
             val styleURL = styleFile?.let { storageService.getFileURL(it) }
+            val defaultGroups = if (diaryEntity.owner.value == userId) accessGroupService.getDefaultAccessGroups(userId, diaryLogin) else null
             DiaryView(
                 name = diaryEntity.name,
                 subtitle = diaryEntity.subtitle,
                 style = styleURL,
+                defaultGroups = defaultGroups,
             )
         }
     }
@@ -465,7 +468,7 @@ class PostServiceImpl(
         }
     }
 
-    override fun deletePost(userId: UUID, postId: UUID): Unit {
+    override fun deletePost(userId: UUID, postId: UUID) {
         return transaction {
             val postEntity = PostEntity.findById(postId) ?: return@transaction
             if (postEntity.authorId.value != userId) throw WrongUserException()

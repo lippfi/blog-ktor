@@ -1,6 +1,7 @@
 package fi.lipp.blog.model
 
 import fi.lipp.blog.data.PostDto
+import fi.lipp.blog.util.SerializableMap
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -27,4 +28,6 @@ data class DiaryView(
     val name: String,
     val subtitle: String,
     val style: String?,
+    @Serializable
+    val defaultGroups: SerializableMap?,
 )
