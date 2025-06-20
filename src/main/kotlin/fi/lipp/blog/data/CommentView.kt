@@ -15,6 +15,9 @@ sealed interface CommentDto {
         val authorNickname : String,
         val authorLogin: String,
 
+        val diaryLogin: String,
+        val postUri: String,
+
         val text: String,
         val creationTime : LocalDateTime,
 

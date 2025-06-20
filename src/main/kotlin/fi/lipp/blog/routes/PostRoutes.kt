@@ -101,6 +101,12 @@ fun Route.postRoutes(postService: PostService, reactionService: ReactionService)
                 val posts = postService.getDiscussedPosts(viewer, pageable)
                 call.respond(posts)
             }
+
+            get("/comment") {
+                val commentId = UUID.fromString(call.request.queryParameters["commentId"])
+                val comment = postService.getComment(viewer, commentId)
+                call.respond(comment)
+            }
         }
 
         authenticate {

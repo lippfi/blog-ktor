@@ -16,6 +16,7 @@ sealed interface PostDto {
         val avatar : String,
         val authorNickname : String,
         val authorLogin: String,
+        val diaryLogin: String,
 
         val title : String,
         val text : String,

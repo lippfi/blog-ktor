@@ -476,6 +476,40 @@ class PostServiceImpl(
         }
     }
 
+    override fun getComment(viewer: Viewer, commentId: UUID): CommentDto.View {
+        return transaction {
+            val commentEntity = CommentEntity.findById(commentId) ?: throw CommentNotFoundException()
+            val postEntity = PostEntity.findById(commentEntity.postId) ?: throw PostNotFoundException()
+            val diaryEntity = DiaryEntity.findById(postEntity.diaryId.value) ?: throw InternalServerError()
+            val diaryOwnerId = diaryEntity.owner.value
+            val userId = (viewer as? Viewer.Registered)?.userId
+
+            if (userId != postEntity.authorId.value && userId != commentEntity.authorId.value &&
+                !accessGroupService.inGroup(viewer, postEntity.readGroupId.value, diaryOwnerId)) {
+                throw CommentNotFoundException()
+            }
+
+            val author = UserEntity.findById(commentEntity.authorId) ?: throw InternalServerError()
+            val authorDiary = DiaryEntity.find { Diaries.owner eq commentEntity.authorId }.single()
+            val isReactable = (userId == commentEntity.authorId.value) || 
+                (userId != null && accessGroupService.inGroup(viewer, commentEntity.reactionGroupId.value, diaryOwnerId))
+
+            CommentDto.View(
+                id = commentEntity.id.value,
+                authorLogin = authorDiary.login,
+                authorNickname = author.nickname,
+                postUri = postEntity.uri,
+                diaryLogin = diaryEntity.login,
+                avatar = commentEntity.avatar,
+                text = commentEntity.text,
+                creationTime = commentEntity.creationTime,
+                isReactable = isReactable,
+                reactions = reactionService.getCommentReactions(commentEntity.id.value),
+                reactionGroupId = commentEntity.reactionGroupId.value,
+            )
+        }
+    }
+
     override fun addComment(userId: UUID, comment: CommentDto.Create): CommentDto.View {
         return transaction {
             val postEntity = PostEntity.findById(comment.postId) ?: throw PostNotFoundException()
@@ -678,13 +712,15 @@ class PostServiceImpl(
         val userId = (viewer as? Viewer.Registered)?.userId
         val author = UserEntity.findById(postEntity.authorId) ?: throw InternalServerError()
         val authorDiary = DiaryEntity.find { Diaries.owner eq author.id }.single()
-        val diaryOwnerId = DiaryEntity.findById(postEntity.diaryId)!!.owner.value
+        val postDiary = DiaryEntity.findById(postEntity.diaryId)!!
+        val diaryOwnerId = postDiary.owner.value
         val isCommentable = (userId == postEntity.authorId.value) || (accessGroupService.inGroup(viewer, postEntity.commentGroupId.value, diaryOwnerId))
         val isReactable = (userId == postEntity.authorId.value) || (accessGroupService.inGroup(viewer, postEntity.reactionGroupId.value, diaryOwnerId))
 
         return PostDto.View(
             id = postEntity.id.value,
             uri = postEntity.uri,
+            diaryLogin = postDiary.login,
             authorLogin = authorDiary.login,
             authorNickname = author.nickname,
             avatar = postEntity.avatar,
@@ -709,13 +745,16 @@ class PostServiceImpl(
     private fun Transaction.toPostView(viewer: Viewer, row: ResultRow): PostDto.View {
         val userId = (viewer as? Viewer.Registered)?.userId
         val diaryOwnerId = row[Diaries.owner].value
+        val authorId = row[Users.id].value
+        val authorDiary = DiaryEntity.find { Diaries.owner eq authorId }.single()
         return PostDto.View(
             id = row[Posts.id].value,
             uri = row[Posts.uri],
 
             avatar = row[Posts.avatar],
             authorNickname = row[Users.nickname],
-            authorLogin = row[Diaries.login],
+            authorLogin = authorDiary.login,
+            diaryLogin = row[Diaries.login],
 
             title = row[Posts.title],
             text = row[Posts.text],
@@ -827,7 +866,8 @@ class PostServiceImpl(
     @Suppress("UNUSED_PARAMETER")
     private fun CommentEntity.toComment(transaction: Transaction): CommentDto.View {
         val commentedPost = PostEntity.findById(postId)!!
-        val commentedDiaryOwnerId = DiaryEntity.findById(commentedPost.diaryId)!!.owner.value
+        val commentedDiary = DiaryEntity.findById(commentedPost.diaryId)!!
+        val commentedDiaryOwnerId = commentedDiary.owner.value
         val author = UserEntity.findById(authorId) ?: throw InternalServerError()
         val authorDiary = DiaryEntity.find { Diaries.owner eq authorId }.single()
         val viewer = Viewer.Registered(authorId.value)
@@ -836,6 +876,8 @@ class PostServiceImpl(
             id = id.value,
             authorLogin = authorDiary.login,
             authorNickname = author.nickname,
+            diaryLogin = commentedDiary.login,
+            postUri = commentedPost.uri,
             avatar = avatar,
             text = text,
             creationTime = creationTime,
