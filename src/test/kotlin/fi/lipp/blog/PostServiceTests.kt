@@ -38,7 +38,7 @@ class PostServiceTests : UnitTestBase() {
         @JvmStatic
         @BeforeClass
         fun setUp() {
-            postService = PostServiceImpl(groupService, storageService, reactionService, notificationService)
+            postService = PostServiceImpl(groupService, storageService, reactionService, notificationService, commentWebSocketService)
         }
 
         @JvmStatic

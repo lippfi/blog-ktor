@@ -18,7 +18,8 @@ class ReactionServiceImpl(
     private val accessGroupService: AccessGroupService,
     private val notificationService: NotificationService,
     private val userService: UserService,
-    private val reactionDatabaseSeeder: ReactionDatabaseSeeder
+    private val reactionDatabaseSeeder: ReactionDatabaseSeeder,
+    private val commentWebSocketService: CommentWebSocketService
 ) : ReactionService {
 
     /**
@@ -293,6 +294,12 @@ class ReactionServiceImpl(
                         if (viewer.userId != commentEntity.authorId.value) {
                             notificationService.notifyAboutCommentReaction(commentEntity.authorId.value)
                         }
+
+                        // Send WebSocket notification about reaction added
+                        val reactionInfo = getCommentReactions(commentId).find { it.id == reactionId.value }
+                        if (reactionInfo != null) {
+                            commentWebSocketService.notifyReactionAdded(commentId, reactionInfo, postEntity.id.value)
+                        }
                     }
                 }
                 is Viewer.Anonymous -> {
@@ -306,6 +313,12 @@ class ReactionServiceImpl(
                             it[ipFingerprint] = viewer.ipFingerprint
                             it[comment] = commentId
                             it[reaction] = reactionId
+                        }
+
+                        // Send WebSocket notification about reaction added
+                        val reactionInfo = getCommentReactions(commentId).find { it.id == reactionId.value }
+                        if (reactionInfo != null) {
+                            commentWebSocketService.notifyReactionAdded(commentId, reactionInfo, postEntity.id.value)
                         }
                     }
                 }
@@ -326,6 +339,9 @@ class ReactionServiceImpl(
             }
             val reactionId = ReactionEntity.find { Reactions.name eq reactionName }.firstOrNull()?.id ?: throw ReactionNotFoundException()
 
+            // Get reaction info before deleting it
+            val reactionInfo = getCommentReactions(commentId).find { it.id == reactionId.value }
+
             when (viewer) {
                 is Viewer.Registered -> {
                     val reaction = CommentReactionEntity.find { 
@@ -334,6 +350,11 @@ class ReactionServiceImpl(
                         (CommentReactions.reaction eq reactionId)
                     }.firstOrNull() ?: return@transaction
                     reaction.delete()
+
+                    // Send WebSocket notification about reaction removed
+                    if (reactionInfo != null) {
+                        commentWebSocketService.notifyReactionRemoved(commentId, reactionInfo, postEntity.id.value)
+                    }
                 }
                 is Viewer.Anonymous -> {
                     val reaction = AnonymousCommentReactionEntity.find { 
@@ -342,6 +363,11 @@ class ReactionServiceImpl(
                         (AnonymousCommentReactions.reaction eq reactionId)
                     }.firstOrNull() ?: return@transaction
                     reaction.delete()
+
+                    // Send WebSocket notification about reaction removed
+                    if (reactionInfo != null) {
+                        commentWebSocketService.notifyReactionRemoved(commentId, reactionInfo, postEntity.id.value)
+                    }
                 }
             }
         }

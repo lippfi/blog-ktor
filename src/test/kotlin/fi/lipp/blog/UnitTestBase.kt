@@ -113,6 +113,7 @@ abstract class UnitTestBase {
                     single<StorageService> { StorageServiceImpl(get()) }
                     single<AccessGroupService> { AccessGroupServiceImpl() }
                     single<NotificationService> { mock() }
+                    single<CommentWebSocketService> { mock() }
                     single<UserService> { UserServiceImpl(get(), get(), get(), get(), get()) }
 
                     // Database seeders
@@ -127,13 +128,15 @@ abstract class UnitTestBase {
                         accessGroupService = get(),
                         notificationService = get(),
                         userService = get(),
-                        reactionDatabaseSeeder = get()
+                        reactionDatabaseSeeder = get(),
+                        commentWebSocketService = get()
                     ) }
                     single<PostService> { PostServiceImpl(
                         accessGroupService = get(),
                         storageService = get(),
                         reactionService = get(),
-                        notificationService = get()
+                        notificationService = get(),
+                        commentWebSocketService = get()
                     ) }
                     single<DialogService> { DialogServiceImpl(get(), get()) }
                 })
@@ -181,6 +184,9 @@ abstract class UnitTestBase {
 
         @JvmStatic
         protected val dialogService get() = org.koin.core.context.GlobalContext.get().get<DialogService>()
+
+        @JvmStatic
+        protected val commentWebSocketService get() = org.koin.core.context.GlobalContext.get().get<CommentWebSocketService>()
 
         @JvmStatic
         protected val testUser = UserDto.Registration(

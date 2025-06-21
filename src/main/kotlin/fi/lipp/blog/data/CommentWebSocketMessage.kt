@@ -30,6 +30,22 @@ sealed interface CommentWebSocketMessage {
     ) : CommentWebSocketMessage
 
     @Serializable
+    @SerialName("ReactionAdded")
+    data class ReactionAdded(
+        @Serializable(with = UUIDSerializer::class)
+        val commentId: UUID,
+        val reaction: ReactionDto.ReactionInfo,
+    ) : CommentWebSocketMessage
+
+    @Serializable
+    @SerialName("ReactionRemoved")
+    data class ReactionRemoved(
+        @Serializable(with = UUIDSerializer::class)
+        val commentId: UUID,
+        val reaction: ReactionDto.ReactionInfo,
+    ) : CommentWebSocketMessage
+
+    @Serializable
     @SerialName("Subscribe")
     data class Subscribe(
         @Serializable(with = UUIDSerializer::class)
@@ -51,6 +67,8 @@ val webSocketJson = Json {
             subclass(CommentWebSocketMessage.CommentAdded::class, CommentWebSocketMessage.CommentAdded.serializer())
             subclass(CommentWebSocketMessage.CommentUpdated::class, CommentWebSocketMessage.CommentUpdated.serializer())
             subclass(CommentWebSocketMessage.CommentDeleted::class, CommentWebSocketMessage.CommentDeleted.serializer())
+            subclass(CommentWebSocketMessage.ReactionAdded::class, CommentWebSocketMessage.ReactionAdded.serializer())
+            subclass(CommentWebSocketMessage.ReactionRemoved::class, CommentWebSocketMessage.ReactionRemoved.serializer())
             subclass(CommentWebSocketMessage.Subscribe::class, CommentWebSocketMessage.Subscribe.serializer())
             subclass(CommentWebSocketMessage.Error::class, CommentWebSocketMessage.Error.serializer())
         }

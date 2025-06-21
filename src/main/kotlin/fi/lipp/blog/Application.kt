@@ -90,7 +90,7 @@ fun KoinApplication.loadMyKoins(environment: ApplicationEnvironment): KoinApplic
         single { DatabaseInitializer(listOf(get<ReactionDatabaseSeeder>())) }
 
         // Services that depend on seeders
-        single<ReactionService> { ReactionServiceImpl(get<StorageService>(), get<AccessGroupService>(), get<NotificationService>(), get<UserService>(), get()) }
+        single<ReactionService> { ReactionServiceImpl(get<StorageService>(), get<AccessGroupService>(), get<NotificationService>(), get<UserService>(), get(), get<CommentWebSocketService>()) }
         single<PostService> { PostServiceImpl(get<AccessGroupService>(), get<StorageService>(), get<ReactionService>(), get<NotificationService>(), get<CommentWebSocketService>()) }
         single<DialogService> { DialogServiceImpl(get<UserService>(), get<NotificationService>()) }
     }

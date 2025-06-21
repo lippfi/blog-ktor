@@ -2,6 +2,7 @@ package fi.lipp.blog.service
 
 import fi.lipp.blog.data.CommentDto
 import fi.lipp.blog.data.CommentWebSocketMessage
+import fi.lipp.blog.data.ReactionDto
 import io.ktor.websocket.*
 import kotlinx.serialization.json.Json
 import java.util.UUID
@@ -40,4 +41,18 @@ interface CommentWebSocketService {
      * It will handle the suspension internally
      */
     fun notifyCommentDeleted(commentId: UUID, postId: UUID)
+
+    /**
+     * Notify all subscribers about a reaction added to a comment
+     * This method is not suspend to allow it to be called from non-suspend functions
+     * It will handle the suspension internally
+     */
+    fun notifyReactionAdded(commentId: UUID, reaction: ReactionDto.ReactionInfo, postId: UUID)
+
+    /**
+     * Notify all subscribers about a reaction removed from a comment
+     * This method is not suspend to allow it to be called from non-suspend functions
+     * It will handle the suspension internally
+     */
+    fun notifyReactionRemoved(commentId: UUID, reaction: ReactionDto.ReactionInfo, postId: UUID)
 }

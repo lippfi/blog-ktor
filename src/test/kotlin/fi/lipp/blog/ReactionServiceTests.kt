@@ -43,8 +43,8 @@ class ReactionServiceTests : UnitTestBase() {
                 put("reactions.basic.5", "angry")
             }
             val reactionDatabaseSeeder = ReactionDatabaseSeeder(storageService, userService)
-            reactionService = ReactionServiceImpl(storageService, groupService, notificationService, userService, reactionDatabaseSeeder)
-            postService = PostServiceImpl(groupService, storageService, reactionService, notificationService)
+            reactionService = ReactionServiceImpl(storageService, groupService, notificationService, userService, reactionDatabaseSeeder, commentWebSocketService)
+            postService = PostServiceImpl(groupService, storageService, reactionService, notificationService, commentWebSocketService)
         }
     }
 

@@ -2,6 +2,7 @@ package fi.lipp.blog.service.implementations
 
 import fi.lipp.blog.data.CommentDto
 import fi.lipp.blog.data.CommentWebSocketMessage
+import fi.lipp.blog.data.ReactionDto
 import fi.lipp.blog.data.webSocketJson
 import fi.lipp.blog.domain.DiaryEntity
 import fi.lipp.blog.domain.PostEntity
@@ -56,6 +57,20 @@ class CommentWebSocketServiceImpl : CommentWebSocketService {
 
     override fun notifyCommentDeleted(commentId: UUID, postId: UUID) {
         val message = CommentWebSocketMessage.CommentDeleted(commentId)
+        GlobalScope.launch {
+            sendToPost(postId, message)
+        }
+    }
+
+    override fun notifyReactionAdded(commentId: UUID, reaction: ReactionDto.ReactionInfo, postId: UUID) {
+        val message = CommentWebSocketMessage.ReactionAdded(commentId, reaction)
+        GlobalScope.launch {
+            sendToPost(postId, message)
+        }
+    }
+
+    override fun notifyReactionRemoved(commentId: UUID, reaction: ReactionDto.ReactionInfo, postId: UUID) {
+        val message = CommentWebSocketMessage.ReactionRemoved(commentId, reaction)
         GlobalScope.launch {
             sendToPost(postId, message)
         }
