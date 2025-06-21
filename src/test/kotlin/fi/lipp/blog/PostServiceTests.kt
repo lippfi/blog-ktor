@@ -355,7 +355,9 @@ class PostServiceTests : UnitTestBase() {
             val foundPost1 = postService.getPost(Viewer.Registered(user1), testUser.login, "hello-world")
             val foundPost2 = postService.getPost(Viewer.Registered(user2), testUser.login, "hello-world")
             assertNotNull(foundPost1)
-            assertEquals(foundPost1, foundPost2)
+            assertEquals(foundPost1.post, foundPost2.post)
+            assertNotNull(foundPost1.diary.defaultGroups)
+            assertNull(foundPost2.diary.defaultGroups)
 
             rollback()
         }
