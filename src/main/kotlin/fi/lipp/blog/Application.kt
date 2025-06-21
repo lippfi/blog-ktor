@@ -66,6 +66,7 @@ fun Application.module() {
     configureSerialization()
     configureDatabases()
     configureSecurity()
+    configureWebSockets()
     configureRouting()
 }
 
@@ -80,6 +81,7 @@ fun KoinApplication.loadMyKoins(environment: ApplicationEnvironment): KoinApplic
         single<UserService> { UserServiceImpl(get(), get(), get(), get(), get<NotificationService>()) }
         single<AccessGroupService> { AccessGroupServiceImpl() }
         single<NotificationService> { NotificationServiceImpl() }
+        single<CommentWebSocketService> { CommentWebSocketServiceImpl() }
 
         // Database seeders
         single { ReactionDatabaseSeeder(get(), get()) }
@@ -89,7 +91,7 @@ fun KoinApplication.loadMyKoins(environment: ApplicationEnvironment): KoinApplic
 
         // Services that depend on seeders
         single<ReactionService> { ReactionServiceImpl(get<StorageService>(), get<AccessGroupService>(), get<NotificationService>(), get<UserService>(), get()) }
-        single<PostService> { PostServiceImpl(get<AccessGroupService>(), get<StorageService>(), get<ReactionService>(), get<NotificationService>()) }
+        single<PostService> { PostServiceImpl(get<AccessGroupService>(), get<StorageService>(), get<ReactionService>(), get<NotificationService>(), get<CommentWebSocketService>()) }
         single<DialogService> { DialogServiceImpl(get<UserService>(), get<NotificationService>()) }
     }
     return modules(appModules)

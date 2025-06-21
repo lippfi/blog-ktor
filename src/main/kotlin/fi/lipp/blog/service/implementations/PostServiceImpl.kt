@@ -11,6 +11,7 @@ import fi.lipp.blog.model.TagPolicy
 import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.repository.*
 import fi.lipp.blog.service.AccessGroupService
+import fi.lipp.blog.service.CommentWebSocketService
 import fi.lipp.blog.service.NotificationService
 import fi.lipp.blog.service.PostService
 import fi.lipp.blog.service.ReactionService
@@ -34,7 +35,8 @@ class PostServiceImpl(
     private val accessGroupService: AccessGroupService,
     private val storageService: StorageService,
     private val reactionService: ReactionService,
-    private val notificationService: NotificationService
+    private val notificationService: NotificationService,
+    private val commentWebSocketService: CommentWebSocketService
 ) : PostService {
     override fun getPostForEdit(userId: UUID, postId: UUID): PostDto.Update {
         return transaction {
@@ -476,6 +478,20 @@ class PostServiceImpl(
         }
     }
 
+    private fun collectReplyTo(parentCommentId: UUID?): CommentDto.ReplyView? {
+        if (parentCommentId == null) return null
+
+        val parentComment = CommentEntity.findById(parentCommentId) ?: return null
+        val parentAuthor = UserEntity.findById(parentComment.authorId) ?: return null
+        val parentAuthorDiary = DiaryEntity.find { Diaries.owner eq parentComment.authorId }.singleOrNull() ?: return null
+
+        return CommentDto.ReplyView(
+            id = parentComment.id.value,
+            login = parentAuthorDiary.login,
+            nickname = parentAuthor.nickname
+        )
+    }
+
     override fun getComment(viewer: Viewer, commentId: UUID): CommentDto.View {
         return transaction {
             val commentEntity = CommentEntity.findById(commentId) ?: throw CommentNotFoundException()
@@ -511,18 +527,6 @@ class PostServiceImpl(
                 inReplyTo = inReplyTo
             )
         }
-    }
-
-    private fun Transaction.collectReplyTo(commentId: UUID?): CommentDto.ReplyView? {
-        val parentCommentEntity = commentId?.let { CommentEntity.findById(commentId) } ?: return null
-        val parentAuthor = UserEntity.findById(parentCommentEntity.authorId) ?: return null
-        val parentAuthorDiary = DiaryEntity.find { Diaries.owner eq parentCommentEntity.authorId }.singleOrNull() ?: return null
-
-        return CommentDto.ReplyView(
-            id = parentCommentEntity.id.value,
-            login = parentAuthorDiary.login,
-            nickname = parentAuthor.nickname
-        )
     }
 
     override fun addComment(userId: UUID, comment: CommentDto.Create): CommentDto.View {
@@ -563,7 +567,11 @@ class PostServiceImpl(
             notificationService.subscribeToComments(userId, postId)
             notificationService.notifyAboutComment(commentId.value, userId, postId)
 
-            CommentEntity.findById(commentId)!!.toComment(this)
+            val comment = CommentEntity.findById(commentId)!!.toComment(this)
+
+            commentWebSocketService.notifyCommentAdded(comment)
+
+            comment
         }
     }
 
@@ -575,7 +583,13 @@ class PostServiceImpl(
                 avatar = comment.avatar
                 text = comment.text
             }
-            commentEntity.toComment(this)
+
+            val updatedComment = commentEntity.toComment(this)
+
+            // Notify WebSocket clients about the updated comment
+            commentWebSocketService.notifyCommentUpdated(updatedComment)
+
+            updatedComment
         }
     }
 
@@ -584,17 +598,21 @@ class PostServiceImpl(
             val commentEntity = CommentEntity.findById(commentId) ?: throw CommentNotFoundException()
             if (userId != commentEntity.authorId.value) throw WrongUserException()
 
-            val postId = commentEntity.postId
+            val postId = commentEntity.postId.value
+
+            // Notify WebSocket clients about the deleted comment before deleting it
+            commentWebSocketService.notifyCommentDeleted(commentId, postId)
+
             commentEntity.delete()
 
             // Find the most recent remaining comment for this post
             val latestComment = CommentEntity
-                .find { Comments.post eq postId }
+                .find { Comments.post eq EntityID(postId, Comments) }
                 .orderBy(Comments.creationTime to SortOrder.DESC)
                 .firstOrNull()
 
             // Update post's lastCommentTime
-            Posts.update({ Posts.id eq postId }) {
+            Posts.update({ Posts.id eq EntityID(postId, Posts) }) {
                 it[lastCommentTime] = latestComment?.creationTime
             }
         }
@@ -887,11 +905,7 @@ class PostServiceImpl(
         val authorDiary = DiaryEntity.find { Diaries.owner eq authorId }.single()
         val viewer = Viewer.Registered(authorId.value)
         val isReactable = (authorId.value == author.id.value) || accessGroupService.inGroup(viewer, reactionGroupId.value, commentedDiaryOwnerId)
-
-        val inReplyTo = with(transaction) {
-            collectReplyTo(parentComment?.value)
-        }
-
+        val inReplyTo = collectReplyTo(parentComment?.value)
         return CommentDto.View(
             id = id.value,
             authorLogin = authorDiary.login,

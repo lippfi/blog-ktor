@@ -38,7 +38,7 @@ fun Application.configureRouting() {
     }
     routing {
         userRoutes(get(), get())
-        postRoutes(get(), get())
+        postRoutes(get(), get(), get())
         diaryRoutes(get())
         storageRoutes(get())
         accessGroupRoutes(get())

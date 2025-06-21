@@ -1,12 +1,11 @@
 package fi.lipp.blog.routes
 
 import fi.lipp.blog.data.*
-import io.ktor.http.content.*
-import kotlinx.serialization.json.Json
 import fi.lipp.blog.model.Pageable
 import fi.lipp.blog.model.TagPolicy
 import fi.lipp.blog.plugins.userId
 import fi.lipp.blog.plugins.viewer
+import fi.lipp.blog.service.CommentWebSocketService
 import fi.lipp.blog.service.PostService
 import fi.lipp.blog.service.ReactionService
 import io.ktor.http.*
@@ -15,12 +14,55 @@ import io.ktor.server.auth.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.server.websocket.*
+import io.ktor.websocket.*
 import kotlinx.datetime.LocalDate
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.sql.SortOrder
 import java.util.*
 
-fun Route.postRoutes(postService: PostService, reactionService: ReactionService) {
+fun Route.postRoutes(postService: PostService, reactionService: ReactionService, commentWebSocketService: CommentWebSocketService) {
     route("/posts") {
+            webSocket("/comments") {
+                try {
+                    for (frame in incoming) {
+                        when (frame) {
+                            is Frame.Text -> {
+                                val text = frame.readText()
+                                try {
+                                    val message = webSocketJson.decodeFromString<CommentWebSocketMessage>(text)
+
+                                    when (message) {
+                                        is CommentWebSocketMessage.Subscribe -> {
+                                            commentWebSocketService.addSession(message.postId, this)
+                                        }
+                                        else -> {
+                                            send(Frame.Text(Json.encodeToString(
+                                                CommentWebSocketMessage.Error.serializer(),
+                                                CommentWebSocketMessage.Error("Invalid message type")
+                                            )))
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    send(Frame.Text(Json.encodeToString(
+                                        CommentWebSocketMessage.serializer(),
+                                        CommentWebSocketMessage.Error("Invalid message format: ${e.message}")
+                                    )))
+                                }
+                            }
+                            else -> {
+                                // Ignore other frame types
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    application.log.error("Error in WebSocket session", e)
+                } finally {
+                    commentWebSocketService.removeSession(this)
+                }
+            }
+
         authenticate(optional = true) {
             get("/preface") {
                 val diaryLogin = call.request.queryParameters["diary"]
