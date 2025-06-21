@@ -226,14 +226,33 @@ class ReactionServiceImpl(
 
     override fun getUserRecentReactions(userId: UUID, limit: Int): List<ReactionDto.View> {
         return transaction {
-            (PostReactions innerJoin Reactions)
-                .slice(Reactions.columns)
+            val postReactionsWithTimestamp = (PostReactions innerJoin Reactions)
+                .slice(Reactions.columns + PostReactions.timestamp)
                 .select { PostReactions.user eq userId }
                 .orderBy(PostReactions.timestamp to SortOrder.DESC)
                 .limit(limit)
-                .map { ReactionEntity.wrapRow(it) }
-                .map { toReactionView(it) }
-                .distinct()
+                .map { 
+                    val reaction = ReactionEntity.wrapRow(it)
+                    val timestamp = it[PostReactions.timestamp]
+                    Pair(reaction, timestamp)
+                }
+
+            val commentReactionsWithTimestamp = (CommentReactions innerJoin Reactions)
+                .slice(Reactions.columns + CommentReactions.timestamp)
+                .select { CommentReactions.user eq userId }
+                .orderBy(CommentReactions.timestamp to SortOrder.DESC)
+                .limit(limit)
+                .map { 
+                    val reaction = ReactionEntity.wrapRow(it)
+                    val timestamp = it[CommentReactions.timestamp]
+                    Pair(reaction, timestamp)
+                }
+
+            (postReactionsWithTimestamp + commentReactionsWithTimestamp)
+                .sortedByDescending { it.second }
+                .distinctBy { it.first.name }
+                .take(limit)
+                .map { toReactionView(it.first) }
         }
     }
 
