@@ -24,8 +24,18 @@ sealed interface CommentDto {
         val isReactable: Boolean,
         val reactions: List<ReactionDto.ReactionInfo>,
 
+        val inReplyTo: ReplyView?,
+
         @Serializable(with = UUIDSerializer::class)
         val reactionGroupId: UUID,
+    )
+
+    @Serializable
+    data class ReplyView(
+        @Serializable(with = UUIDSerializer::class)
+        val id: UUID,
+        val login: String,
+        val nickname: String,
     )
 
     @Serializable

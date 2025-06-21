@@ -494,6 +494,8 @@ class PostServiceImpl(
             val isReactable = (userId == commentEntity.authorId.value) || 
                 (userId != null && accessGroupService.inGroup(viewer, commentEntity.reactionGroupId.value, diaryOwnerId))
 
+            val inReplyTo = collectReplyTo(commentEntity.parentComment?.value)
+
             CommentDto.View(
                 id = commentEntity.id.value,
                 authorLogin = authorDiary.login,
@@ -506,8 +508,21 @@ class PostServiceImpl(
                 isReactable = isReactable,
                 reactions = reactionService.getCommentReactions(commentEntity.id.value),
                 reactionGroupId = commentEntity.reactionGroupId.value,
+                inReplyTo = inReplyTo
             )
         }
+    }
+
+    private fun Transaction.collectReplyTo(commentId: UUID?): CommentDto.ReplyView? {
+        val parentCommentEntity = commentId?.let { CommentEntity.findById(commentId) } ?: return null
+        val parentAuthor = UserEntity.findById(parentCommentEntity.authorId) ?: return null
+        val parentAuthorDiary = DiaryEntity.find { Diaries.owner eq parentCommentEntity.authorId }.singleOrNull() ?: return null
+
+        return CommentDto.ReplyView(
+            id = parentCommentEntity.id.value,
+            login = parentAuthorDiary.login,
+            nickname = parentAuthor.nickname
+        )
     }
 
     override fun addComment(userId: UUID, comment: CommentDto.Create): CommentDto.View {
@@ -872,6 +887,11 @@ class PostServiceImpl(
         val authorDiary = DiaryEntity.find { Diaries.owner eq authorId }.single()
         val viewer = Viewer.Registered(authorId.value)
         val isReactable = (authorId.value == author.id.value) || accessGroupService.inGroup(viewer, reactionGroupId.value, commentedDiaryOwnerId)
+
+        val inReplyTo = with(transaction) {
+            collectReplyTo(parentComment?.value)
+        }
+
         return CommentDto.View(
             id = id.value,
             authorLogin = authorDiary.login,
@@ -884,6 +904,7 @@ class PostServiceImpl(
             isReactable = isReactable,
             reactions = reactionService.getCommentReactions(id.value),
             reactionGroupId = reactionGroupId.value,
+            inReplyTo = inReplyTo
         )
     }
 
