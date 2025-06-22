@@ -1,22 +1,16 @@
 package fi.lipp.blog.service.implementations
 
-import fi.lipp.blog.data.BlogFile
-import fi.lipp.blog.data.FileUploadData
-import fi.lipp.blog.data.UserDto
+import fi.lipp.blog.data.*
 import fi.lipp.blog.domain.AccessGroupEntity
 import fi.lipp.blog.domain.DiaryEntity
+import fi.lipp.blog.domain.DiaryStyleEntity
 import fi.lipp.blog.domain.FileEntity
-import fi.lipp.blog.model.exceptions.DiaryNotFoundException
-import fi.lipp.blog.model.exceptions.InternalServerError
-import fi.lipp.blog.model.exceptions.InvalidAccessGroupException
-import fi.lipp.blog.model.exceptions.WrongUserException
-import fi.lipp.blog.repository.AccessGroups
+import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.repository.Diaries
-import fi.lipp.blog.repository.Files
-import fi.lipp.blog.service.AccessGroupService
+import fi.lipp.blog.repository.DiaryStyles
 import fi.lipp.blog.service.DiaryService
 import fi.lipp.blog.service.StorageService
-import org.jetbrains.exposed.dao.id.EntityID
+import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.UUID
@@ -45,26 +39,195 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
         }
     }
 
-    override fun setDiaryStyle(userId: UUID, styleContent: String) {
-        transaction {
-            val styleUploadData = FileUploadData("style.css", styleContent.byteInputStream())
-            val blogFile = storageService.store(userId, listOf(styleUploadData))[0]
-
-            val diaryEntity = DiaryEntity.find { Diaries.owner eq userId }.singleOrNull() ?: throw DiaryNotFoundException()
-            diaryEntity.apply {
-                style = EntityID(blogFile.id, Files)
-            }
+    override fun getDiaryStyleText(styleId: UUID): String {
+        return transaction {
+            val styleEntity = DiaryStyleEntity.findById(styleId) ?: throw InvalidStyleException()
+            val styleFile = styleEntity.styleFile.toBlogFile()
+            val file = storageService.getFile(styleFile)
+            file.readText()
         }
     }
 
-    override fun getDiaryStyle(diaryLogin: String): String {
-        val blogFile = getStyleFile(diaryLogin)
-        return blogFile?.let { storageService.getFile(it).readText() } ?: ""
+    override fun getEnabledDiaryStyles(diaryLogin: String): List<String> {
+        return transaction {
+            val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
+
+            DiaryStyleEntity.find { (DiaryStyles.diary eq diaryEntity.id) and (DiaryStyles.enabled eq true) }
+                .orderBy(DiaryStyles.ordinal to SortOrder.ASC)
+                .map { styleEntity ->
+                    storageService.getFileURL(styleEntity.styleFile.toBlogFile())
+                }
+        }
     }
 
-    override fun getDiaryStyleFile(diaryLogin: String): String? {
-        val blogFile = getStyleFile(diaryLogin)
-        return blogFile?.let { storageService.getFileURL(it) }
+    override fun getDiaryStyleCollection(userId: UUID, diaryLogin: String): List<DiaryStyle> {
+        return transaction {
+            val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
+
+            DiaryStyleEntity.find { DiaryStyles.diary eq diaryEntity.id }
+                .orderBy(DiaryStyles.ordinal to SortOrder.ASC)
+                .map { styleEntity ->
+                    DiaryStyle(
+                        id = styleEntity.id.value,
+                        name = styleEntity.name,
+                        enabled = styleEntity.enabled,
+                        styleFileUrl = storageService.getFileURL(styleEntity.styleFile.toBlogFile()),
+                        previewPictureUri = styleEntity.previewPictureUri
+                    )
+                }
+        }
+    }
+
+    // TODO utilize preview picture
+    override fun addDiaryStyle(userId: UUID, diaryLogin: String, style: DiaryStyleCreate): DiaryStyle {
+        return transaction {
+            val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
+            if (diaryEntity.owner.value != userId) throw WrongUserException()
+
+            val styleUploadData = FileUploadData("style.css", style.styleContent.byteInputStream())
+            val blogFile = storageService.store(userId, listOf(styleUploadData))[0]
+
+            val maxOrdinal = DiaryStyleEntity.find { DiaryStyles.diary eq diaryEntity.id }
+                .maxOfOrNull { it.ordinal } ?: -1
+
+            val styleEntity = DiaryStyleEntity.new {
+                name = style.name
+                ordinal = maxOrdinal + 1
+                enabled = style.enabled
+                diary = diaryEntity
+                styleFile = FileEntity.findById(blogFile.id) ?: throw InternalServerError()
+                previewPictureUri = style.previewPictureUri
+            }
+
+            DiaryStyle(
+                id = styleEntity.id.value,
+                name = styleEntity.name,
+                enabled = styleEntity.enabled,
+                styleFileUrl = storageService.getFileURL(styleEntity.styleFile.toBlogFile()),
+                previewPictureUri = styleEntity.previewPictureUri
+            )
+        }
+    }
+
+    override fun addDiaryStyleWithFile(userId: UUID, diaryLogin: String, name: String, styleFile: FileUploadData, enabled: Boolean): DiaryStyle {
+        return transaction {
+            val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
+            if (diaryEntity.owner.value != userId) throw WrongUserException()
+
+            val blogFile = storageService.store(userId, listOf(styleFile))[0]
+
+            val maxOrdinal = DiaryStyleEntity.find { DiaryStyles.diary eq diaryEntity.id }
+                .maxOfOrNull { it.ordinal } ?: -1
+
+            val styleEntity = DiaryStyleEntity.new {
+                this.name = name
+                this.ordinal = maxOrdinal + 1
+                this.enabled = enabled
+                this.diary = diaryEntity
+                this.styleFile = FileEntity.findById(blogFile.id) ?: throw InternalServerError()
+            }
+
+            DiaryStyle(
+                id = styleEntity.id.value,
+                name = styleEntity.name,
+                enabled = styleEntity.enabled,
+                styleFileUrl = storageService.getFileURL(styleEntity.styleFile.toBlogFile()),
+                previewPictureUri = styleEntity.previewPictureUri
+            )
+        }
+    }
+
+    override fun updateDiaryStyle(userId: UUID, styleId: UUID, update: DiaryStyleUpdate): DiaryStyle {
+        return transaction {
+            val styleEntity = DiaryStyleEntity.findById(styleId)!!
+            if (styleEntity.diary.owner.value != userId) throw WrongUserException()
+
+            styleEntity.name = update.name
+            styleEntity.enabled = update.enabled
+            styleEntity.previewPictureUri = update.previewPictureUri
+
+            val styleUploadData = FileUploadData("style.css", update.styleContent.byteInputStream())
+            val blogFile = storageService.store(userId, listOf(styleUploadData))[0]
+            styleEntity.styleFile = FileEntity.findById(blogFile.id) ?: throw InternalServerError()
+
+            DiaryStyle(
+                id = styleEntity.id.value,
+                name = styleEntity.name,
+                enabled = styleEntity.enabled,
+                styleFileUrl = storageService.getFileURL(styleEntity.styleFile.toBlogFile()),
+                previewPictureUri = styleEntity.previewPictureUri,
+            )
+        }
+    }
+
+    override fun updateDiaryStyleWithFile(userId: UUID, styleId: UUID, styleFile: FileUploadData): DiaryStyle {
+        return transaction {
+
+            val styleEntity = DiaryStyleEntity.findById(styleId)!!
+            if (styleEntity.diary.owner.value != userId) throw WrongUserException()
+
+            val blogFile = storageService.store(userId, listOf(styleFile))[0]
+            styleEntity.styleFile = FileEntity.findById(blogFile.id) ?: throw InternalServerError()
+
+            DiaryStyle(
+                id = styleEntity.id.value,
+                name = styleEntity.name,
+                enabled = styleEntity.enabled,
+                styleFileUrl = storageService.getFileURL(styleEntity.styleFile.toBlogFile()),
+                previewPictureUri = styleEntity.previewPictureUri
+            )
+        }
+    }
+
+    override fun updateDiaryStylePreview(userId: UUID, styleId: UUID, previewFile: FileUploadData): DiaryStyle {
+        return transaction {
+            val styleEntity = DiaryStyleEntity.findById(styleId)!!
+            if (styleEntity.diary.owner.value != userId) throw WrongUserException()
+
+            val blogFile = storageService.store(userId, listOf(previewFile))[0]
+
+            styleEntity.previewPictureUri = storageService.getFileURL(blogFile)
+
+            DiaryStyle(
+                id = styleEntity.id.value,
+                name = styleEntity.name,
+                enabled = styleEntity.enabled,
+                styleFileUrl = storageService.getFileURL(styleEntity.styleFile.toBlogFile()),
+                previewPictureUri = styleEntity.previewPictureUri
+            )
+        }
+    }
+
+    override fun deleteDiaryStyle(userId: UUID, styleId: UUID): Boolean {
+        return transaction {
+            val styleEntity = DiaryStyleEntity.findById(styleId)!!
+            if (styleEntity.diary.owner.value != userId) throw WrongUserException()
+
+            styleEntity.delete()
+            true
+        }
+    }
+
+    override fun reorderDiaryStyles(userId: UUID, diaryLogin: String, styleIds: List<UUID>): List<DiaryStyle> {
+        return transaction {
+            val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
+            if (diaryEntity.owner.value != userId) throw WrongUserException()
+
+            val styles = DiaryStyleEntity.find { DiaryStyles.diary eq diaryEntity.id }.toList()
+
+            val styleMap = styles.associateBy { it.id.value }
+            for (styleId in styleIds) {
+                if (!styleMap.containsKey(styleId)) throw InvalidStyleException()
+            }
+
+            if (styleIds.size != styles.size) throw InvalidStyleException()
+
+            for ((index, styleId) in styleIds.withIndex()) {
+                styleMap[styleId]?.ordinal = index
+            }
+
+            getDiaryStyleCollection(userId, diaryLogin)
+        }
     }
 
     override fun updateDiaryName(userId: UUID, diaryLogin: String, name: String) {
@@ -128,14 +291,6 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
             diaryEntity.apply {
                 defaultReactGroup = reactGroup.id
             }
-        }
-    }
-
-    private fun getStyleFile(diaryLogin: String): BlogFile? {
-        return transaction {
-            val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
-            val styleUUID = diaryEntity.style ?: return@transaction null
-            FileEntity.findById(styleUUID)?.toBlogFile() ?: throw InternalServerError()
         }
     }
 }

@@ -14,7 +14,7 @@ object Diaries : UUIDTable() {
     val creationTime = datetime("creation_time").clientDefault { LocalDateTime.now().toKotlinLocalDateTime() }
 
     val owner = reference("owner", Users, onDelete = ReferenceOption.CASCADE)
-    val style = reference("style", Files, onDelete = ReferenceOption.CASCADE).nullable()
+    // style column removed - now managed through DiaryStyles table
 
     val defaultReadGroup = reference("default_read_group", AccessGroups)
     val defaultCommentGroup = reference("default_comment_group", AccessGroups)

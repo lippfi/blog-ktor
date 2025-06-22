@@ -1,16 +1,17 @@
 package fi.lipp.blog.service
 
 import fi.lipp.blog.UnitTestBase
-import fi.lipp.blog.data.BlogFile
-import fi.lipp.blog.data.FileUploadData
-import fi.lipp.blog.data.UserDto
+import fi.lipp.blog.data.*
 import fi.lipp.blog.domain.AccessGroupEntity
 import fi.lipp.blog.domain.DiaryEntity
+import fi.lipp.blog.domain.DiaryStyleEntity
 import fi.lipp.blog.domain.FileEntity
 import fi.lipp.blog.model.exceptions.DiaryNotFoundException
 import fi.lipp.blog.model.exceptions.InvalidAccessGroupException
+import fi.lipp.blog.model.exceptions.InvalidStyleException
 import fi.lipp.blog.model.exceptions.WrongUserException
 import fi.lipp.blog.repository.Diaries
+import fi.lipp.blog.repository.DiaryStyles
 import fi.lipp.blog.repository.Files
 import fi.lipp.blog.service.implementations.DiaryServiceImpl
 import org.jetbrains.exposed.dao.id.EntityID
@@ -27,8 +28,10 @@ import java.io.ByteArrayInputStream
 import java.io.File
 import java.util.UUID
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class DiaryServiceTest : UnitTestBase() {
     private lateinit var diaryService: DiaryService
@@ -212,66 +215,6 @@ class DiaryServiceTest : UnitTestBase() {
     }
 
     @Test
-    fun `setDiaryStyle and getDiaryStyle work correctly`() {
-        transaction {
-            // Create a user
-            val (userId, _) = signUsersUp()
-
-            // Set diary style
-            val styleContent = "body { background-color: #f0f0f0; }"
-            diaryService.setDiaryStyle(userId, styleContent)
-
-            // Get diary login
-            val diaryEntity = DiaryEntity.find { Diaries.owner eq userId }.single()
-            val diaryLogin = diaryEntity.login
-
-            // Get diary style
-            val retrievedStyle = diaryService.getDiaryStyle(diaryLogin)
-
-            // Verify style was set correctly
-            assertEquals(styleContent, retrievedStyle)
-
-            rollback()
-        }
-    }
-
-    @Test
-    fun `getDiaryStyleFile returns correct URL`() {
-        transaction {
-            // Create a user
-            val (userId, _) = signUsersUp()
-
-            // Set diary style
-            val styleContent = "body { background-color: #f0f0f0; }"
-            diaryService.setDiaryStyle(userId, styleContent)
-
-            // Get diary login
-            val diaryEntity = DiaryEntity.find { Diaries.owner eq userId }.single()
-            val diaryLogin = diaryEntity.login
-
-            // Get diary style file URL
-            val styleFileURL = diaryService.getDiaryStyleFile(diaryLogin)
-
-            // Verify URL is not null
-            assertNotNull(styleFileURL)
-
-            rollback()
-        }
-    }
-
-    @Test
-    fun `getDiaryStyle for nonexistent diary throws exception`() {
-        transaction {
-            // Try to get style for nonexistent diary
-            assertThrows(DiaryNotFoundException::class.java) {
-                diaryService.getDiaryStyle("nonexistent-diary")
-            }
-
-            rollback()
-        }
-    }
-
-    @Test
     fun `updateDiaryName updates diary name`() {
         transaction {
             // Create a user and get their diary
@@ -412,6 +355,231 @@ class DiaryServiceTest : UnitTestBase() {
             assertEquals(everyoneGroup.id.value, updatedDiary.defaultReadGroup.value)
             assertEquals(registeredGroup.id.value, updatedDiary.defaultCommentGroup.value)
             assertEquals(friendsGroup.id.value, updatedDiary.defaultReactGroup.value)
+
+            rollback()
+        }
+    }
+
+    // New tests for multiple styles functionality
+
+    @Test
+    fun `addDiaryStyle adds a new style`() {
+        transaction {
+            // Create a user and get their diary
+            val (userId, _) = signUsersUp()
+            val diaryEntity = DiaryEntity.find { Diaries.owner eq userId }.single()
+            val diaryLogin = diaryEntity.login
+
+            // Create a style
+            val styleCreate = DiaryStyleCreate(
+                name = "Test Style",
+                styleContent = "body { background-color: #f0f0f0; }",
+                previewPictureUri = null,
+                enabled = true
+            )
+
+            // Add the style
+            val createdStyle = diaryService.addDiaryStyle(userId, diaryLogin, styleCreate)
+
+            // Verify style was created
+            assertNotNull(createdStyle)
+            assertEquals(styleCreate.name, createdStyle.name)
+            assertEquals(styleCreate.enabled, createdStyle.enabled)
+            assertNotNull(createdStyle.styleFileUrl)
+            assertNull(createdStyle.previewPictureUri)
+
+            // Verify style exists in database
+            val styleEntity = DiaryStyleEntity.findById(createdStyle.id)
+            assertNotNull(styleEntity)
+            assertEquals(styleCreate.name, styleEntity!!.name)
+            assertEquals(0, styleEntity.ordinal)
+            assertEquals(styleCreate.enabled, styleEntity.enabled)
+            assertEquals(diaryEntity.id, styleEntity.diary.id)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `getDiaryStyles returns all styles for a diary`() {
+        transaction {
+            // Create a user and get their diary
+            val (userId, _) = signUsersUp()
+            val diaryEntity = DiaryEntity.find { Diaries.owner eq userId }.single()
+            val diaryLogin = diaryEntity.login
+
+            // Create multiple styles
+            val style1 = DiaryStyleCreate("Style 1", "body { color: red; }", null, true)
+            val style2 = DiaryStyleCreate("Style 2", "body { color: blue; }", null, true)
+            val style3 = DiaryStyleCreate("Style 3", "body { color: green; }", null, true)
+
+            diaryService.addDiaryStyle(userId, diaryLogin, style1)
+            diaryService.addDiaryStyle(userId, diaryLogin, style2)
+            diaryService.addDiaryStyle(userId, diaryLogin, style3)
+
+            // Get all styles
+            val styles = diaryService.getDiaryStyleCollection(userId, diaryLogin)
+
+            // Verify styles were returned
+            assertEquals(3, styles.size)
+            assertEquals("Style 1", styles[0].name)
+            assertEquals("Style 2", styles[1].name)
+            assertEquals("Style 3", styles[2].name)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `getDiaryStyle returns a specific style`() {
+        transaction {
+            // Create a user and get their diary
+            val (userId, _) = signUsersUp()
+            val diaryEntity = DiaryEntity.find { Diaries.owner eq userId }.single()
+            val diaryLogin = diaryEntity.login
+
+            // Create a style
+            val styleCreate = DiaryStyleCreate("Test Style", "body { color: red; }", null, true)
+            val createdStyle = diaryService.addDiaryStyle(userId, diaryLogin, styleCreate)
+
+            // Get all styles and find the specific one
+            val styles = diaryService.getDiaryStyleCollection(userId, diaryLogin)
+            val style = styles.find { it.id == createdStyle.id }
+
+            // Verify style was returned
+            assertNotNull(style)
+            assertEquals(createdStyle.id, style!!.id)
+            assertEquals(createdStyle.name, style.name)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `updateDiaryStyle updates a style`() {
+        transaction {
+            // Create a user and get their diary
+            val (userId, _) = signUsersUp()
+            val diaryEntity = DiaryEntity.find { Diaries.owner eq userId }.single()
+            val diaryLogin = diaryEntity.login
+
+            // Create a style
+            val styleCreate = DiaryStyleCreate("Test Style", "body { color: red; }", null, true)
+            val createdStyle = diaryService.addDiaryStyle(userId, diaryLogin, styleCreate)
+
+            // Update the style
+            val styleUpdate = DiaryStyleUpdate(
+                id = createdStyle.id,
+                name = "Updated Style",
+                styleContent = "body { color: blue; }",
+                enabled = false,
+                previewPictureUri = ""
+            )
+
+            val updatedStyle = diaryService.updateDiaryStyle(userId, createdStyle.id, styleUpdate)
+
+            // Verify style was updated
+            assertNotNull(updatedStyle)
+            assertEquals(createdStyle.id, updatedStyle!!.id)
+            assertEquals(styleUpdate.name, updatedStyle.name)
+            assertEquals(false, updatedStyle.enabled)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `deleteDiaryStyle deletes a style`() {
+        transaction {
+            // Create a user and get their diary
+            val (userId, _) = signUsersUp()
+            val diaryEntity = DiaryEntity.find { Diaries.owner eq userId }.single()
+            val diaryLogin = diaryEntity.login
+
+            // Create a style
+            val styleCreate = DiaryStyleCreate("Test Style", "body { color: red; }", enabled = true, previewPictureUri = null)
+            val createdStyle = diaryService.addDiaryStyle(userId, diaryLogin, styleCreate)
+
+            // Delete the style
+            val deleted = diaryService.deleteDiaryStyle(userId, createdStyle.id)
+
+            // Verify style was deleted
+            assertTrue(deleted)
+
+            // Verify style no longer exists
+            val styles = diaryService.getDiaryStyleCollection(userId, diaryLogin)
+            assertEquals(0, styles.size)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `reorderDiaryStyles reorders styles`() {
+        transaction {
+            // Create a user and get their diary
+            val (userId, _) = signUsersUp()
+            val diaryEntity = DiaryEntity.find { Diaries.owner eq userId }.single()
+            val diaryLogin = diaryEntity.login
+
+            // Create multiple styles
+            val style1 = diaryService.addDiaryStyle(userId, diaryLogin, DiaryStyleCreate("Style 1", "body { color: red; }", enabled = true, previewPictureUri = null))
+            val style2 = diaryService.addDiaryStyle(userId, diaryLogin, DiaryStyleCreate("Style 2", "body { color: blue; }", enabled = true, previewPictureUri = null))
+            val style3 = diaryService.addDiaryStyle(userId, diaryLogin, DiaryStyleCreate("Style 3", "body { color: green; }", enabled = true, previewPictureUri = null))
+
+            // Reorder styles (reverse order)
+            val reorderedStyles = diaryService.reorderDiaryStyles(userId, diaryLogin, listOf(style3.id, style2.id, style1.id))
+
+            // Verify styles were reordered
+            assertEquals(3, reorderedStyles.size)
+            assertEquals("Style 3", reorderedStyles[0].name)
+            assertEquals("Style 2", reorderedStyles[1].name)
+            assertEquals("Style 1", reorderedStyles[2].name)
+
+            // No need to verify ordinals as they are not part of the DiaryStyle class anymore
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `reorderDiaryStyles with invalid style throws exception`() {
+        transaction {
+            // Create a user and get their diary
+            val (userId, _) = signUsersUp()
+            val diaryEntity = DiaryEntity.find { Diaries.owner eq userId }.single()
+            val diaryLogin = diaryEntity.login
+
+            // Create multiple styles
+            val style1 = diaryService.addDiaryStyle(userId, diaryLogin, DiaryStyleCreate("Style 1", "body { color: red; }", enabled = true, previewPictureUri = null))
+            val style2 = diaryService.addDiaryStyle(userId, diaryLogin, DiaryStyleCreate("Style 2", "body { color: blue; }", enabled = true, previewPictureUri = null))
+
+            // Try to reorder with invalid style ID
+            assertThrows(InvalidStyleException::class.java) {
+                diaryService.reorderDiaryStyles(userId, diaryLogin, listOf(style1.id, style2.id, UUID.randomUUID()))
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `reorderDiaryStyles with missing style throws exception`() {
+        transaction {
+            // Create a user and get their diary
+            val (userId, _) = signUsersUp()
+            val diaryEntity = DiaryEntity.find { Diaries.owner eq userId }.single()
+            val diaryLogin = diaryEntity.login
+
+            // Create multiple styles
+            val style1 = diaryService.addDiaryStyle(userId, diaryLogin, DiaryStyleCreate("Style 1", "body { color: red; }", enabled = true, previewPictureUri = null))
+            val style2 = diaryService.addDiaryStyle(userId, diaryLogin, DiaryStyleCreate("Style 2", "body { color: blue; }", enabled = true, previewPictureUri = null))
+            val style3 = diaryService.addDiaryStyle(userId, diaryLogin, DiaryStyleCreate("Style 3", "body { color: green; }", enabled = true, previewPictureUri = null))
+
+            // Try to reorder with missing style
+            assertThrows(InvalidStyleException::class.java) {
+                diaryService.reorderDiaryStyles(userId, diaryLogin, listOf(style1.id, style2.id))
+            }
 
             rollback()
         }

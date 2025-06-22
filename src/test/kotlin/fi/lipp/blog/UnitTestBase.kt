@@ -79,6 +79,7 @@ abstract class UnitTestBase {
                     UserAvatars,
                     Tags,
                     Diaries,
+                    DiaryStyles,
                     AccessGroups,
                     CustomGroupUsers,
                     InviteCodes,

@@ -27,7 +27,7 @@ data class DiaryPage(
 data class DiaryView(
     val name: String,
     val subtitle: String,
-    val style: String?,
+    val styles: List<String>,
     @Serializable
     val defaultGroups: SerializableMap?,
 )

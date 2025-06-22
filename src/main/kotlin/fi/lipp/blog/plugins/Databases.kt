@@ -22,6 +22,7 @@ fun Application.configureDatabases() {
             UserAvatars,
             Tags,
             Diaries,
+            DiaryStyles,
             AccessGroups,
             CustomGroupUsers,
             InviteCodes,
