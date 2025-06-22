@@ -433,7 +433,7 @@ class DiaryServiceTest : UnitTestBase() {
             val styleId = createdStyle.id
 
             // Add the same style to the second diary
-            val addedStyle = diaryService.addDiaryStyle(userId2, diaryLogin2, styleId)
+            val addedStyle = diaryService.addDiaryStyle(userId2, diaryLogin2, styleId, true)
 
             // Verify style was added to the second diary
             assertNotNull(addedStyle)

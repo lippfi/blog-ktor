@@ -54,6 +54,16 @@ fun Route.diaryRoutes(diaryService: DiaryService) {
                     call.respond(HttpStatusCode.Created, createdStyle)
                 }
 
+                post("/add-style-by-id") {
+                    val diaryLogin = call.request.queryParameters["login"] ?: ""
+                    val styleId = call.request.queryParameters["styleId"]?.let { UUID.fromString(it) } 
+                        ?: return@post call.respondText("Missing or invalid styleId parameter", status = HttpStatusCode.BadRequest)
+                    val enable = call.request.queryParameters["enable"]?.toBoolean() ?: false
+
+                    val updatedStyle = diaryService.addDiaryStyle(userId, diaryLogin, styleId, enable)
+                    call.respond(HttpStatusCode.Created, updatedStyle)
+                }
+
                 post("/upload") {
                     val diaryLogin = call.request.queryParameters["diaryLogin"] ?: ""
                     val name = call.request.queryParameters["name"] ?: "New Style"
