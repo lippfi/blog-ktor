@@ -9,11 +9,8 @@ import fi.lipp.blog.domain.FileEntity
 import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.repository.Diaries
 import fi.lipp.blog.repository.DiaryStyleJunctions
-import fi.lipp.blog.repository.DiaryStyles
 import fi.lipp.blog.service.DiaryService
 import fi.lipp.blog.service.StorageService
-import org.jetbrains.exposed.dao.id.EntityID
-import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.UUID
@@ -77,7 +74,7 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
                         id = junction.style.id.value,
                         name = junction.style.name,
                         enabled = junction.enabled,
-                        styleFileUrl = storageService.getFileURL(junction.style.styleFile.toBlogFile()),
+                        styleFileUri = storageService.getFileURL(junction.style.styleFile.toBlogFile()),
                         previewPictureUri = junction.style.previewPictureUri
                     )
                 }
@@ -103,7 +100,7 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
                     id = styleEntity.id.value,
                     name = styleEntity.name,
                     enabled = existingJunction.enabled,
-                    styleFileUrl = storageService.getFileURL(styleEntity.styleFile.toBlogFile()),
+                    styleFileUri = storageService.getFileURL(styleEntity.styleFile.toBlogFile()),
                     previewPictureUri = styleEntity.previewPictureUri
                 )
             } else {
@@ -120,7 +117,7 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
                     id = styleEntity.id.value,
                     name = styleEntity.name,
                     enabled = junction.enabled,
-                    styleFileUrl = storageService.getFileURL(styleEntity.styleFile.toBlogFile()),
+                    styleFileUri = storageService.getFileURL(styleEntity.styleFile.toBlogFile()),
                     previewPictureUri = styleEntity.previewPictureUri
                 )
             }
@@ -155,7 +152,7 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
                 id = styleEntity.id.value,
                 name = styleEntity.name,
                 enabled = junction.enabled,
-                styleFileUrl = storageService.getFileURL(styleEntity.styleFile.toBlogFile()),
+                styleFileUri = storageService.getFileURL(styleEntity.styleFile.toBlogFile()),
                 previewPictureUri = styleEntity.previewPictureUri
             )
         }
@@ -187,7 +184,7 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
                 id = styleEntity.id.value,
                 name = styleEntity.name,
                 enabled = junction.enabled,
-                styleFileUrl = storageService.getFileURL(styleEntity.styleFile.toBlogFile()),
+                styleFileUri = storageService.getFileURL(styleEntity.styleFile.toBlogFile()),
                 previewPictureUri = styleEntity.previewPictureUri
             )
         }
@@ -220,7 +217,7 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
                 id = newStyleEntity.id.value,
                 name = newStyleEntity.name,
                 enabled = junction.enabled,
-                styleFileUrl = storageService.getFileURL(newStyleEntity.styleFile.toBlogFile()),
+                styleFileUri = storageService.getFileURL(newStyleEntity.styleFile.toBlogFile()),
                 previewPictureUri = newStyleEntity.previewPictureUri,
             )
         }
@@ -252,7 +249,7 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
                 id = newStyleEntity.id.value,
                 name = newStyleEntity.name,
                 enabled = junction.enabled,
-                styleFileUrl = storageService.getFileURL(newStyleEntity.styleFile.toBlogFile()),
+                styleFileUri = storageService.getFileURL(newStyleEntity.styleFile.toBlogFile()),
                 previewPictureUri = newStyleEntity.previewPictureUri
             )
         }
@@ -283,7 +280,7 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
                 id = newStyleEntity.id.value,
                 name = newStyleEntity.name,
                 enabled = junction.enabled,
-                styleFileUrl = storageService.getFileURL(newStyleEntity.styleFile.toBlogFile()),
+                styleFileUri = storageService.getFileURL(newStyleEntity.styleFile.toBlogFile()),
                 previewPictureUri = newStyleEntity.previewPictureUri
             )
         }

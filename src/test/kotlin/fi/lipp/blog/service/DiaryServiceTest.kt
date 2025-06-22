@@ -6,31 +6,21 @@ import fi.lipp.blog.domain.AccessGroupEntity
 import fi.lipp.blog.domain.DiaryEntity
 import fi.lipp.blog.domain.DiaryStyleEntity
 import fi.lipp.blog.domain.DiaryStyleJunctionEntity
-import fi.lipp.blog.domain.FileEntity
 import fi.lipp.blog.model.exceptions.DiaryNotFoundException
 import fi.lipp.blog.model.exceptions.InvalidAccessGroupException
 import fi.lipp.blog.model.exceptions.InvalidStyleException
 import fi.lipp.blog.model.exceptions.WrongUserException
 import fi.lipp.blog.repository.Diaries
 import fi.lipp.blog.repository.DiaryStyleJunctions
-import fi.lipp.blog.repository.DiaryStyles
-import fi.lipp.blog.repository.Files
 import fi.lipp.blog.service.implementations.DiaryServiceImpl
-import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
 import org.koin.core.context.loadKoinModules
 import org.koin.dsl.module
-import org.mockito.kotlin.any
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.whenever
-import java.io.ByteArrayInputStream
-import java.io.File
 import java.util.UUID
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -387,7 +377,7 @@ class DiaryServiceTest : UnitTestBase() {
             assertNotNull(createdStyle)
             assertEquals(styleCreate.name, createdStyle.name)
             assertEquals(styleCreate.enabled, createdStyle.enabled)
-            assertNotNull(createdStyle.styleFileUrl)
+            assertNotNull(createdStyle.styleFileUri)
             assertNull(createdStyle.previewPictureUri)
 
             // Verify style exists in database
