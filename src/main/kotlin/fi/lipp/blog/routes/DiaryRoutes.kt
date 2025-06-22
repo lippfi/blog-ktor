@@ -91,14 +91,9 @@ fun Route.diaryRoutes(diaryService: DiaryService) {
 
                 put("/{styleId}") {
                     val diaryLogin = call.request.queryParameters["login"] ?: ""
-                    val styleId = call.parameters["styleId"]?.let { UUID.fromString(it) } ?: return@put call.respondText("Invalid style ID", status = HttpStatusCode.BadRequest)
                     val update = call.receive<DiaryStyleUpdate>()
-                    val updatedStyle = diaryService.updateDiaryStyle(userId, diaryLogin, styleId, update)
-                    if (updatedStyle != null) {
-                        call.respond(updatedStyle)
-                    } else {
-                        call.respondText("Style not found", status = HttpStatusCode.NotFound)
-                    }
+                    val updatedStyle = diaryService.updateDiaryStyle(userId, diaryLogin, update)
+                    call.respond(updatedStyle)
                 }
 
                 put("/{styleId}/upload") {

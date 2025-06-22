@@ -190,8 +190,9 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
         }
     }
 
-    override fun updateDiaryStyle(userId: UUID, diaryLogin: String, styleId: UUID, update: DiaryStyleUpdate): DiaryStyle {
+    override fun updateDiaryStyle(userId: UUID, diaryLogin: String, update: DiaryStyleUpdate): DiaryStyle {
         return transaction {
+            val styleId = update.id
             val styleEntity = DiaryStyleEntity.findById(styleId) ?: throw InvalidStyleException()
             val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
 
