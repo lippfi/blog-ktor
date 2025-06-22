@@ -143,7 +143,7 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
 
             // Create the junction entity to link the diary and style
             val maxOrdinal = diaryEntity.styleJunctions.maxOfOrNull { it.ordinal } ?: -1
-            
+
             val junction = DiaryStyleJunctionEntity.new {
                 diary = diaryEntity
                 this.style = styleEntity
@@ -175,7 +175,7 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
 
             // Create the junction entity to link the diary and style
             val maxOrdinal = diaryEntity.styleJunctions.maxOfOrNull { it.ordinal } ?: -1
-            
+
             val junction = DiaryStyleJunctionEntity.new {
                 diary = diaryEntity
                 this.style = styleEntity
@@ -193,71 +193,98 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
         }
     }
 
-    override fun updateDiaryStyle(userId: UUID, styleId: UUID, update: DiaryStyleUpdate): DiaryStyle {
+    override fun updateDiaryStyle(userId: UUID, diaryLogin: String, styleId: UUID, update: DiaryStyleUpdate): DiaryStyle {
         return transaction {
             val styleEntity = DiaryStyleEntity.findById(styleId) ?: throw InvalidStyleException()
-            
-            // Find a junction that links this style to a diary owned by the user
-            val junction = DiaryStyleJunctionEntity.find { DiaryStyleJunctions.style eq styleEntity.id }
-                .firstOrNull { it.diary.owner.value == userId } ?: throw WrongUserException()
+            val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
 
-            styleEntity.name = update.name
-            junction.enabled = update.enabled
-            styleEntity.previewPictureUri = update.previewPictureUri
+            if (diaryEntity.owner.value != userId) throw WrongUserException()
+
+            val junction = DiaryStyleJunctionEntity.find {
+                (DiaryStyleJunctions.style eq styleEntity.id) and (DiaryStyleJunctions.diary eq diaryEntity.id) 
+            }.singleOrNull() ?: throw InvalidStyleException()
 
             val styleUploadData = FileUploadData("style.css", update.styleContent.byteInputStream())
             val blogFile = storageService.store(userId, listOf(styleUploadData))[0]
-            styleEntity.styleFile = FileEntity.findById(blogFile.id) ?: throw InternalServerError()
+
+            val newStyleEntity = DiaryStyleEntity.new {
+                name = update.name
+                previewPictureUri = update.previewPictureUri
+                styleFile = FileEntity.findById(blogFile.id)!!
+            }
+
+            junction.style = newStyleEntity
+            junction.enabled = update.enabled
 
             DiaryStyle(
-                id = styleEntity.id.value,
-                name = styleEntity.name,
+                id = newStyleEntity.id.value,
+                name = newStyleEntity.name,
                 enabled = junction.enabled,
-                styleFileUrl = storageService.getFileURL(styleEntity.styleFile.toBlogFile()),
-                previewPictureUri = styleEntity.previewPictureUri,
+                styleFileUrl = storageService.getFileURL(newStyleEntity.styleFile.toBlogFile()),
+                previewPictureUri = newStyleEntity.previewPictureUri,
             )
         }
     }
 
-    override fun updateDiaryStyleWithFile(userId: UUID, styleId: UUID, styleFile: FileUploadData): DiaryStyle {
+    override fun updateDiaryStyleWithFile(userId: UUID, diaryLogin: String, styleId: UUID, styleFile: FileUploadData): DiaryStyle {
         return transaction {
             val styleEntity = DiaryStyleEntity.findById(styleId) ?: throw InvalidStyleException()
-            
-            // Find a junction that links this style to a diary owned by the user
-            val junction = DiaryStyleJunctionEntity.find { DiaryStyleJunctions.style eq styleEntity.id }
-                .firstOrNull { it.diary.owner.value == userId } ?: throw WrongUserException()
+            val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
+
+            if (diaryEntity.owner.value != userId) throw WrongUserException()
+
+            // Find the junction that links this style to the specified diary
+            val junction = DiaryStyleJunctionEntity.find { 
+                (DiaryStyleJunctions.style eq styleEntity.id) and (DiaryStyleJunctions.diary eq diaryEntity.id) 
+            }.singleOrNull() ?: throw InvalidStyleException()
 
             val blogFile = storageService.store(userId, listOf(styleFile))[0]
-            styleEntity.styleFile = FileEntity.findById(blogFile.id) ?: throw InternalServerError()
+
+            val newStyleEntity = DiaryStyleEntity.new {
+                name = styleEntity.name
+                previewPictureUri = styleEntity.previewPictureUri
+                this.styleFile = FileEntity.findById(blogFile.id)!!
+            }
+
+            junction.style = newStyleEntity
 
             DiaryStyle(
-                id = styleEntity.id.value,
-                name = styleEntity.name,
+                id = newStyleEntity.id.value,
+                name = newStyleEntity.name,
                 enabled = junction.enabled,
-                styleFileUrl = storageService.getFileURL(styleEntity.styleFile.toBlogFile()),
-                previewPictureUri = styleEntity.previewPictureUri
+                styleFileUrl = storageService.getFileURL(newStyleEntity.styleFile.toBlogFile()),
+                previewPictureUri = newStyleEntity.previewPictureUri
             )
         }
     }
 
-    override fun updateDiaryStylePreview(userId: UUID, styleId: UUID, previewFile: FileUploadData): DiaryStyle {
+    override fun updateDiaryStylePreview(userId: UUID, diaryLogin: String, styleId: UUID, previewFile: FileUploadData): DiaryStyle {
         return transaction {
             val styleEntity = DiaryStyleEntity.findById(styleId) ?: throw InvalidStyleException()
-            
-            // Find a junction that links this style to a diary owned by the user
-            val junction = DiaryStyleJunctionEntity.find { DiaryStyleJunctions.style eq styleEntity.id }
-                .firstOrNull { it.diary.owner.value == userId } ?: throw WrongUserException()
+            val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
+
+            if (diaryEntity.owner.value != userId) throw WrongUserException()
+
+            val junction = DiaryStyleJunctionEntity.find {
+                (DiaryStyleJunctions.style eq styleEntity.id) and (DiaryStyleJunctions.diary eq diaryEntity.id) 
+            }.singleOrNull() ?: throw InvalidStyleException()
 
             val blogFile = storageService.store(userId, listOf(previewFile))[0]
 
-            styleEntity.previewPictureUri = storageService.getFileURL(blogFile)
+            val newStyleEntity = DiaryStyleEntity.new {
+                name = styleEntity.name
+                styleFile = styleEntity.styleFile
+                previewPictureUri = storageService.getFileURL(blogFile)
+            }
+
+            junction.style = newStyleEntity
 
             DiaryStyle(
-                id = styleEntity.id.value,
-                name = styleEntity.name,
+                id = newStyleEntity.id.value,
+                name = newStyleEntity.name,
                 enabled = junction.enabled,
-                styleFileUrl = storageService.getFileURL(styleEntity.styleFile.toBlogFile()),
-                previewPictureUri = styleEntity.previewPictureUri
+                styleFileUrl = storageService.getFileURL(newStyleEntity.styleFile.toBlogFile()),
+                previewPictureUri = newStyleEntity.previewPictureUri
             )
         }
     }
@@ -265,22 +292,22 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
     override fun deleteDiaryStyle(userId: UUID, styleId: UUID): Boolean {
         return transaction {
             val styleEntity = DiaryStyleEntity.findById(styleId) ?: throw InvalidStyleException()
-            
+
             // Find all junctions that link this style to diaries owned by the user
             val junctions = DiaryStyleJunctionEntity.find { DiaryStyleJunctions.style eq styleEntity.id }
                 .filter { it.diary.owner.value == userId }
-            
+
             if (junctions.isEmpty()) throw WrongUserException()
-            
+
             // Delete all junctions
             junctions.forEach { it.delete() }
-            
+
             // If no other diaries are using this style, delete the style entity too
             val remainingJunctions = DiaryStyleJunctionEntity.find { DiaryStyleJunctions.style eq styleEntity.id }.count()
             if (remainingJunctions == 0L) {
                 styleEntity.delete()
             }
-            
+
             true
         }
     }
@@ -292,7 +319,7 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
 
             val junctions = diaryEntity.styleJunctions.toList()
             val junctionMap = junctions.associateBy { it.style.id.value }
-            
+
             for (styleId in styleIds) {
                 if (!junctionMap.containsKey(styleId)) throw InvalidStyleException()
             }

@@ -90,9 +90,10 @@ fun Route.diaryRoutes(diaryService: DiaryService) {
                 }
 
                 put("/{styleId}") {
+                    val diaryLogin = call.request.queryParameters["login"] ?: ""
                     val styleId = call.parameters["styleId"]?.let { UUID.fromString(it) } ?: return@put call.respondText("Invalid style ID", status = HttpStatusCode.BadRequest)
                     val update = call.receive<DiaryStyleUpdate>()
-                    val updatedStyle = diaryService.updateDiaryStyle(userId, styleId, update)
+                    val updatedStyle = diaryService.updateDiaryStyle(userId, diaryLogin, styleId, update)
                     if (updatedStyle != null) {
                         call.respond(updatedStyle)
                     } else {
@@ -101,6 +102,7 @@ fun Route.diaryRoutes(diaryService: DiaryService) {
                 }
 
                 put("/{styleId}/upload") {
+                    val diaryLogin = call.request.queryParameters["login"] ?: ""
                     val styleId = call.parameters["styleId"]?.let { UUID.fromString(it) } ?: return@put call.respondText("Invalid style ID", status = HttpStatusCode.BadRequest)
 
                     val multipart = call.receiveMultipart()
@@ -116,7 +118,7 @@ fun Route.diaryRoutes(diaryService: DiaryService) {
                     }
 
                     if (fileUploadData != null) {
-                        val updatedStyle = diaryService.updateDiaryStyleWithFile(userId, styleId, fileUploadData!!)
+                        val updatedStyle = diaryService.updateDiaryStyleWithFile(userId, diaryLogin, styleId, fileUploadData!!)
                         call.respond(updatedStyle)
                     } else {
                         call.respondText("No file uploaded", status = HttpStatusCode.BadRequest)
@@ -124,6 +126,7 @@ fun Route.diaryRoutes(diaryService: DiaryService) {
                 }
 
                 put("/{styleId}/preview") {
+                    val diaryLogin = call.request.queryParameters["login"] ?: ""
                     val styleId = call.parameters["styleId"]?.let { UUID.fromString(it) } ?: return@put call.respondText("Invalid style ID", status = HttpStatusCode.BadRequest)
 
                     val multipart = call.receiveMultipart()
@@ -139,7 +142,7 @@ fun Route.diaryRoutes(diaryService: DiaryService) {
                     }
 
                     if (fileUploadData != null) {
-                        val updatedStyle = diaryService.updateDiaryStylePreview(userId, styleId, fileUploadData!!)
+                        val updatedStyle = diaryService.updateDiaryStylePreview(userId, diaryLogin, styleId, fileUploadData!!)
                         call.respond(updatedStyle)
                     } else {
                         call.respondText("No file uploaded", status = HttpStatusCode.BadRequest)

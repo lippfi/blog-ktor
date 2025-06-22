@@ -543,12 +543,12 @@ class DiaryServiceTest : UnitTestBase() {
                 previewPictureUri = ""
             )
 
-            val updatedStyle = diaryService.updateDiaryStyle(userId, createdStyle.id, styleUpdate)
+            val updatedStyle = diaryService.updateDiaryStyle(userId, diaryLogin, createdStyle.id, styleUpdate)
 
             // Verify style was updated
             assertNotNull(updatedStyle)
-            assertEquals(createdStyle.id, updatedStyle!!.id)
-            assertEquals(styleUpdate.name, updatedStyle.name)
+            // ID should be different because a new entity is created
+            assertEquals(styleUpdate.name, updatedStyle!!.name)
             assertEquals(false, updatedStyle.enabled)
 
             rollback()
