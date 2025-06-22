@@ -5,12 +5,14 @@ import fi.lipp.blog.data.*
 import fi.lipp.blog.domain.AccessGroupEntity
 import fi.lipp.blog.domain.DiaryEntity
 import fi.lipp.blog.domain.DiaryStyleEntity
+import fi.lipp.blog.domain.DiaryStyleJunctionEntity
 import fi.lipp.blog.domain.FileEntity
 import fi.lipp.blog.model.exceptions.DiaryNotFoundException
 import fi.lipp.blog.model.exceptions.InvalidAccessGroupException
 import fi.lipp.blog.model.exceptions.InvalidStyleException
 import fi.lipp.blog.model.exceptions.WrongUserException
 import fi.lipp.blog.repository.Diaries
+import fi.lipp.blog.repository.DiaryStyleJunctions
 import fi.lipp.blog.repository.DiaryStyles
 import fi.lipp.blog.repository.Files
 import fi.lipp.blog.service.implementations.DiaryServiceImpl
@@ -367,8 +369,8 @@ class DiaryServiceTest : UnitTestBase() {
         transaction {
             // Create a user and get their diary
             val (userId, _) = signUsersUp()
-            val diaryEntity = DiaryEntity.find { Diaries.owner eq userId }.single()
-            val diaryLogin = diaryEntity.login
+            val diaryLogin = DiaryEntity.find { Diaries.owner eq userId }.single().login
+            val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.single()
 
             // Create a style
             val styleCreate = DiaryStyleCreate(
@@ -392,9 +394,74 @@ class DiaryServiceTest : UnitTestBase() {
             val styleEntity = DiaryStyleEntity.findById(createdStyle.id)
             assertNotNull(styleEntity)
             assertEquals(styleCreate.name, styleEntity!!.name)
-            assertEquals(0, styleEntity.ordinal)
-            assertEquals(styleCreate.enabled, styleEntity.enabled)
-            assertEquals(diaryEntity.id, styleEntity.diary.id)
+
+            // Verify junction exists in database
+            val junction = DiaryStyleJunctionEntity.find { 
+                DiaryStyleJunctions.diary eq diaryEntity.id 
+            }.firstOrNull { it.style.id == styleEntity.id }
+
+            assertNotNull(junction)
+            assertEquals(0, junction!!.ordinal)
+            assertEquals(styleCreate.enabled, junction.enabled)
+            assertEquals(diaryEntity.id, junction.diary.id)
+            assertEquals(styleEntity.id, junction.style.id)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `addDiaryStyle with styleId adds an existing style to a diary`() {
+        transaction {
+            // Create two users and get their diaries
+            val (userId1, userId2) = signUsersUp()
+            val diaryLogin1 = DiaryEntity.find { Diaries.owner eq userId1 }.single().login
+            val diaryLogin2 = DiaryEntity.find { Diaries.owner eq userId2 }.single().login
+            val diaryEntity1 = DiaryEntity.find { Diaries.login eq diaryLogin1 }.single()
+            val diaryEntity2 = DiaryEntity.find { Diaries.login eq diaryLogin2 }.single()
+
+            // Create a style for the first diary
+            val styleCreate = DiaryStyleCreate(
+                name = "Shared Style",
+                styleContent = "body { background-color: #f0f0f0; }",
+                previewPictureUri = null,
+                enabled = true
+            )
+
+            // Add the style to the first diary
+            val createdStyle = diaryService.addDiaryStyle(userId1, diaryLogin1, styleCreate)
+            val styleId = createdStyle.id
+
+            // Add the same style to the second diary
+            val addedStyle = diaryService.addDiaryStyle(userId2, diaryLogin2, styleId)
+
+            // Verify style was added to the second diary
+            assertNotNull(addedStyle)
+            assertEquals(styleId, addedStyle.id)
+            assertEquals(styleCreate.name, addedStyle.name)
+            assertTrue(addedStyle.enabled) // Should be enabled by default
+
+            // Verify style exists in database
+            val styleEntity = DiaryStyleEntity.findById(styleId)
+            assertNotNull(styleEntity)
+
+            // Verify junction exists for the first diary
+            val junction1 = DiaryStyleJunctionEntity.find { 
+                DiaryStyleJunctions.diary eq diaryEntity1.id 
+            }.firstOrNull { it.style.id == styleEntity!!.id }
+
+            assertNotNull(junction1)
+
+            // Verify junction exists for the second diary
+            val junction2 = DiaryStyleJunctionEntity.find { 
+                DiaryStyleJunctions.diary eq diaryEntity2.id 
+            }.firstOrNull { it.style.id == styleEntity!!.id }
+
+            assertNotNull(junction2)
+
+            // Verify the style is shared between both diaries
+            assertEquals(styleEntity!!.id, junction1!!.style.id)
+            assertEquals(styleEntity.id, junction2!!.style.id)
 
             rollback()
         }

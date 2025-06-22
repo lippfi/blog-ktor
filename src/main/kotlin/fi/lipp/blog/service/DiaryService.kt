@@ -14,12 +14,13 @@ interface DiaryService {
     fun getEnabledDiaryStyles(diaryLogin: String): List<String>
     fun getDiaryStyleCollection(userId: UUID, diaryLogin: String): List<DiaryStyle>
 
+    fun addDiaryStyle(userId: UUID, diaryLogin: String, styleId: UUID, enable: Boolean): DiaryStyle
     fun addDiaryStyle(userId: UUID, diaryLogin: String, style: DiaryStyleCreate): DiaryStyle
     fun addDiaryStyleWithFile(userId: UUID, diaryLogin: String, name: String, styleFile: FileUploadData, enabled: Boolean = true): DiaryStyle
 
+    // when we update style, a new entity should be created
     fun updateDiaryStyle(userId: UUID, styleId: UUID, update: DiaryStyleUpdate): DiaryStyle
     fun updateDiaryStyleWithFile(userId: UUID, styleId: UUID, styleFile: FileUploadData): DiaryStyle
-
     fun updateDiaryStylePreview(userId: UUID, styleId: UUID, previewFile: FileUploadData): DiaryStyle
 
     fun deleteDiaryStyle(userId: UUID, styleId: UUID): Boolean

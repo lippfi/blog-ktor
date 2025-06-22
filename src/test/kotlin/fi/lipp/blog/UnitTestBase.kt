@@ -80,6 +80,7 @@ abstract class UnitTestBase {
                     Tags,
                     Diaries,
                     DiaryStyles,
+                    DiaryStyleJunctions,
                     AccessGroups,
                     CustomGroupUsers,
                     InviteCodes,

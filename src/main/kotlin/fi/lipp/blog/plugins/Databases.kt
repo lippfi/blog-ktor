@@ -23,6 +23,7 @@ fun Application.configureDatabases() {
             Tags,
             Diaries,
             DiaryStyles,
+            DiaryStyleJunctions,
             AccessGroups,
             CustomGroupUsers,
             InviteCodes,

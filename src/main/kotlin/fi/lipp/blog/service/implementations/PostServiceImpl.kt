@@ -117,11 +117,11 @@ class PostServiceImpl(
     private fun getDiaryView(userId: UUID?, diaryLogin: String): DiaryView {
         return transaction {
             val diaryEntity = findDiaryByLogin(diaryLogin)
-            // Get all enabled styles from the diary's styles collection, sorted by ordinal
-            val styleURLs = diaryEntity.styles
+            // Get all enabled styles from the diary's styleJunctions collection, sorted by ordinal
+            val styleURLs = diaryEntity.styleJunctions
                 .filter { it.enabled }
                 .sortedBy { it.ordinal }
-                .map { it.styleFile.toBlogFile() }
+                .map { it.style.styleFile.toBlogFile() }
                 .map { storageService.getFileURL(it) }
 
             val defaultGroups = if (diaryEntity.owner.value == userId) accessGroupService.getDefaultAccessGroups(userId, diaryLogin) else null

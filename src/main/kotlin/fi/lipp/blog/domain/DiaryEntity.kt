@@ -1,7 +1,7 @@
 package fi.lipp.blog.domain
 
 import fi.lipp.blog.repository.Diaries
-import fi.lipp.blog.repository.DiaryStyles
+import fi.lipp.blog.repository.DiaryStyleJunctions
 import org.jetbrains.exposed.dao.UUIDEntity
 import org.jetbrains.exposed.dao.UUIDEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
@@ -19,8 +19,8 @@ class DiaryEntity(id: EntityID<UUID>) : UUIDEntity(id) {
 
     val owner by Diaries.owner
 
-    // Style is now managed through DiaryStyleEntity
-    val styles by DiaryStyleEntity referrersOn DiaryStyles.diary
+    // Style is now managed through DiaryStyleJunctionEntity
+    val styleJunctions by DiaryStyleJunctionEntity referrersOn DiaryStyleJunctions.diary
 
     var defaultReadGroup by Diaries.defaultReadGroup
     var defaultCommentGroup by Diaries.defaultCommentGroup
