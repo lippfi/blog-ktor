@@ -8,6 +8,7 @@ import fi.lipp.blog.repository.*
 import fi.lipp.blog.util.MessageLocalizer
 import java.util.UUID
 import fi.lipp.blog.service.*
+import fi.lipp.blog.util.SerializableMap
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.toKotlinLocalDateTime
 import org.jetbrains.exposed.dao.id.EntityID
@@ -511,8 +512,9 @@ class UserServiceImpl(
         return avatars.map { it.toBlogFile() }
     }
 
-    override fun getAvatarUrls(userId: UUID): List<String> {
-        return getAvatars(userId).map { storageService.getFileURL(it) }
+    override fun getAvatarUris(userId: UUID): SerializableMap {
+        val idToUri = getAvatars(userId).associate { it.id.toString() to storageService.getFileURL(it) }
+        return SerializableMap(idToUri)
     }
 
     override fun reorderAvatars(userId: UUID, permutation: List<UUID>) {

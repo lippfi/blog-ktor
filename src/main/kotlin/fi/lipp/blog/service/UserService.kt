@@ -2,6 +2,7 @@ package fi.lipp.blog.service
 
 import fi.lipp.blog.data.*
 import fi.lipp.blog.model.exceptions.*
+import fi.lipp.blog.util.SerializableMap
 import kotlinx.datetime.LocalDate
 import java.util.UUID
 import kotlin.jvm.Throws
@@ -62,7 +63,7 @@ interface UserService {
     fun isNicknameBusy(nickname: String): Boolean
 
     fun getAvatars(userId: UUID): List<BlogFile>
-    fun getAvatarUrls(userId: UUID): List<String>
+    fun getAvatarUris(userId: UUID): SerializableMap
     fun reorderAvatars(userId: UUID, permutation: List<UUID>)
     fun addAvatar(userId: UUID, files: List<FileUploadData>): List<String>
     fun addAvatar(userId: UUID, avatarUri: String)

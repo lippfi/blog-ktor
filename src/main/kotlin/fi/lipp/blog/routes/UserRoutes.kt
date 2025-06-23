@@ -104,7 +104,7 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService)
             }
 
             get("/avatars") {
-                val avatarUrls = userService.getAvatarUrls(userId)
+                val avatarUrls = userService.getAvatarUris(userId)
                 call.respond(avatarUrls)
             }
 
