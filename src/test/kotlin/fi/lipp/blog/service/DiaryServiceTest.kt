@@ -377,7 +377,7 @@ class DiaryServiceTest : UnitTestBase() {
             assertNotNull(createdStyle)
             assertEquals(styleCreate.name, createdStyle.name)
             assertEquals(styleCreate.enabled, createdStyle.enabled)
-            assertNotNull(createdStyle.styleFileContent)
+            assertNotNull(createdStyle.styleContent)
             assertNull(createdStyle.previewPictureUri)
 
             // Verify style exists in database

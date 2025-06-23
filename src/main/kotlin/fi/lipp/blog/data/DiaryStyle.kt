@@ -10,7 +10,7 @@ data class DiaryStyle(
     val id: UUID,
     val name: String,
     val enabled: Boolean,
-    val styleFileContent: String,
+    val styleContent: String,
     val previewPictureUri: String?
 )
 
