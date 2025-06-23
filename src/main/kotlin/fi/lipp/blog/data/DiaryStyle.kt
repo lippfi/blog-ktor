@@ -11,7 +11,9 @@ data class DiaryStyle(
     val name: String,
     val description: String?,
     val enabled: Boolean,
-    val styleContent: String
+    val styleContent: String,
+    val authorLogin: String,
+    val authorNickname: String
 )
 
 @Serializable

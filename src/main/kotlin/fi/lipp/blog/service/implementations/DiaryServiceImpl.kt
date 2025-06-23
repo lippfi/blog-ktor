@@ -6,6 +6,7 @@ import fi.lipp.blog.domain.DiaryEntity
 import fi.lipp.blog.domain.DiaryStyleEntity
 import fi.lipp.blog.domain.DiaryStyleJunctionEntity
 import fi.lipp.blog.domain.FileEntity
+import fi.lipp.blog.domain.UserEntity
 import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.repository.Diaries
 import fi.lipp.blog.repository.DiaryStyleJunctions
@@ -75,7 +76,9 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
                         name = junction.style.name,
                         description = junction.style.description,
                         enabled = junction.enabled,
-                        styleContent = storageService.getFile(junction.style.styleFile.toBlogFile()).readText()
+                        styleContent = storageService.getFile(junction.style.styleFile.toBlogFile()).readText(),
+                        authorLogin = junction.style.author.id.toString(),
+                        authorNickname = junction.style.author.nickname
                     )
                 }
         }
@@ -101,7 +104,9 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
                     name = styleEntity.name,
                     description = styleEntity.description,
                     enabled = existingJunction.enabled,
-                    styleContent = storageService.getFile(styleEntity.styleFile.toBlogFile()).readText()
+                    styleContent = storageService.getFile(styleEntity.styleFile.toBlogFile()).readText(),
+                    authorLogin = styleEntity.author.id.toString(),
+                    authorNickname = styleEntity.author.nickname
                 )
             } else {
                 val maxOrdinal = diaryEntity.styleJunctions.maxOfOrNull { it.ordinal } ?: -1
@@ -118,7 +123,9 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
                     name = styleEntity.name,
                     description = styleEntity.description,
                     enabled = junction.enabled,
-                    styleContent = storageService.getFile(styleEntity.styleFile.toBlogFile()).readText()
+                    styleContent = storageService.getFile(styleEntity.styleFile.toBlogFile()).readText(),
+                    authorLogin = styleEntity.author.id.toString(),
+                    authorNickname = styleEntity.author.nickname
                 )
             }
         }
@@ -132,10 +139,12 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
             val styleUploadData = FileUploadData("style.css", style.styleContent.byteInputStream())
             val blogFile = storageService.store(userId, listOf(styleUploadData))[0]
 
+            val userEntity = UserEntity.findById(userId) ?: throw UserNotFoundException()
             val styleEntity = DiaryStyleEntity.new {
                 name = style.name
                 description = style.description
                 styleFile = FileEntity.findById(blogFile.id) ?: throw InternalServerError()
+                author = userEntity
             }
 
             // Create the junction entity to link the diary and style
@@ -153,7 +162,9 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
                 name = styleEntity.name,
                 description = styleEntity.description,
                 enabled = junction.enabled,
-                styleContent = storageService.getFile(styleEntity.styleFile.toBlogFile()).readText()
+                styleContent = storageService.getFile(styleEntity.styleFile.toBlogFile()).readText(),
+                authorLogin = styleEntity.author.id.toString(),
+                authorNickname = styleEntity.author.nickname
             )
         }
     }
@@ -165,10 +176,12 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
 
             val blogFile = storageService.store(userId, listOf(styleFile))[0]
 
+            val userEntity = UserEntity.findById(userId) ?: throw UserNotFoundException()
             val styleEntity = DiaryStyleEntity.new {
                 this.name = name
                 this.description = null
                 this.styleFile = FileEntity.findById(blogFile.id) ?: throw InternalServerError()
+                this.author = userEntity
             }
 
             // Create the junction entity to link the diary and style
@@ -186,7 +199,9 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
                 name = styleEntity.name,
                 description = styleEntity.description,
                 enabled = junction.enabled,
-                styleContent = storageService.getFile(styleEntity.styleFile.toBlogFile()).readText()
+                styleContent = storageService.getFile(styleEntity.styleFile.toBlogFile()).readText(),
+                authorLogin = styleEntity.author.id.toString(),
+                authorNickname = styleEntity.author.nickname
             )
         }
     }
@@ -210,6 +225,7 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
                 name = update.name
                 description = update.description
                 styleFile = FileEntity.findById(blogFile.id)!!
+                author = styleEntity.author
             }
 
             junction.style = newStyleEntity
@@ -220,7 +236,9 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
                 name = newStyleEntity.name,
                 description = newStyleEntity.description,
                 enabled = junction.enabled,
-                styleContent = storageService.getFile(newStyleEntity.styleFile.toBlogFile()).readText()
+                styleContent = storageService.getFile(newStyleEntity.styleFile.toBlogFile()).readText(),
+                authorLogin = newStyleEntity.author.id.toString(),
+                authorNickname = newStyleEntity.author.nickname
             )
         }
     }
@@ -242,6 +260,7 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
                 name = styleEntity.name
                 description = styleEntity.description
                 this.styleFile = FileEntity.findById(blogFile.id)!!
+                this.author = styleEntity.author
             }
 
             junction.style = newStyleEntity
@@ -251,7 +270,9 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
                 name = newStyleEntity.name,
                 description = newStyleEntity.description,
                 enabled = junction.enabled,
-                styleContent = storageService.getFile(newStyleEntity.styleFile.toBlogFile()).readText()
+                styleContent = storageService.getFile(newStyleEntity.styleFile.toBlogFile()).readText(),
+                authorLogin = newStyleEntity.author.id.toString(),
+                authorNickname = newStyleEntity.author.nickname
             )
         }
     }

@@ -13,4 +13,5 @@ class DiaryStyleEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var name by DiaryStyles.name
     var description by DiaryStyles.description
     var styleFile by FileEntity referencedOn DiaryStyles.styleFile
+    var author by UserEntity referencedOn DiaryStyles.author
 }
