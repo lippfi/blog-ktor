@@ -28,6 +28,13 @@ fun Route.diaryRoutes(diaryService: DiaryService) {
 
         // New routes for multiple styles
         route("/styles") {
+            // Public route to get enabled diary styles
+            get("/enabled") {
+                val diaryLogin = call.request.queryParameters["login"] ?: ""
+                val styles = diaryService.getEnabledDiaryStyles(diaryLogin)
+                call.respond(styles)
+            }
+
             authenticate {
                 get {
                     val diaryLogin = call.request.queryParameters["login"] ?: ""
