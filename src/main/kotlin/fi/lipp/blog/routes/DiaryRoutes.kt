@@ -28,25 +28,13 @@ fun Route.diaryRoutes(diaryService: DiaryService) {
 
         // New routes for multiple styles
         route("/styles") {
-            get {
-                val diaryLogin = call.request.queryParameters["diaryLogin"] ?: ""
-                val styles = diaryService.getDiaryStyleCollection(userId, diaryLogin)
-                call.respond(styles)
-            }
-
-            get("/{styleId}") {
-                val diaryLogin = call.request.queryParameters["diaryLogin"] ?: ""
-                val styleId = call.parameters["styleId"]?.let { UUID.fromString(it) } ?: return@get call.respondText("Invalid style ID", status = HttpStatusCode.BadRequest)
-                val styles = diaryService.getDiaryStyleCollection(userId, diaryLogin)
-                val style = styles.find { it.id == styleId }
-                if (style != null) {
-                    call.respond(style)
-                } else {
-                    call.respondText("Style not found", status = HttpStatusCode.NotFound)
-                }
-            }
-
             authenticate {
+                get {
+                    val diaryLogin = call.request.queryParameters["login"] ?: ""
+                    val styles = diaryService.getDiaryStyleCollection(userId, diaryLogin)
+                    call.respond(styles)
+                }
+
                 post {
                     val diaryLogin = call.request.queryParameters["login"] ?: ""
                     val style = call.receive<DiaryStyleCreate>()

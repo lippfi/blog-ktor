@@ -13,6 +13,4 @@ class DiaryStyleEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var name by DiaryStyles.name
     var styleFile by FileEntity referencedOn DiaryStyles.styleFile
     var previewPictureUri by DiaryStyles.previewPictureUri
-
-    val diaryJunctions by DiaryStyleJunctionEntity referrersOn DiaryStyleJunctions.style
 }

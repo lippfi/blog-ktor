@@ -377,7 +377,7 @@ class DiaryServiceTest : UnitTestBase() {
             assertNotNull(createdStyle)
             assertEquals(styleCreate.name, createdStyle.name)
             assertEquals(styleCreate.enabled, createdStyle.enabled)
-            assertNotNull(createdStyle.styleFileUri)
+            assertNotNull(createdStyle.styleFileContent)
             assertNull(createdStyle.previewPictureUri)
 
             // Verify style exists in database
@@ -533,7 +533,7 @@ class DiaryServiceTest : UnitTestBase() {
                 previewPictureUri = ""
             )
 
-            val updatedStyle = diaryService.updateDiaryStyle(userId, diaryLogin, createdStyle.id, styleUpdate)
+            val updatedStyle = diaryService.updateDiaryStyle(userId, diaryLogin, styleUpdate)
 
             // Verify style was updated
             assertNotNull(updatedStyle)
