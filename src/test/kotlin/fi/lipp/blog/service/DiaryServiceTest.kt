@@ -22,7 +22,6 @@ import org.koin.dsl.module
 import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class DiaryServiceTest : UnitTestBase() {
@@ -365,8 +364,8 @@ class DiaryServiceTest : UnitTestBase() {
             // Create a style
             val styleCreate = DiaryStyleCreate(
                 name = "Test Style",
+                description = "Test style description",
                 styleContent = "body { background-color: #f0f0f0; }",
-                previewPictureUri = null,
                 enabled = true
             )
 
@@ -378,7 +377,6 @@ class DiaryServiceTest : UnitTestBase() {
             assertEquals(styleCreate.name, createdStyle.name)
             assertEquals(styleCreate.enabled, createdStyle.enabled)
             assertNotNull(createdStyle.styleContent)
-            assertNull(createdStyle.previewPictureUri)
 
             // Verify style exists in database
             val styleEntity = DiaryStyleEntity.findById(createdStyle.id)
@@ -413,8 +411,8 @@ class DiaryServiceTest : UnitTestBase() {
             // Create a style for the first diary
             val styleCreate = DiaryStyleCreate(
                 name = "Shared Style",
+                description = "Test style description",
                 styleContent = "body { background-color: #f0f0f0; }",
-                previewPictureUri = null,
                 enabled = true
             )
 
@@ -466,9 +464,24 @@ class DiaryServiceTest : UnitTestBase() {
             val diaryLogin = diaryEntity.login
 
             // Create multiple styles
-            val style1 = DiaryStyleCreate("Style 1", "body { color: red; }", null, true)
-            val style2 = DiaryStyleCreate("Style 2", "body { color: blue; }", null, true)
-            val style3 = DiaryStyleCreate("Style 3", "body { color: green; }", null, true)
+            val style1 = DiaryStyleCreate(
+                name = "Style 1",
+                description = "Style 1 description",
+                styleContent = "body { color: red; }",
+                enabled = true
+            )
+            val style2 = DiaryStyleCreate(
+                name = "Style 2",
+                description = "Style 2 description",
+                styleContent = "body { color: blue; }",
+                enabled = true
+            )
+            val style3 = DiaryStyleCreate(
+                name = "Style 3",
+                description = "Style 3 description",
+                styleContent = "body { color: green; }",
+                enabled = true
+            )
 
             diaryService.addDiaryStyle(userId, diaryLogin, style1)
             diaryService.addDiaryStyle(userId, diaryLogin, style2)
@@ -496,7 +509,12 @@ class DiaryServiceTest : UnitTestBase() {
             val diaryLogin = diaryEntity.login
 
             // Create a style
-            val styleCreate = DiaryStyleCreate("Test Style", "body { color: red; }", null, true)
+            val styleCreate = DiaryStyleCreate(
+                name = "Test Style",
+                description = "Test style description",
+                styleContent = "body { color: red; }",
+                enabled = true
+            )
             val createdStyle = diaryService.addDiaryStyle(userId, diaryLogin, styleCreate)
 
             // Get all styles and find the specific one
@@ -521,16 +539,21 @@ class DiaryServiceTest : UnitTestBase() {
             val diaryLogin = diaryEntity.login
 
             // Create a style
-            val styleCreate = DiaryStyleCreate("Test Style", "body { color: red; }", null, true)
+            val styleCreate = DiaryStyleCreate(
+                name = "Test Style",
+                description = "Test style description",
+                styleContent = "body { color: red; }",
+                enabled = true
+            )
             val createdStyle = diaryService.addDiaryStyle(userId, diaryLogin, styleCreate)
 
             // Update the style
             val styleUpdate = DiaryStyleUpdate(
                 id = createdStyle.id,
                 name = "Updated Style",
+                description = "Updated description",
                 styleContent = "body { color: blue; }",
                 enabled = false,
-                previewPictureUri = ""
             )
 
             val updatedStyle = diaryService.updateDiaryStyle(userId, diaryLogin, styleUpdate)
@@ -554,7 +577,12 @@ class DiaryServiceTest : UnitTestBase() {
             val diaryLogin = diaryEntity.login
 
             // Create a style
-            val styleCreate = DiaryStyleCreate("Test Style", "body { color: red; }", enabled = true, previewPictureUri = null)
+            val styleCreate = DiaryStyleCreate(
+                name = "Test Style",
+                description = "Test style description",
+                styleContent = "body { color: red; }",
+                enabled = true
+            )
             val createdStyle = diaryService.addDiaryStyle(userId, diaryLogin, styleCreate)
 
             // Delete the style
@@ -580,9 +608,24 @@ class DiaryServiceTest : UnitTestBase() {
             val diaryLogin = diaryEntity.login
 
             // Create multiple styles
-            val style1 = diaryService.addDiaryStyle(userId, diaryLogin, DiaryStyleCreate("Style 1", "body { color: red; }", enabled = true, previewPictureUri = null))
-            val style2 = diaryService.addDiaryStyle(userId, diaryLogin, DiaryStyleCreate("Style 2", "body { color: blue; }", enabled = true, previewPictureUri = null))
-            val style3 = diaryService.addDiaryStyle(userId, diaryLogin, DiaryStyleCreate("Style 3", "body { color: green; }", enabled = true, previewPictureUri = null))
+            val style1 = diaryService.addDiaryStyle(userId, diaryLogin, DiaryStyleCreate(
+                name = "Style 1",
+                description = "Style 1 description",
+                styleContent = "body { color: red; }",
+                enabled = true,
+            ))
+            val style2 = diaryService.addDiaryStyle(userId, diaryLogin, DiaryStyleCreate(
+                name = "Style 2",
+                description = "Style 2 description",
+                styleContent = "body { color: blue; }",
+                enabled = true,
+            ))
+            val style3 = diaryService.addDiaryStyle(userId, diaryLogin, DiaryStyleCreate(
+                name = "Style 3",
+                description = "Style 3 description",
+                styleContent = "body { color: green; }",
+                enabled = true,
+            ))
 
             // Reorder styles (reverse order)
             val reorderedStyles = diaryService.reorderDiaryStyles(userId, diaryLogin, listOf(style3.id, style2.id, style1.id))
@@ -608,8 +651,18 @@ class DiaryServiceTest : UnitTestBase() {
             val diaryLogin = diaryEntity.login
 
             // Create multiple styles
-            val style1 = diaryService.addDiaryStyle(userId, diaryLogin, DiaryStyleCreate("Style 1", "body { color: red; }", enabled = true, previewPictureUri = null))
-            val style2 = diaryService.addDiaryStyle(userId, diaryLogin, DiaryStyleCreate("Style 2", "body { color: blue; }", enabled = true, previewPictureUri = null))
+            val style1 = diaryService.addDiaryStyle(userId, diaryLogin, DiaryStyleCreate(
+                name = "Style 1",
+                description = "Style 1 description",
+                styleContent = "body { color: red; }",
+                enabled = true,
+            ))
+            val style2 = diaryService.addDiaryStyle(userId, diaryLogin, DiaryStyleCreate(
+                name = "Style 2",
+                description = "Style 2 description",
+                styleContent = "body { color: blue; }",
+                enabled = true,
+            ))
 
             // Try to reorder with invalid style ID
             assertThrows(InvalidStyleException::class.java) {
@@ -629,9 +682,24 @@ class DiaryServiceTest : UnitTestBase() {
             val diaryLogin = diaryEntity.login
 
             // Create multiple styles
-            val style1 = diaryService.addDiaryStyle(userId, diaryLogin, DiaryStyleCreate("Style 1", "body { color: red; }", enabled = true, previewPictureUri = null))
-            val style2 = diaryService.addDiaryStyle(userId, diaryLogin, DiaryStyleCreate("Style 2", "body { color: blue; }", enabled = true, previewPictureUri = null))
-            val style3 = diaryService.addDiaryStyle(userId, diaryLogin, DiaryStyleCreate("Style 3", "body { color: green; }", enabled = true, previewPictureUri = null))
+            val style1 = diaryService.addDiaryStyle(userId, diaryLogin, DiaryStyleCreate(
+                name = "Style 1",
+                description = "Style 1 description",
+                styleContent = "body { color: red; }",
+                enabled = true,
+            ))
+            val style2 = diaryService.addDiaryStyle(userId, diaryLogin, DiaryStyleCreate(
+                name = "Style 2",
+                description = "Style 2 description",
+                styleContent = "body { color: blue; }",
+                enabled = true,
+            ))
+            val style3 = diaryService.addDiaryStyle(userId, diaryLogin, DiaryStyleCreate(
+                name = "Style 3",
+                description = "Style 3 description",
+                styleContent = "body { color: green; }",
+                enabled = true,
+            ))
 
             // Try to reorder with missing style
             assertThrows(InvalidStyleException::class.java) {

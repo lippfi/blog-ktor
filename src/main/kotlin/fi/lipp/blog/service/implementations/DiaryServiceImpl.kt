@@ -73,9 +73,9 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
                     DiaryStyle(
                         id = junction.style.id.value,
                         name = junction.style.name,
+                        description = junction.style.description,
                         enabled = junction.enabled,
-                        styleContent = storageService.getFile(junction.style.styleFile.toBlogFile()).readText(),
-                        previewPictureUri = junction.style.previewPictureUri
+                        styleContent = storageService.getFile(junction.style.styleFile.toBlogFile()).readText()
                     )
                 }
         }
@@ -99,9 +99,9 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
                 DiaryStyle(
                     id = styleEntity.id.value,
                     name = styleEntity.name,
+                    description = styleEntity.description,
                     enabled = existingJunction.enabled,
-                    styleContent = storageService.getFile(styleEntity.styleFile.toBlogFile()).readText(),
-                    previewPictureUri = styleEntity.previewPictureUri
+                    styleContent = storageService.getFile(styleEntity.styleFile.toBlogFile()).readText()
                 )
             } else {
                 val maxOrdinal = diaryEntity.styleJunctions.maxOfOrNull { it.ordinal } ?: -1
@@ -116,9 +116,9 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
                 DiaryStyle(
                     id = styleEntity.id.value,
                     name = styleEntity.name,
+                    description = styleEntity.description,
                     enabled = junction.enabled,
-                    styleContent = storageService.getFile(styleEntity.styleFile.toBlogFile()).readText(),
-                    previewPictureUri = styleEntity.previewPictureUri
+                    styleContent = storageService.getFile(styleEntity.styleFile.toBlogFile()).readText()
                 )
             }
         }
@@ -134,8 +134,8 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
 
             val styleEntity = DiaryStyleEntity.new {
                 name = style.name
+                description = style.description
                 styleFile = FileEntity.findById(blogFile.id) ?: throw InternalServerError()
-                previewPictureUri = style.previewPictureUri
             }
 
             // Create the junction entity to link the diary and style
@@ -151,9 +151,9 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
             DiaryStyle(
                 id = styleEntity.id.value,
                 name = styleEntity.name,
+                description = styleEntity.description,
                 enabled = junction.enabled,
-                styleContent = storageService.getFile(styleEntity.styleFile.toBlogFile()).readText(),
-                previewPictureUri = styleEntity.previewPictureUri
+                styleContent = storageService.getFile(styleEntity.styleFile.toBlogFile()).readText()
             )
         }
     }
@@ -167,6 +167,7 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
 
             val styleEntity = DiaryStyleEntity.new {
                 this.name = name
+                this.description = null
                 this.styleFile = FileEntity.findById(blogFile.id) ?: throw InternalServerError()
             }
 
@@ -183,9 +184,9 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
             DiaryStyle(
                 id = styleEntity.id.value,
                 name = styleEntity.name,
+                description = styleEntity.description,
                 enabled = junction.enabled,
-                styleContent = storageService.getFile(styleEntity.styleFile.toBlogFile()).readText(),
-                previewPictureUri = styleEntity.previewPictureUri
+                styleContent = storageService.getFile(styleEntity.styleFile.toBlogFile()).readText()
             )
         }
     }
@@ -207,7 +208,7 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
 
             val newStyleEntity = DiaryStyleEntity.new {
                 name = update.name
-                previewPictureUri = update.previewPictureUri
+                description = update.description
                 styleFile = FileEntity.findById(blogFile.id)!!
             }
 
@@ -217,9 +218,9 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
             DiaryStyle(
                 id = newStyleEntity.id.value,
                 name = newStyleEntity.name,
+                description = newStyleEntity.description,
                 enabled = junction.enabled,
-                styleContent = storageService.getFile(newStyleEntity.styleFile.toBlogFile()).readText(),
-                previewPictureUri = newStyleEntity.previewPictureUri,
+                styleContent = storageService.getFile(newStyleEntity.styleFile.toBlogFile()).readText()
             )
         }
     }
@@ -239,7 +240,7 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
 
             val newStyleEntity = DiaryStyleEntity.new {
                 name = styleEntity.name
-                previewPictureUri = styleEntity.previewPictureUri
+                description = styleEntity.description
                 this.styleFile = FileEntity.findById(blogFile.id)!!
             }
 
@@ -248,43 +249,13 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
             DiaryStyle(
                 id = newStyleEntity.id.value,
                 name = newStyleEntity.name,
+                description = newStyleEntity.description,
                 enabled = junction.enabled,
-                styleContent = storageService.getFile(newStyleEntity.styleFile.toBlogFile()).readText(),
-                previewPictureUri = newStyleEntity.previewPictureUri
+                styleContent = storageService.getFile(newStyleEntity.styleFile.toBlogFile()).readText()
             )
         }
     }
 
-    override fun updateDiaryStylePreview(userId: UUID, diaryLogin: String, styleId: UUID, previewFile: FileUploadData): DiaryStyle {
-        return transaction {
-            val styleEntity = DiaryStyleEntity.findById(styleId) ?: throw InvalidStyleException()
-            val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
-
-            if (diaryEntity.owner.value != userId) throw WrongUserException()
-
-            val junction = DiaryStyleJunctionEntity.find {
-                (DiaryStyleJunctions.style eq styleEntity.id) and (DiaryStyleJunctions.diary eq diaryEntity.id) 
-            }.singleOrNull() ?: throw InvalidStyleException()
-
-            val blogFile = storageService.store(userId, listOf(previewFile))[0]
-
-            val newStyleEntity = DiaryStyleEntity.new {
-                name = styleEntity.name
-                styleFile = styleEntity.styleFile
-                previewPictureUri = storageService.getFileURL(blogFile)
-            }
-
-            junction.style = newStyleEntity
-
-            DiaryStyle(
-                id = newStyleEntity.id.value,
-                name = newStyleEntity.name,
-                enabled = junction.enabled,
-                styleContent = storageService.getFile(newStyleEntity.styleFile.toBlogFile()).readText(),
-                previewPictureUri = newStyleEntity.previewPictureUri
-            )
-        }
-    }
 
     override fun deleteDiaryStyle(userId: UUID, styleId: UUID): Boolean {
         return transaction {

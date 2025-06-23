@@ -11,6 +11,6 @@ class DiaryStyleEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     companion object : UUIDEntityClass<DiaryStyleEntity>(DiaryStyles)
 
     var name by DiaryStyles.name
+    var description by DiaryStyles.description
     var styleFile by FileEntity referencedOn DiaryStyles.styleFile
-    var previewPictureUri by DiaryStyles.previewPictureUri
 }

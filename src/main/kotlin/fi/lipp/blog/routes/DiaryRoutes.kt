@@ -115,30 +115,6 @@ fun Route.diaryRoutes(diaryService: DiaryService) {
                     }
                 }
 
-                put("/{styleId}/preview") {
-                    val diaryLogin = call.request.queryParameters["login"] ?: ""
-                    val styleId = call.parameters["styleId"]?.let { UUID.fromString(it) } ?: return@put call.respondText("Invalid style ID", status = HttpStatusCode.BadRequest)
-
-                    val multipart = call.receiveMultipart()
-                    var fileUploadData: FileUploadData? = null
-
-                    multipart.forEachPart { part ->
-                        if (part is PartData.FileItem) {
-                            val fileName = part.originalFileName ?: "preview.png"
-                            val stream = part.streamProvider.invoke()
-                            fileUploadData = FileUploadData(fileName, stream)
-                        }
-                        part.dispose()
-                    }
-
-                    if (fileUploadData != null) {
-                        val updatedStyle = diaryService.updateDiaryStylePreview(userId, diaryLogin, styleId, fileUploadData!!)
-                        call.respond(updatedStyle)
-                    } else {
-                        call.respondText("No file uploaded", status = HttpStatusCode.BadRequest)
-                    }
-                }
-
                 delete("/{styleId}") {
                     val styleId = call.parameters["styleId"]?.let { UUID.fromString(it) } ?: return@delete call.respondText("Invalid style ID", status = HttpStatusCode.BadRequest)
                     val deleted = diaryService.deleteDiaryStyle(userId, styleId)
