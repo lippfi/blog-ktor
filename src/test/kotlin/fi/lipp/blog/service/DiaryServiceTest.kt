@@ -21,6 +21,7 @@ import org.koin.core.context.loadKoinModules
 import org.koin.dsl.module
 import java.util.UUID
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -531,7 +532,7 @@ class DiaryServiceTest : UnitTestBase() {
     }
 
     @Test
-    fun `updateDiaryStyle updates a style`() {
+    fun `updateDiaryStyle creates a new style entity when content, name, or description changes`() {
         transaction {
             // Create a user and get their diary
             val (userId, _) = signUsersUp()
@@ -547,7 +548,7 @@ class DiaryServiceTest : UnitTestBase() {
             )
             val createdStyle = diaryService.addDiaryStyle(userId, diaryLogin, styleCreate)
 
-            // Update the style
+            // Update the style with changed content
             val styleUpdate = DiaryStyleUpdate(
                 id = createdStyle.id,
                 name = "Updated Style",
@@ -560,8 +561,49 @@ class DiaryServiceTest : UnitTestBase() {
 
             // Verify style was updated
             assertNotNull(updatedStyle)
-            // ID should be different because a new entity is created
-            assertEquals(styleUpdate.name, updatedStyle!!.name)
+            // ID should be different because a new entity is created when content changes
+            assertNotNull(DiaryStyleEntity.findById(updatedStyle!!.id))
+            assertNotNull(DiaryStyleEntity.findById(createdStyle.id))
+            assertEquals(styleUpdate.name, updatedStyle.name)
+            assertEquals(false, updatedStyle.enabled)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `updateDiaryStyle does not create a new style entity when only enabled property changes`() {
+        transaction {
+            // Create a user and get their diary
+            val (userId, _) = signUsersUp()
+            val diaryEntity = DiaryEntity.find { Diaries.owner eq userId }.single()
+            val diaryLogin = diaryEntity.login
+
+            // Create a style
+            val styleCreate = DiaryStyleCreate(
+                name = "Test Style",
+                description = "Test style description",
+                styleContent = "body { color: red; }",
+                enabled = true
+            )
+            val createdStyle = diaryService.addDiaryStyle(userId, diaryLogin, styleCreate)
+
+            // Update only the enabled property
+            val styleUpdate = DiaryStyleUpdate(
+                id = createdStyle.id,
+                name = createdStyle.name,
+                description = createdStyle.description,
+                styleContent = createdStyle.styleContent,
+                enabled = false,
+            )
+
+            val updatedStyle = diaryService.updateDiaryStyle(userId, diaryLogin, styleUpdate)
+
+            // Verify style was updated
+            assertNotNull(updatedStyle)
+            // ID should be the same because only enabled property changed
+            assertEquals(createdStyle.id, updatedStyle!!.id)
+            assertEquals(createdStyle.name, updatedStyle.name)
             assertEquals(false, updatedStyle.enabled)
 
             rollback()

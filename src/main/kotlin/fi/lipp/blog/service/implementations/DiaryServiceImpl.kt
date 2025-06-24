@@ -218,65 +218,41 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
                 (DiaryStyleJunctions.style eq styleEntity.id) and (DiaryStyleJunctions.diary eq diaryEntity.id) 
             }.singleOrNull() ?: throw InvalidStyleException()
 
-            val styleUploadData = FileUploadData("style.css", update.styleContent.byteInputStream())
-            val blogFile = storageService.store(userId, listOf(styleUploadData))[0]
+            val currentStyleContent = storageService.getFile(styleEntity.styleFile.toBlogFile()).readText()
+            val styleChanged = currentStyleContent != update.styleContent || 
+                              styleEntity.name != update.name || 
+                              styleEntity.description != update.description
 
-            val newStyleEntity = DiaryStyleEntity.new {
-                name = update.name
-                description = update.description
-                styleFile = FileEntity.findById(blogFile.id)!!
-                author = styleEntity.author
+            val resultStyleEntity = if (styleChanged) {
+                val styleUploadData = FileUploadData("style.css", update.styleContent.byteInputStream())
+                val blogFile = storageService.store(userId, listOf(styleUploadData))[0]
+
+                val newStyleEntity = DiaryStyleEntity.new {
+                    name = update.name
+                    description = update.description
+                    styleFile = FileEntity.findById(blogFile.id)!!
+                    author = styleEntity.author
+                }
+
+                junction.style = newStyleEntity
+                newStyleEntity
+            } else {
+                styleEntity
             }
 
-            junction.style = newStyleEntity
             junction.enabled = update.enabled
 
             DiaryStyle(
-                id = newStyleEntity.id.value,
-                name = newStyleEntity.name,
-                description = newStyleEntity.description,
+                id = resultStyleEntity.id.value,
+                name = resultStyleEntity.name,
+                description = resultStyleEntity.description,
                 enabled = junction.enabled,
-                styleContent = storageService.getFile(newStyleEntity.styleFile.toBlogFile()).readText(),
-                authorLogin = newStyleEntity.author.id.toString(),
-                authorNickname = newStyleEntity.author.nickname
+                styleContent = storageService.getFile(resultStyleEntity.styleFile.toBlogFile()).readText(),
+                authorLogin = resultStyleEntity.author.id.toString(),
+                authorNickname = resultStyleEntity.author.nickname
             )
         }
     }
-
-    override fun updateDiaryStyleWithFile(userId: UUID, diaryLogin: String, styleId: UUID, styleFile: FileUploadData): DiaryStyle {
-        return transaction {
-            val styleEntity = DiaryStyleEntity.findById(styleId) ?: throw InvalidStyleException()
-            val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
-
-            if (diaryEntity.owner.value != userId) throw WrongUserException()
-
-            val junction = DiaryStyleJunctionEntity.find { 
-                (DiaryStyleJunctions.style eq styleEntity.id) and (DiaryStyleJunctions.diary eq diaryEntity.id) 
-            }.singleOrNull() ?: throw InvalidStyleException()
-
-            val blogFile = storageService.store(userId, listOf(styleFile))[0]
-
-            val newStyleEntity = DiaryStyleEntity.new {
-                name = styleEntity.name
-                description = styleEntity.description
-                this.styleFile = FileEntity.findById(blogFile.id)!!
-                this.author = styleEntity.author
-            }
-
-            junction.style = newStyleEntity
-
-            DiaryStyle(
-                id = newStyleEntity.id.value,
-                name = newStyleEntity.name,
-                description = newStyleEntity.description,
-                enabled = junction.enabled,
-                styleContent = storageService.getFile(newStyleEntity.styleFile.toBlogFile()).readText(),
-                authorLogin = newStyleEntity.author.id.toString(),
-                authorNickname = newStyleEntity.author.nickname
-            )
-        }
-    }
-
 
     override fun deleteDiaryStyle(userId: UUID, styleId: UUID): Boolean {
         return transaction {

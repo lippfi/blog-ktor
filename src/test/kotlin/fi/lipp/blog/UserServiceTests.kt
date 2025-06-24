@@ -1224,13 +1224,13 @@ class UserServiceTests : UnitTestBase() {
             val (userId, _) = signUsersUp()
 
             userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
-            val avatars = userService.getAvatarUrls(userId)
+            val avatars = userService.getAvatarUris(userId).content.values.toList()
             val avatar1 = avatars[0]
             val avatar2 = avatars[1]
             val avatar3 = avatars[2]
 
             userService.deleteAvatar(userId, avatar1)
-            assertEquals(listOf(avatar2, avatar3), userService.getAvatarUrls(userId))
+            assertEquals(listOf(avatar2, avatar3), userService.getAvatarUris(userId).content.values.toList())
 
             rollback()
         }
@@ -1246,13 +1246,13 @@ class UserServiceTests : UnitTestBase() {
             val (userId, _) = signUsersUp()
 
             userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
-            val avatars = userService.getAvatarUrls(userId)
+            val avatars = userService.getAvatarUris(userId).content.values.toList()
             val avatar1 = avatars[0]
             val avatar2 = avatars[1]
             val avatar3 = avatars[2]
 
             userService.deleteAvatar(userId, avatar3)
-            assertEquals(listOf(avatar1, avatar2), userService.getAvatarUrls(userId))
+            assertEquals(listOf(avatar1, avatar2), userService.getAvatarUris(userId).content.values.toList())
 
             rollback()
         }
@@ -1268,13 +1268,13 @@ class UserServiceTests : UnitTestBase() {
             val (userId, _) = signUsersUp()
 
             userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
-            val avatars = userService.getAvatarUrls(userId)
+            val avatars = userService.getAvatarUris(userId).content.values.toList()
             val avatar1 = avatars[0]
             val avatar2 = avatars[1]
             val avatar3 = avatars[2]
 
             userService.deleteAvatar(userId, avatar2)
-            assertEquals(listOf(avatar1, avatar3), userService.getAvatarUrls(userId))
+            assertEquals(listOf(avatar1, avatar3), userService.getAvatarUris(userId).content.values.toList())
 
             rollback()
         }

@@ -545,7 +545,7 @@ class UserServiceImpl(
         }
     }
 
-    override fun addAvatar(userId: UUID, files: List<FileUploadData>): List<String> {
+    override fun addAvatar(userId: UUID, files: List<FileUploadData>): SerializableMap {
         val existingMaxOrdinal = transaction {
             UserAvatars.slice(UserAvatars.ordinal.max())
                 .select { UserAvatars.user eq userId }
@@ -573,7 +573,8 @@ class UserServiceImpl(
             }
         }
 
-        return newAvatars.map { storageService.getFileURL(it) }
+        val avatars = newAvatars.associate { it.id.toString() to storageService.getFileURL(it) }
+        return SerializableMap(avatars)
     }
 
     // TODO remove duplication

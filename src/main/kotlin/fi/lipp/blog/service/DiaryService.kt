@@ -20,7 +20,6 @@ interface DiaryService {
 
     // when we update style, a new entity should be created
     fun updateDiaryStyle(userId: UUID, diaryLogin: String, update: DiaryStyleUpdate): DiaryStyle
-    fun updateDiaryStyleWithFile(userId: UUID, diaryLogin: String, styleId: UUID, styleFile: FileUploadData): DiaryStyle
 
     // todo pass login
     fun deleteDiaryStyle(userId: UUID, styleId: UUID): Boolean
