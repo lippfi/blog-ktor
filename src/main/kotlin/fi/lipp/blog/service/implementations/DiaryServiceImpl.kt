@@ -58,7 +58,7 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
                 .filter { it.enabled }
                 .sortedBy { it.ordinal }
                 .map { junction ->
-                    storageService.getFile(junction.style.styleFile.toBlogFile()).readText()
+                    storageService.getFileURL(junction.style.styleFile.toBlogFile())
                 }
         }
     }
