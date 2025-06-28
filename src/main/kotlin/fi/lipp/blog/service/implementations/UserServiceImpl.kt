@@ -908,7 +908,20 @@ class UserServiceImpl(
             if (avatarInUserCollection) {
                 return@transaction
             }
-            reuploadFileAsUserAvatar(userId, avatarId)
+
+            val maxOrdinal = UserAvatars.slice(UserAvatars.ordinal.max())
+                .select { UserAvatars.user eq userId }
+                .firstOrNull()
+                ?.get(UserAvatars.ordinal.max()) ?: 0
+
+            UserAvatars.insert {
+                it[user] = userId
+                it[avatar] = avatarEntity.id
+                it[ordinal] = maxOrdinal + 1
+            }
+
+            // TODO need to do something with type. Maybe remove avatar type?
+//            reuploadFileAsUserAvatar(userId, avatarId)
         }
     }
 
