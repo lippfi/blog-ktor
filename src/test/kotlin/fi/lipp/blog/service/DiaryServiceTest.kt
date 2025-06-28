@@ -628,7 +628,7 @@ class DiaryServiceTest : UnitTestBase() {
             val createdStyle = diaryService.addDiaryStyle(userId, diaryLogin, styleCreate)
 
             // Delete the style
-            val deleted = diaryService.deleteDiaryStyle(userId, createdStyle.id)
+            val deleted = diaryService.deleteDiaryStyle(userId, diaryLogin, createdStyle.id)
 
             // Verify style was deleted
             assertTrue(deleted)

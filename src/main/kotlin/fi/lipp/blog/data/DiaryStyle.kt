@@ -5,12 +5,20 @@ import kotlinx.serialization.Serializable
 import java.util.UUID
 
 @Serializable
+data class DiaryStylePreview(
+    @Serializable(with = UUIDSerializer::class)
+    val id: UUID,
+    val name: String,
+)
+
+@Serializable
 data class DiaryStyle(
     @Serializable(with = UUIDSerializer::class)
     val id: UUID,
     val name: String,
     val description: String?,
     val enabled: Boolean,
+    val styleUri: String,
     val styleContent: String,
     val authorLogin: String,
     val authorNickname: String

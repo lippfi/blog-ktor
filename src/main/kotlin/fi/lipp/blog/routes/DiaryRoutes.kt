@@ -35,6 +35,14 @@ fun Route.diaryRoutes(diaryService: DiaryService) {
                 call.respond(styles)
             }
 
+            // Public route to get a specific style by ID
+            get("/{styleId}") {
+                val styleId = call.parameters["styleId"]?.let { UUID.fromString(it) } 
+                    ?: return@get call.respondText("Invalid style ID", status = HttpStatusCode.BadRequest)
+                val style = diaryService.getDiaryStyle(styleId)
+                call.respond(style)
+            }
+
             authenticate {
                 get {
                     val diaryLogin = call.request.queryParameters["login"] ?: ""
@@ -92,8 +100,9 @@ fun Route.diaryRoutes(diaryService: DiaryService) {
                 }
 
                 delete("/{styleId}") {
+                    val diaryLogin = call.request.queryParameters["login"] ?: ""
                     val styleId = call.parameters["styleId"]?.let { UUID.fromString(it) } ?: return@delete call.respondText("Invalid style ID", status = HttpStatusCode.BadRequest)
-                    val deleted = diaryService.deleteDiaryStyle(userId, styleId)
+                    val deleted = diaryService.deleteDiaryStyle(userId, diaryLogin, styleId)
                     if (deleted) {
                         call.respondText("Style deleted successfully")
                     } else {

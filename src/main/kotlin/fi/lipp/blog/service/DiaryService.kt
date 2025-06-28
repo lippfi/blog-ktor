@@ -2,6 +2,7 @@ package fi.lipp.blog.service
 
 import fi.lipp.blog.data.DiaryStyle
 import fi.lipp.blog.data.DiaryStyleCreate
+import fi.lipp.blog.data.DiaryStylePreview
 import fi.lipp.blog.data.DiaryStyleUpdate
 import fi.lipp.blog.data.FileUploadData
 import fi.lipp.blog.data.UserDto
@@ -10,6 +11,7 @@ import java.util.*
 interface DiaryService {
     fun updateDiaryInfo(userId: UUID, diaryLogin: String, info: UserDto.DiaryInfo)
 
+    fun getDiaryStyle(styleId: UUID): DiaryStylePreview
     fun getDiaryStyleText(styleId: UUID): String
     fun getEnabledDiaryStyles(diaryLogin: String): List<String>
     fun getDiaryStyleCollection(userId: UUID, diaryLogin: String): List<DiaryStyle>
@@ -21,8 +23,7 @@ interface DiaryService {
     // when we update style, a new entity should be created
     fun updateDiaryStyle(userId: UUID, diaryLogin: String, update: DiaryStyleUpdate): DiaryStyle
 
-    // todo pass login
-    fun deleteDiaryStyle(userId: UUID, styleId: UUID): Boolean
+    fun deleteDiaryStyle(userId: UUID, diaryLogin: String, styleId: UUID): Boolean
 
     fun reorderDiaryStyles(userId: UUID, diaryLogin: String, styleIds: List<UUID>): List<DiaryStyle>
 
