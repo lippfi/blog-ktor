@@ -14,7 +14,7 @@ import org.koin.java.KoinJavaComponent.inject
 import java.util.*
 
 const val USER_ID = "user-id"
-private const val TOKEN_LIFETIME = 24 * 60 * 60 * 1000
+private const val TOKEN_LIFETIME = 10 * 24 * 60 * 60 * 1000
 
 fun Application.configureSecurity() {
     val jwtAudience = environment.config.property("jwt.audience").getString()
