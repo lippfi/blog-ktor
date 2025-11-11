@@ -128,7 +128,7 @@ class ReactionServiceImpl(
             val diaryEntity = findDiaryByLogin(diaryLogin)
             val diaryOwnerId = diaryEntity.owner.value
             val postEntity = PostEntity.find { (Posts.diary eq diaryEntity.id) and (Posts.uri eq uri) and (Posts.isArchived eq false) }.firstOrNull() ?: throw PostNotFoundException()
-            if (postEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, postEntity.reactionGroupId.value, diaryOwnerId)) {
+            if (postEntity.authorId != userId && !accessGroupService.inGroup(viewer, postEntity.reactionGroupId.value, diaryOwnerId)) {
                 throw WrongUserException()
             }
             val reactionId = ReactionEntity.find { Reactions.name eq reactionName }.firstOrNull()?.id ?: throw ReactionNotFoundException()
@@ -146,9 +146,12 @@ class ReactionServiceImpl(
                             it[reaction] = reactionId
                         }
 
-                        val postAuthor = UserEntity.findById(postEntity.authorId.value)!!
-                        if (postAuthor.id.value != viewer.userId && isNotificationEnabled(postAuthor.id.value) { entity -> entity.notifyAboutPostReactions }) {
-                            notificationService.notifyAboutPostReaction(viewer.userId, postEntity.id.value)
+                        val postAuthorId = postEntity.authorId
+                        if (postAuthorId != null) {
+                            val postAuthor = UserEntity.findById(postAuthorId)!!
+                            if (postAuthor.id.value != viewer.userId && isNotificationEnabled(postAuthor.id.value) { entity -> entity.notifyAboutPostReactions }) {
+                                notificationService.notifyAboutPostReaction(viewer.userId, postEntity.id.value)
+                            }
                         }
                     }
                 }
@@ -182,7 +185,7 @@ class ReactionServiceImpl(
             val diaryEntity = findDiaryByLogin(diaryLogin)
             val diaryOwnerId = diaryEntity.owner.value
             val postEntity = PostEntity.find { (Posts.diary eq diaryEntity.id) and (Posts.uri eq uri) and (Posts.isArchived eq false) }.firstOrNull() ?: throw PostNotFoundException()
-            if (postEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, postEntity.reactionGroupId.value, diaryOwnerId)) {
+            if (postEntity.authorId != userId && !accessGroupService.inGroup(viewer, postEntity.reactionGroupId.value, diaryOwnerId)) {
                 throw WrongUserException()
             }
             val reactionId = ReactionEntity.find { Reactions.name eq reactionName }.firstOrNull()?.id ?: throw ReactionNotFoundException()

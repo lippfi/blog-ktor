@@ -193,6 +193,58 @@ class AccessGroupServiceImpl : AccessGroupService {
         }
     }
 
+    override fun bulkCheckGroups(
+        viewer: Viewer,
+        pairs: Set<Pair<UUID, UUID>> // GroupId to diaryOwnerId
+    ): Map<Pair<UUID, UUID>, Boolean> {
+        // Checks if [viewer] can comment each group UUID belonging to diary owner UUID
+        if (pairs.isEmpty()) return emptyMap()
+
+        val groupIds = pairs.map { it.first }.toSet()
+
+        // 1) Типы групп
+        val typeByGroup: Map<UUID, AccessGroupType> =
+            AccessGroups
+                .slice(AccessGroups.id, AccessGroups.type)
+                .select { AccessGroups.id inList groupIds.toList() }
+                .associate { it[AccessGroups.id].value to it[AccessGroups.type] }
+
+        // 2) Правила для анонимов
+        if (viewer is Viewer.Anonymous) {
+            return pairs.associateWith { (gid, _) -> typeByGroup[gid] == AccessGroupType.EVERYONE }
+        }
+
+        // 3) Зарегистрированный пользователь
+        viewer as Viewer.Registered
+        val uid = viewer.userId
+
+        // 3.1 Пользовательские кастом-группы
+        val customGroupsForUser: Set<UUID> =
+            CustomGroupUsers
+                .slice(CustomGroupUsers.accessGroup)
+                .select { (CustomGroupUsers.member eq uid) and (CustomGroupUsers.accessGroup inList groupIds.toList()) }
+                .map { it[CustomGroupUsers.accessGroup].value }
+                .toSet()
+
+        // 3.2 Друзья (в обе стороны)
+        val friendOwnerIds: Set<UUID> = (
+                Friends.slice(Friends.user2).select { Friends.user1 eq uid }.map { it[Friends.user2].value } +
+                        Friends.slice(Friends.user1).select { Friends.user2 eq uid }.map { it[Friends.user1].value }
+                ).toSet()
+
+        // 4) Финальное решение по каждой паре (groupId, diaryOwnerId)
+        return pairs.associateWith { (gid, ownerId) ->
+            when (typeByGroup[gid]) {
+                AccessGroupType.EVERYONE -> true
+                AccessGroupType.REGISTERED_USERS -> true
+                AccessGroupType.PRIVATE -> uid == ownerId
+                AccessGroupType.CUSTOM -> gid in customGroupsForUser
+                AccessGroupType.FRIENDS -> ownerId in friendOwnerIds
+                null -> false
+            }
+        }
+    }
+
     @Suppress("UnusedReceiverParameter")
     private fun Transaction.findDiaryByLogin(diaryLogin: String): DiaryEntity {
         return DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()

@@ -105,7 +105,7 @@ class NotificationServiceImpl : NotificationService {
     override fun notifyAboutPostReaction(userId: UUID, postId: UUID) {
         transaction {
             val postAuthor = PostEntity.findById(postId)?.authorId ?: return@transaction
-            val shouldBeNotified = userId != postAuthor.value && isNotificationEnabled(postAuthor.value) { entity -> entity.notifyAboutPostReactions }
+            val shouldBeNotified = userId != postAuthor && isNotificationEnabled(postAuthor) { entity -> entity.notifyAboutPostReactions }
             if (shouldBeNotified) {
                 Notifications.insert {
                     it[sender] = EntityID(userId, Users)
@@ -120,13 +120,13 @@ class NotificationServiceImpl : NotificationService {
     override fun notifyAboutRepost(userId: UUID, repostId: UUID) {
         transaction {
             val repostEntity = PostEntity.findById(repostId) ?: throw PostNotFoundException()
-            val repostAuthor = repostEntity.authorId
-            if (repostAuthor.value == userId) return@transaction
+            val repostAuthor = repostEntity.authorId!!
+            if (repostAuthor == userId) return@transaction
 
             Notifications.insert {
                 it[type] = NotificationType.REPOST
                 it[recipient] = userId
-                it[sender] = repostAuthor.value
+                it[sender] = repostAuthor
                 it[relatedPost] = EntityID(repostId, Posts)
             }
         }
@@ -149,7 +149,7 @@ class NotificationServiceImpl : NotificationService {
     override fun notifyAboutPostMention(userId: UUID, postId: UUID, mentionLogin: String) {
         transaction {
             val postEntity = PostEntity.findById(postId) ?: return@transaction
-            if (postEntity.authorId.value != userId) throw WrongUserException()
+            if (postEntity.authorId != userId) throw WrongUserException()
 
             val diaryOwnerByLogin = DiaryEntity.find { Diaries.login eq mentionLogin }.singleOrNull()?.owner ?: return@transaction
             val shouldBeNotified = isNotificationEnabled(diaryOwnerByLogin.value) { entity -> entity.notifyAboutMentions }

@@ -1,10 +1,14 @@
 package fi.lipp.blog.domain
 
+import fi.lipp.blog.repository.ExternalUsers
+import fi.lipp.blog.repository.PostAuthorType
 import fi.lipp.blog.repository.PostTags
 import fi.lipp.blog.repository.Posts
 import org.jetbrains.exposed.dao.UUIDEntity
 import org.jetbrains.exposed.dao.UUIDEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.select
 import java.util.*
 
 class PostEntity(id: EntityID<UUID>) : UUIDEntity(id) {
@@ -13,7 +17,17 @@ class PostEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var uri by Posts.uri
 
     val diaryId by Posts.diary
-    val authorId by Posts.author
+    val authorId: UUID?
+        get() = when (authorType) {
+            PostAuthorType.LOCAL -> localAuthor!!.value
+            PostAuthorType.EXTERNAL -> externalAuthor?.let {
+                ExternalUserEntity.findById(it)?.user?.value
+            }
+        }
+
+    val authorType by Posts.authorType
+    val localAuthor by Posts.localAuthor
+    val externalAuthor by Posts.externalAuthor
 
     // TODO better way to store file and one-time avatars
     var avatar by Posts.avatar

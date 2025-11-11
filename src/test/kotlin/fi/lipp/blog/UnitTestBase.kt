@@ -12,6 +12,7 @@ import fi.lipp.blog.repository.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import fi.lipp.blog.service.*
 import fi.lipp.blog.service.implementations.AccessGroupServiceImpl
+import fi.lipp.blog.service.implementations.CommentWebSocketServiceImpl
 import fi.lipp.blog.service.implementations.DialogServiceImpl
 import fi.lipp.blog.service.implementations.StorageServiceImpl
 import fi.lipp.blog.service.implementations.UserServiceImpl
@@ -75,6 +76,7 @@ abstract class UnitTestBase {
             transaction {
                 SchemaUtils.create(
                     Users,
+                    ExternalUsers,
                     Files,
                     UserAvatars,
                     Tags,
@@ -103,6 +105,7 @@ abstract class UnitTestBase {
                     HiddenDialogs,
                     UserFollows,
                     CommentReactions,
+                    AnonymousCommentReactions,
                     NotificationSettings,
                 )
             }
@@ -141,6 +144,7 @@ abstract class UnitTestBase {
                         commentWebSocketService = get()
                     ) }
                     single<DialogService> { DialogServiceImpl(get(), get()) }
+                    single<CommentWebSocketService> { CommentWebSocketServiceImpl() }
                 })
             }
             // Initialize default access groups

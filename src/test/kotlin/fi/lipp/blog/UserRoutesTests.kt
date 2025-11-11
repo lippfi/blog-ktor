@@ -8,6 +8,7 @@ import fi.lipp.blog.plugins.USER_ID
 import fi.lipp.blog.plugins.configureRouting
 import fi.lipp.blog.plugins.configureSecurity
 import fi.lipp.blog.plugins.configureSerialization
+import fi.lipp.blog.plugins.configureWebSockets
 import fi.lipp.blog.service.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -33,18 +34,6 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-
-object UUIDSerializer : KSerializer<UUID> {
-    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("UUID", PrimitiveKind.STRING)
-
-    override fun serialize(encoder: Encoder, value: UUID) {
-        encoder.encodeString(value.toString())
-    }
-
-    override fun deserialize(decoder: Decoder): UUID {
-        return UUID.fromString(decoder.decodeString())
-    }
-}
 
 class UserRoutesTests {
     private lateinit var userService: UserService
@@ -81,6 +70,7 @@ class UserRoutesTests {
                 single { mock(DiaryService::class.java) }
                 single { mock(StorageService::class.java) }
                 single { mock(AccessGroupService::class.java) }
+                single { mock(CommentWebSocketService::class.java) }
             })
         }
     }
@@ -105,6 +95,7 @@ class UserRoutesTests {
         application {
             configureSerialization()
             configureSecurity()
+            configureWebSockets()
             configureRouting()
         }
 
@@ -155,6 +146,7 @@ class UserRoutesTests {
         application {
             configureSerialization()
             configureSecurity()
+            configureWebSockets()
             configureRouting()
         }
 
@@ -177,6 +169,7 @@ class UserRoutesTests {
         application {
             configureSerialization()
             configureSecurity()
+            configureWebSockets()
             configureRouting()
         }
 
@@ -205,6 +198,7 @@ class UserRoutesTests {
         application {
             configureSerialization()
             configureSecurity()
+            configureWebSockets()
             configureRouting()
         }
 
@@ -231,6 +225,7 @@ class UserRoutesTests {
         application {
             configureSerialization()
             configureSecurity()
+            configureWebSockets()
             configureRouting()
         }
 
@@ -257,6 +252,7 @@ class UserRoutesTests {
         application {
             configureSerialization()
             configureSecurity()
+            configureWebSockets()
             configureRouting()
         }
 
@@ -294,6 +290,7 @@ class UserRoutesTests {
         application {
             configureSerialization()
             configureSecurity()
+            configureWebSockets()
             configureRouting()
         }
 
@@ -320,6 +317,7 @@ class UserRoutesTests {
         application {
             configureSerialization()
             configureSecurity()
+            configureWebSockets()
             configureRouting()
         }
 
@@ -352,5 +350,17 @@ class UserRoutesTests {
         client.delete("/user/friends?login=$friendLogin").apply {
             assertEquals(HttpStatusCode.Unauthorized, status)
         }
+    }
+}
+
+object UUIDSerializer : KSerializer<UUID> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("UUID", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: UUID) {
+        encoder.encodeString(value.toString())
+    }
+
+    override fun deserialize(decoder: Decoder): UUID {
+        return UUID.fromString(decoder.decodeString())
     }
 }

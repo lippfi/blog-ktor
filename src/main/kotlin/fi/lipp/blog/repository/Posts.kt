@@ -10,8 +10,9 @@ object Posts : UUIDTable() {
     val uri = varchar("uri", 100).index("idx_post_uri")
 
     val diary = reference("diary", Diaries, onDelete = ReferenceOption.CASCADE).index("idx_post_diary")
-    val author = reference("author", Users, onDelete = ReferenceOption.CASCADE).index("idx_post_author")
-
+    val authorType = enumerationByName("author_type", 32, PostAuthorType::class)
+    val localAuthor = reference("local_author", Users, onDelete = ReferenceOption.CASCADE).nullable().index("idx_post_local_author")
+    val externalAuthor = reference("external_author", ExternalUsers, onDelete = ReferenceOption.CASCADE).nullable().index("idx_post_external_author")
     val avatar = varchar("avatar", 1024)
     val title = text("title")
     val text = text("text")
@@ -30,3 +31,5 @@ object Posts : UUIDTable() {
     val commentReactionGroup = reference("comment_reaction_group", AccessGroups, onDelete = ReferenceOption.CASCADE)
     val lastCommentTime = datetime("last_comment_time").nullable()
 }
+
+enum class PostAuthorType { LOCAL, EXTERNAL, }

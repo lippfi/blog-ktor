@@ -18,6 +18,8 @@ interface AccessGroupService {
 
     fun addUserToGroup(userId: UUID, memberLogin: String, groupId: UUID)
     fun removeUserFromGroup(userId: UUID, memberLogin: String, groupId: UUID)
+    // Check if [viewer] can comment each group UUID belonging to diary owner UUID
+    fun bulkCheckGroups(viewer: Viewer, pairs: Set<Pair<UUID, UUID>>): Map<Pair<UUID, UUID>, Boolean>
 
     fun inGroup(viewer: Viewer, groupId: UUID, groupOwner: UUID): Boolean
 }

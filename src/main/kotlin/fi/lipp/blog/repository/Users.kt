@@ -15,6 +15,7 @@ object Users : UUIDTable() {
     val email = varchar("email", 50).uniqueIndex("idx_user_email")
     val password = varchar("password", 200)
     val nickname = varchar("nickname", 50).uniqueIndex("idx_user_nickname")
+    val signature = varchar("signature", 200).nullable()
     val registrationTime = datetime("registration_time").clientDefault { LocalDateTime.now().toKotlinLocalDateTime() }
     val inviteCode = reference("invite_code", InviteCodes, onDelete = ReferenceOption.CASCADE).nullable()
 

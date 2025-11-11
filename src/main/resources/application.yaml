@@ -15,6 +15,7 @@ mail:
     email: ""
     password: ""
     from: ""
+    api-key: ""
 directory:
     avatars: "/tmp/{userLogin}/avatars"
     images: "/tmp/{userLogin}/images"

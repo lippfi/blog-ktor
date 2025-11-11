@@ -307,9 +307,9 @@ class ReactionServiceTests : UnitTestBase() {
         val reactionInfo = updatedPost.reactions[0]
         assertEquals(reaction.name, reactionInfo.name)
         assertEquals(reaction.iconUri, reactionInfo.iconUri)
-        assertEquals(4, reactionInfo.count)
         assertEquals(2, reactionInfo.anonymousCount)
         assertEquals(2, reactionInfo.users.size)
+        assertEquals(4, reactionInfo.count)
         assertTrue(reactionInfo.users.any { it.login == testUser.login })
         assertTrue(reactionInfo.users.any { it.login == testUser2.login })
     }
@@ -375,10 +375,10 @@ class ReactionServiceTests : UnitTestBase() {
         val posts = (1..3).map { createTestPost(testUser.id) }
 
         // Add reactions in specific order to test timestamp-based ordering
-        reactionService.addReaction(Viewer.Registered(testUser.id), posts[0].authorLogin, posts[0].uri, createdReactions[0].name)
-        reactionService.addReaction(Viewer.Registered(testUser.id), posts[1].authorLogin, posts[1].uri, createdReactions[1].name)
-        reactionService.addReaction(Viewer.Registered(testUser.id), posts[2].authorLogin, posts[2].uri, createdReactions[2].name)
-        reactionService.addReaction(Viewer.Registered(testUser.id), posts[0].authorLogin, posts[0].uri, createdReactions[1].name)
+        reactionService.addReaction(Viewer.Registered(testUser.id), posts[0].authorLogin!!, posts[0].uri, createdReactions[0].name)
+        reactionService.addReaction(Viewer.Registered(testUser.id), posts[1].authorLogin!!, posts[1].uri, createdReactions[1].name)
+        reactionService.addReaction(Viewer.Registered(testUser.id), posts[2].authorLogin!!, posts[2].uri, createdReactions[2].name)
+        reactionService.addReaction(Viewer.Registered(testUser.id), posts[0].authorLogin!!, posts[0].uri, createdReactions[1].name)
 
         // Test getting recent reactions with default limit
         val recentReactions = reactionService.getUserRecentReactions(testUser.id)

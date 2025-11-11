@@ -26,7 +26,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.ResultRow
-import org.jetbrains.exposed.sql.kotlin.datetime.date
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inSubQuery
 import java.util.*
 import kotlin.math.ceil
 import kotlin.random.Random
@@ -41,44 +41,93 @@ class PostServiceImpl(
     override fun getPostForEdit(userId: UUID, postId: UUID): PostDto.Update {
         return transaction {
             val postEntity = PostEntity.findById(postId) ?: throw PostNotFoundException()
-            if (postEntity.authorId.value != userId) throw WrongUserException()
+            if (postEntity.authorId != userId) throw WrongUserException()
             return@transaction toPostUpdateData(postEntity)
         }
     }
 
     override fun getPreface(viewer: Viewer, diaryLogin: String): PostDto.View? {
-        val userId = (viewer as? Viewer.Registered)?.userId
         return transaction {
-            val diary = findDiaryByLogin(diaryLogin)
-            val diaryId = diary.id
-            val diaryOwnerId = diary.owner.value
-            val preface = PostEntity.find { (Posts.diary eq diaryId) and (Posts.isPreface eq true) and (Posts.isArchived eq false) }.firstOrNull() ?: return@transaction null
-            return@transaction if (userId == preface.authorId.value || accessGroupService.inGroup(viewer, preface.readGroupId.value, diaryOwnerId)) {
-                toPostView(viewer, preface)
-            } else {
-                null
-            }
+            val baseJoin = getBasicPostJoin()
+            val q = baseJoin
+                .slice(postBaseSlice)
+                .select {
+                    (postDiary[Diaries.login] eq diaryLogin) and
+                            (Posts.isPreface eq true) and
+                            (Posts.isArchived eq false)
+                }
+                .limit(1)
+
+            val row = q.firstOrNull() ?: return@transaction null
+
+            val diaryOwnerId = row[postDiary[Diaries.owner]].value
+            val canRead = accessGroupService.inGroup(viewer, row[Posts.readGroup].value, diaryOwnerId) ||
+                    ((viewer as? Viewer.Registered)?.userId?.let { uid ->
+                        val isLocalAuthor = row[Posts.authorType] == PostAuthorType.LOCAL && row[localPostAuthor[Users.id]].value == uid
+                        val isLinkedExternal = row[Posts.authorType] == PostAuthorType.EXTERNAL && row[externalPostAuthor[ExternalUsers.user]]?.value == uid
+                        isLocalAuthor || isLinkedExternal
+                    } ?: false)
+
+            if (!canRead) return@transaction null
+
+            val postId = row[Posts.id].value
+            val rowsByPostId = mapOf(postId to row)
+
+            val accessChecks = getBulkAccessGroupChecks(viewer, rowsByPostId)
+            val tagsByPost = loadTagsForPosts(setOf(postId))
+            val commentsByPost = loadCommentsForPosts(viewer, setOf(postId))
+            val reactionsByPost = loadPostReactions(setOf(postId))
+
+            toPostView(
+                row = row,
+                comments = commentsByPost[postId] ?: emptyList(),
+                reactions = reactionsByPost[postId] ?: emptyList(),
+                tags = tagsByPost[postId] ?: emptySet(),
+                accessGroupChecks = accessChecks.getValue(postId)
+            )
         }
     }
 
     override fun getPost(viewer: Viewer, diaryLogin: String, uri: String): PostPage {
         val userId = (viewer as? Viewer.Registered)?.userId
-        val post = transaction {
-            val diaryEntity = findDiaryByLogin(diaryLogin)
-            val diaryOwnerId = diaryEntity.owner.value
-            val postEntity = PostEntity.find { (Posts.diary eq diaryEntity.id) and (Posts.uri eq uri) and (Posts.isArchived eq false) }.firstOrNull() ?: throw PostNotFoundException()
-            if (userId == postEntity.authorId.value || accessGroupService.inGroup(viewer, postEntity.readGroupId.value, diaryOwnerId)) {
-                if (userId != null) notificationService.readAllPostNotifications(userId, postEntity.id.value)
-                toPostView(viewer, postEntity)
-            } else {
-                throw PostNotFoundException()
+
+        val postView = transaction {
+            val baseJoin = getBasicPostJoin()
+            val q = baseJoin
+                .slice(postBaseSlice)
+                .select {
+                    buildReadAccessCondition(viewer) and
+                            (postDiary[Diaries.login] eq diaryLogin) and
+                            (Posts.uri eq uri) and
+                            (Posts.isArchived eq false)
+                }
+                .limit(1)
+
+            val row = q.firstOrNull() ?: throw PostNotFoundException()
+
+            if (userId != null) {
+                notificationService.readAllPostNotifications(userId, row[Posts.id].value)
             }
+
+            val rowsByPostId = mapOf(row[Posts.id].value to row)
+            val postIds = rowsByPostId.keys
+
+            val accessChecks = getBulkAccessGroupChecks(viewer, rowsByPostId)
+            val tagsByPost = loadTagsForPosts(postIds)
+            val commentsByPost = loadCommentsForPosts(viewer, postIds)
+            val reactionsByPost = loadPostReactions(postIds)
+
+            toPostView(
+                row = row,
+                comments = commentsByPost[row[Posts.id].value] ?: emptyList(),
+                reactions = reactionsByPost[row[Posts.id].value] ?: emptyList(),
+                tags = tagsByPost[row[Posts.id].value] ?: emptySet(),
+                accessGroupChecks = accessChecks.getValue(row[Posts.id].value)
+            )
         }
+
         val diary = getDiaryView(userId, diaryLogin)
-        return PostPage(
-            post = post,
-            diary = diary,
-        )
+        return PostPage(post = postView, diary = diary)
     }
 
     override fun getDiaryPosts(
@@ -90,28 +139,14 @@ class PostServiceImpl(
         to: LocalDate?,
         pageable: Pageable
     ): DiaryPage {
-        val order = if (text == null && tags == null && from == null && to == null && pageable.direction == SortOrder.DESC) {
-            arrayOf(Posts.isPreface to SortOrder.DESC, Posts.creationTime to SortOrder.DESC)
-        } else {
-            arrayOf(Posts.creationTime to pageable.direction)
+        val page = transaction {
+            val params = PostSearchParams(viewer = viewer, authorLogin = null, diaryLogin = diaryLogin, text = text, tags = tags, from = from, to = to)
+            getPosts(params, emptyList(), pageable, Posts.creationTime to pageable.direction)
         }
-        val page = getPosts(
-            viewer = viewer,
-            diaryLogin = diaryLogin,
-            authorLogin = null,
-            text = text,
-            tags = tags,
-            from = from,
-            to = to,
-            pageable = pageable,
-            order = order,
-        )
-        val userId = if (viewer is Viewer.Registered) viewer.userId else null
+
+        val userId = (viewer as? Viewer.Registered)?.userId
         val diary = getDiaryView(userId, diaryLogin)
-        return DiaryPage(
-            diary = diary,
-            posts = page,
-        )
+        return DiaryPage(diary = diary, posts = page)
     }
 
     private fun getDiaryView(userId: UUID?, diaryLogin: String): DiaryView {
@@ -145,86 +180,9 @@ class PostServiceImpl(
         pageable: Pageable,
         vararg order: Pair<Expression<*>, SortOrder>
     ): Page<PostDto.View> {
-        val userId = (viewer as? Viewer.Registered)?.userId
+        val params = PostSearchParams(viewer = viewer, authorLogin = authorLogin, diaryLogin = diaryLogin, text = text, tags = tags, from = from, to = to)
         return transaction {
-            val diaryId = diaryLogin?.let { DiaryEntity.find { Diaries.login eq it }.firstOrNull()?.id }
-            val authorId = if (authorLogin != null) {
-                val authorDiary = DiaryEntity.find { Diaries.login eq authorLogin }.firstOrNull()
-                authorDiary?.owner
-            } else {
-                null
-            }
-            val query = Posts
-                .innerJoin(Diaries)
-                .innerJoin(Users, { Posts.author }, { Users.id })
-                .innerJoin(AccessGroups, { Posts.readGroup }, { AccessGroups.id })
-                .leftJoin(PostTags)
-                .leftJoin(Tags)
-                .slice(Posts.columns + Users.id + Users.nickname + Diaries.owner + Diaries.login + AccessGroups.type)
-                .select {
-                    val baseCondition = (Posts.isArchived eq false) and (Posts.isPreface eq false)
-
-                    val accessCondition = when {
-                        userId != null -> {
-                            val customAccessSubquery = CustomGroupUsers
-                                .slice(CustomGroupUsers.accessGroup)
-                                .select { CustomGroupUsers.member eq userId }
-
-                            (Posts.author eq userId) or
-                            (AccessGroups.type eq AccessGroupType.EVERYONE) or
-                            (AccessGroups.type eq AccessGroupType.REGISTERED_USERS) or
-                            ((AccessGroups.type eq AccessGroupType.FRIENDS) and (Diaries.owner inSubQuery 
-                                Friends.slice(Friends.user2)
-                                    .select { Friends.user1 eq userId }
-                                    .union(
-                                        Friends.slice(Friends.user1)
-                                            .select { Friends.user2 eq userId }
-                                    )
-                            )) or
-                            (AccessGroups.type eq AccessGroupType.CUSTOM and Posts.readGroup.inSubQuery(customAccessSubquery))
-                        }
-                        else -> (AccessGroups.type eq AccessGroupType.EVERYONE)
-                    }
-
-                    baseCondition and accessCondition
-                }
-                .apply {
-                    text?.let { andWhere { Posts.text.regexp(stringParam(text), false) or Posts.title.regexp(stringParam(text), false) } }
-                    authorId?.let { andWhere { Posts.author eq authorId } }
-                    diaryId?.let { andWhere { Posts.diary eq diaryId } }
-                    from?.let { andWhere { Posts.creationTime greaterEq it.atTime(0, 0) } }
-                    to?.let { andWhere { Posts.creationTime lessEq it.atTime(23, 59, 59) } }
-                }
-                .apply {
-                    tags?.let { (policy, tagSet) ->
-                        val unionSubquery = PostTags
-                            .innerJoin(Tags)
-                            .slice(PostTags.post)
-                            .select { Tags.name inList tagSet }
-                            .groupBy(PostTags.post)
-                        when (policy) {
-                            TagPolicy.UNION -> {
-                                andWhere { Posts.id inSubQuery unionSubquery }
-                            }
-                            TagPolicy.INTERSECTION -> {
-                                val intersectionSubquery = unionSubquery
-                                    .having { Tags.name.count() eq tagSet.size.toLong() }
-                                andWhere { Posts.id inSubQuery intersectionSubquery }
-                            }
-                        }
-                    }
-                }
-                .orderBy(*order)
-                .groupBy(Posts.id)
-
-            val totalCount = query.count()
-            val totalPages = ceil(totalCount / pageable.size.toDouble()).toInt()
-            val offset = (pageable.page - 1) * pageable.size
-
-            val results = query
-                .limit(pageable.size, offset.toLong())
-                .map { row -> toPostView(viewer, row) }
-            Page(results, pageable.page, totalPages)
+            getPosts(params, emptyList(), pageable, *order)
         }
     }
 
@@ -239,160 +197,85 @@ class PostServiceImpl(
     }
 
     private fun addPreface(userId: UUID, post: PostDto.Create): PostDto.View {
-        val preface = PostEntity.find { (Posts.author eq userId) and (Posts.isPreface eq true) }.firstOrNull()
-        if (preface != null) {
-            deletePost(preface)
-        }
+        return transaction {
+            val diaryId = DiaryEntity.find { Diaries.owner eq userId }.single().id
+            val oldPreface = PostEntity.find { (Posts.diary eq diaryId) and (Posts.isPreface eq true) and (Posts.isArchived eq false) }.singleOrNull()
 
-        return addPostToDb(userId, post)
+            if (oldPreface != null) {
+                deletePost(oldPreface)
+            }
+
+            addPostToDb(userId, post)
+        }
     }
 
     override fun getPosts(viewer: Viewer, pageable: Pageable): Page<PostDto.View> {
         return transaction {
-            val baseQuery = Posts
-                .innerJoin(Users, { Posts.author }, { Users.id })
-                .innerJoin(Diaries, { Posts.diary }, { Diaries.id })
-                .innerJoin(AccessGroups, { Posts.readGroup }, { AccessGroups.id })
-                .slice(Posts.columns + Users.id + Users.nickname + Diaries.owner + Diaries.login + AccessGroups.type)
-                .select {
-                    val accessCondition = when (viewer) {
-                        is Viewer.Anonymous -> {
-                            AccessGroups.type eq AccessGroupType.EVERYONE
-                        }
-                        is Viewer.Registered -> {
-                            val customAccessSubquery = CustomGroupUsers
-                                .slice(CustomGroupUsers.accessGroup)
-                                .select { CustomGroupUsers.member eq viewer.userId }
-
-                            (Posts.author eq viewer.userId) or // Owner can see all their posts
-                            (AccessGroups.type eq AccessGroupType.EVERYONE) or
-                            (AccessGroups.type eq AccessGroupType.REGISTERED_USERS) or
-                            ((AccessGroups.type eq AccessGroupType.FRIENDS) and (Diaries.owner inSubQuery 
-                                Friends.slice(Friends.user2)
-                                    .select { Friends.user1 eq viewer.userId }
-                                    .union(
-                                        Friends.slice(Friends.user1)
-                                            .select { Friends.user2 eq viewer.userId }
-                                    )
-                            )) or
-                            (AccessGroups.type eq AccessGroupType.CUSTOM and Posts.readGroup.inSubQuery(customAccessSubquery))
-                        }
-                    }
-
-                    accessCondition and
-                    (Posts.isArchived eq false) and
-                    (Posts.isPreface eq false)
-                }
-
-            val total = baseQuery.count()
-            val totalPages = ceil(total.toDouble() / pageable.size).toInt()
-
-            val content = baseQuery
-                .orderBy(Posts.creationTime to SortOrder.DESC)
-                .limit(pageable.size, (pageable.page * pageable.size).toLong())
-                .map { row: ResultRow -> toPostView(viewer, row) }
-
-            Page(
-                content = content,
-                currentPage = pageable.page,
-                totalPages = totalPages
-            )
+            val params = PostSearchParams(viewer = viewer)
+            getPosts(params, emptyList(), pageable,Posts.creationTime to SortOrder.DESC)
         }
     }
 
     override fun getDiscussedPosts(viewer: Viewer, pageable: Pageable): Page<PostDto.View> {
         return transaction {
-            val baseQuery = Posts
-                .innerJoin(Users, { Posts.author }, { Users.id })
-                .innerJoin(Diaries, { Posts.diary }, { Diaries.id })
-                .innerJoin(AccessGroups, { Posts.readGroup }, { AccessGroups.id })
-                .slice(Posts.columns + Users.id + Users.nickname + Diaries.owner + Diaries.login + AccessGroups.type)
-                .select {
-                    val accessCondition = when (viewer) {
-                        is Viewer.Anonymous -> {
-                            AccessGroups.type eq AccessGroupType.EVERYONE
-                        }
-                        is Viewer.Registered -> {
-                            val customAccessSubquery = CustomGroupUsers
-                                .slice(CustomGroupUsers.accessGroup)
-                                .select { CustomGroupUsers.member eq viewer.userId }
-
-                            (Posts.author eq viewer.userId) or // Owner can see all their posts
-                            (AccessGroups.type eq AccessGroupType.EVERYONE) or
-                            (AccessGroups.type eq AccessGroupType.REGISTERED_USERS) or
-                            (AccessGroups.type eq AccessGroupType.FRIENDS) or
-                            (AccessGroups.type eq AccessGroupType.CUSTOM and Posts.readGroup.inSubQuery(customAccessSubquery))
-                        }
-                    }
-
-                    accessCondition and
-                    (Posts.isArchived eq false) and
-                    (Posts.isPreface eq false)
-                }
-
-            val total = baseQuery.count()
-            val totalPages = ceil(total.toDouble() / pageable.size).toInt()
-
-            val content = baseQuery
-                .orderBy(
-                    Posts.lastCommentTime to SortOrder.DESC_NULLS_LAST,
-                    Posts.creationTime to SortOrder.DESC
-                )
-                .limit(pageable.size, (pageable.page * pageable.size).toLong())
-                .map { row: ResultRow -> toPostView(viewer, row) }
-
-            Page(
-                content = content,
-                currentPage = pageable.page,
-                totalPages = totalPages
-            )
+            val params = PostSearchParams(viewer = viewer)
+            getPosts(params, emptyList(), pageable,Posts.lastCommentTime to SortOrder.DESC_NULLS_LAST, Posts.creationTime to SortOrder.DESC)
         }
+    }
+
+    private fun Transaction.getPosts(params: PostSearchParams, conditions: List<Op<Boolean>> = emptyList(), pageable: Pageable, vararg order: Pair<Expression<*>, SortOrder>): Page<PostDto.View> {
+        var query = buildPostQuery(params)
+        for (condition in conditions) {
+            query = query.apply { andWhere { condition } }
+        }
+        val rowsPage = executePaged(query, pageable, order)
+
+        val rowsByPostId = rowsPage.rows.associateBy { it[Posts.id].value }
+        val postIds = rowsByPostId.keys
+
+        val accessChecks = getBulkAccessGroupChecks(params.viewer, rowsByPostId)
+        val tagsByPost = loadTagsForPosts(postIds)
+        val commentsByPost = loadCommentsForPosts(params.viewer, postIds)
+        val reactionsByPost = loadPostReactions(postIds)
+
+        val content = rowsByPostId.map { (postId, row) ->
+            toPostView(
+                row = row,
+                comments = commentsByPost[postId] ?: emptyList(),
+                reactions = reactionsByPost[postId] ?: emptyList(),
+                tags = tagsByPost[postId] ?: emptySet(),
+                accessGroupChecks = accessChecks.getValue(postId)
+            )
+        }.toList()
+
+        return Page(content, rowsPage.currentPage, rowsPage.totalPages)
     }
 
     override fun getFollowedPosts(userId: UUID, pageable: Pageable): Page<PostDto.View> {
         return transaction {
-            val query = Posts
-                .innerJoin(Diaries)
-                .innerJoin(Users, { Posts.author }, { Users.id })
-                .innerJoin(AccessGroups, { Posts.readGroup }, { AccessGroups.id })
-                .innerJoin(UserFollows, { Posts.author }, { UserFollows.following })
-                .slice(Posts.columns + Users.id + Users.nickname + Diaries.login + Diaries.owner + AccessGroups.type)
-                .select {
-                    val baseCondition = (Posts.isArchived eq false) and (Posts.isPreface eq false)
-                    val followingCondition = UserFollows.follower eq userId
+            val followed = UserFollows
+                .slice(UserFollows.following)
+                .select { UserFollows.follower eq userId }
+                .map { it[UserFollows.following].value }
+                .toSet()
 
-                    val customAccessSubquery = CustomGroupUsers
-                        .slice(CustomGroupUsers.accessGroup)
-                        .select { CustomGroupUsers.member eq userId }
+            if (followed.isEmpty()) {
+                return@transaction Page(emptyList(), pageable.page, 0)
+            }
 
-                    val accessCondition = (AccessGroups.type eq AccessGroupType.EVERYONE) or
-                            (AccessGroups.type eq AccessGroupType.REGISTERED_USERS) or
-                            (AccessGroups.type eq AccessGroupType.FRIENDS) or
-                            (AccessGroups.type eq AccessGroupType.CUSTOM and Posts.readGroup.inSubQuery(customAccessSubquery))
-
-                    baseCondition and followingCondition and accessCondition
-                }
-                .orderBy(Posts.creationTime to pageable.direction)
-                .groupBy(Posts.id)
-
-            val totalCount = query.count()
-            val totalPages = ceil(totalCount / pageable.size.toDouble()).toInt()
-            val offset = (pageable.page - 1) * pageable.size
-
-            val results = query
-                .limit(pageable.size, offset.toLong())
-                .map { row -> toPostView(Viewer.Registered(userId), row) }
-            Page(results, pageable.page, totalPages)
+            val params = PostSearchParams(viewer = Viewer.Registered(userId))
+            val authorCondition = ((Posts.authorType eq PostAuthorType.LOCAL) and (localPostAuthor[Users.id] inList followed.toList())) or ((Posts.authorType eq PostAuthorType.EXTERNAL) and (externalPostAuthor[ExternalUsers.user] inList followed.toList()))
+            getPosts(params, listOf(authorCondition), pageable, Posts.creationTime to pageable.direction)
         }
     }
 
     override fun updatePost(userId: UUID, post: PostDto.Update): PostDto.View {
         return transaction {
             val postEntity = post.id.let { PostEntity.findById(it) } ?: throw PostNotFoundException()
-            if (postEntity.authorId.value != userId) throw WrongUserException()
+            if (postEntity.authorId != userId) throw WrongUserException()
 
             val newUri = if ((post.uri.isNotEmpty() && post.uri != postEntity.uri) || (post.title != postEntity.title)) {
-                checkOrCreateUri(userId, post.title, post.uri)
+                checkOrCreateUri(postEntity.diaryId.value, post.title, post.uri)
             } else {
                 postEntity.uri
             }
@@ -478,7 +361,7 @@ class PostServiceImpl(
     override fun deletePost(userId: UUID, postId: UUID) {
         return transaction {
             val postEntity = PostEntity.findById(postId) ?: return@transaction
-            if (postEntity.authorId.value != userId) throw WrongUserException()
+            if (postEntity.authorId != userId) throw WrongUserException()
             deletePost(postEntity)
         }
     }
@@ -505,7 +388,7 @@ class PostServiceImpl(
             val diaryOwnerId = diaryEntity.owner.value
             val userId = (viewer as? Viewer.Registered)?.userId
 
-            if (userId != postEntity.authorId.value && userId != commentEntity.authorId.value &&
+            if (userId != postEntity.authorId && userId != commentEntity.authorId.value &&
                 !accessGroupService.inGroup(viewer, postEntity.readGroupId.value, diaryOwnerId)) {
                 throw CommentNotFoundException()
             }
@@ -540,7 +423,7 @@ class PostServiceImpl(
             val diaryEntity = DiaryEntity.findById(postEntity.diaryId.value) ?: throw InternalServerError()
             val diaryOwnerId = diaryEntity.owner.value
             val viewer = Viewer.Registered(userId)
-            if (userId != postEntity.authorId.value && (!accessGroupService.inGroup(viewer, postEntity.readGroupId.value, diaryOwnerId) || !accessGroupService.inGroup(viewer, postEntity.commentGroupId.value, diaryOwnerId))) {
+            if (userId != postEntity.authorId && (!accessGroupService.inGroup(viewer, postEntity.readGroupId.value, diaryOwnerId) || !accessGroupService.inGroup(viewer, postEntity.commentGroupId.value, diaryOwnerId))) {
                 throw WrongUserException()
             }
             if (comment.parentCommentId != null) {
@@ -598,7 +481,7 @@ class PostServiceImpl(
         }
     }
 
-    override fun deleteComment(userId: UUID, commentId: UUID): Unit {
+    override fun deleteComment(userId: UUID, commentId: UUID) {
         return transaction {
             val commentEntity = CommentEntity.findById(commentId) ?: throw CommentNotFoundException()
             if (userId != commentEntity.authorId.value) throw WrongUserException()
@@ -632,8 +515,8 @@ class PostServiceImpl(
 
     private fun addPostToDb(userId: UUID, post: PostDto.Create): PostDto.View {
         return transaction {
-            val postUri = checkOrCreateUri(userId, post.title, post.uri)
             val diaryId = DiaryEntity.find { Diaries.owner eq userId }.first().id.value
+            val postUri = checkOrCreateUri(diaryId, post.title, post.uri)
 
             val (readGroupEntity, commentGroupEntity, reactionGroupEntity) = getReadAndCommentGroups(
                 diaryId,
@@ -648,7 +531,8 @@ class PostServiceImpl(
                 it[uri] = postUri
 
                 it[diary] = diaryId
-                it[author] = userId
+                it[authorType] = PostAuthorType.LOCAL
+                it[localAuthor] = userId
 
                 it[avatar] = post.avatar
                 it[title] = post.title
@@ -696,17 +580,17 @@ class PostServiceImpl(
         return uri.matches(Regex("[a-zA-Z0-9-]+"))
     }
 
-    private fun Transaction.checkOrCreateUri(authorId: UUID, postTitle: String, postUri: String): String {
+    private fun Transaction.checkOrCreateUri(diaryId: UUID, postTitle: String, postUri: String): String {
         return if (postUri.isBlank()) {
-            createUri(authorId, postTitle)
+            createUri(diaryId, postTitle)
         } else {
             if (!isValidUri(postUri)) throw InvalidUriException()
-            if (isUriBusy(authorId, postUri)) throw UriIsBusyException()
+            if (isUriBusy(diaryId, postUri)) throw UriIsBusyException()
             postUri
         }
     }
 
-    private fun Transaction.createUri(authorId: UUID, postTitle: String): String {
+    private fun Transaction.createUri(diaryId: UUID, postTitle: String): String {
         val wordsPart = postTitle.lowercase().map { transliterate(it) }.joinToString("")
             .replace(Regex("[^-a-zA-Z0-9 ]"), "")
             .lowercase(Locale.getDefault())
@@ -716,7 +600,7 @@ class PostServiceImpl(
             return UUID.randomUUID().toString()
         }
 
-        if (!isUriBusy(authorId, wordsPart)) {
+        if (!isUriBusy(diaryId, wordsPart)) {
             return wordsPart
         }
 
@@ -724,7 +608,7 @@ class PostServiceImpl(
         while (true) {
             val prefix = generateRandomAlphanumericString(length)
             val uri = "$prefix-$wordsPart"
-            if (!isUriBusy(authorId, uri)) {
+            if (!isUriBusy(diaryId, uri)) {
                 return uri
             }
             length++
@@ -732,8 +616,8 @@ class PostServiceImpl(
     }
 
     @Suppress("UnusedReceiverParameter")
-    private fun Transaction.isUriBusy(authorId: UUID, uri: String): Boolean {
-        return PostEntity.find { (Posts.author eq authorId) and (Posts.uri eq uri) }.firstOrNull() != null
+    private fun Transaction.isUriBusy(diaryId: UUID, uri: String): Boolean {
+        return PostEntity.find { (Posts.diary eq diaryId) and (Posts.uri eq uri) }.firstOrNull() != null
     }
 
     // I don't want to info about the number of posts to be discovered, so...
@@ -744,76 +628,6 @@ class PostServiceImpl(
             .map { Random.nextInt(0, charPool.size) }
             .map(charPool::get)
             .joinToString("")
-    }
-
-    private fun Transaction.toPostView(viewer: Viewer, postEntity: PostEntity): PostDto.View {
-        val userId = (viewer as? Viewer.Registered)?.userId
-        val author = UserEntity.findById(postEntity.authorId) ?: throw InternalServerError()
-        val authorDiary = DiaryEntity.find { Diaries.owner eq author.id }.single()
-        val postDiary = DiaryEntity.findById(postEntity.diaryId)!!
-        val diaryOwnerId = postDiary.owner.value
-        val isCommentable = (userId == postEntity.authorId.value) || (accessGroupService.inGroup(viewer, postEntity.commentGroupId.value, diaryOwnerId))
-        val isReactable = (userId == postEntity.authorId.value) || (accessGroupService.inGroup(viewer, postEntity.reactionGroupId.value, diaryOwnerId))
-
-        return PostDto.View(
-            id = postEntity.id.value,
-            uri = postEntity.uri,
-            diaryLogin = postDiary.login,
-            authorLogin = authorDiary.login,
-            authorNickname = author.nickname,
-            avatar = postEntity.avatar,
-            title = postEntity.title,
-            text = postEntity.text,
-            creationTime = postEntity.creationTime,
-            isEncrypted = postEntity.isEncrypted,
-            isPreface = postEntity.isPreface,
-            classes = postEntity.classes,
-            tags = postEntity.tags.map { it.name }.toSet(),
-            isCommentable = isCommentable,
-            comments = getCommentsForPost(postEntity.id.value),
-            readGroupId = postEntity.readGroupId.value,
-            commentGroupId = postEntity.commentGroupId.value,
-            reactionGroupId = postEntity.reactionGroupId.value,
-            commentReactionGroupId = postEntity.reactionGroupId.value, // Using post's reaction group as default for comments
-            isReactable = isReactable,
-            reactions = collectReactionInfo(postEntity.id.value),
-        )
-    }
-
-    private fun Transaction.toPostView(viewer: Viewer, row: ResultRow): PostDto.View {
-        val userId = (viewer as? Viewer.Registered)?.userId
-        val diaryOwnerId = row[Diaries.owner].value
-        val authorId = row[Users.id].value
-        val authorDiary = DiaryEntity.find { Diaries.owner eq authorId }.single()
-        return PostDto.View(
-            id = row[Posts.id].value,
-            uri = row[Posts.uri],
-
-            avatar = row[Posts.avatar],
-            authorNickname = row[Users.nickname],
-            authorLogin = authorDiary.login,
-            diaryLogin = row[Diaries.login],
-
-            title = row[Posts.title],
-            text = row[Posts.text],
-            creationTime = row[Posts.creationTime],
-
-            isPreface = row[Posts.isPreface],
-            isEncrypted = row[Posts.isEncrypted],
-
-            tags = getTagsForPost(row[Posts.id].value),
-
-            classes = row[Posts.classes],
-            isCommentable = (userId == row[Users.id].value) || (accessGroupService.inGroup(viewer, row[Posts.commentGroup].value, diaryOwnerId)),
-            comments = getCommentsForPost(row[Posts.id].value),
-
-            readGroupId = row[Posts.readGroup].value,
-            commentGroupId = row[Posts.commentGroup].value,
-            reactionGroupId = row[Posts.reactionGroup].value,
-            commentReactionGroupId = row[Posts.reactionGroup].value, // Using post's reaction group as default for comments
-            isReactable = (userId == row[Users.id].value) || (accessGroupService.inGroup(viewer, row[Posts.reactionGroup].value, diaryOwnerId)),
-            reactions = collectReactionInfo(row[Posts.id].value),
-        )
     }
 
     private fun toPostUpdateData(postEntity: PostEntity): PostDto.Update {
@@ -836,70 +650,6 @@ class PostServiceImpl(
             isEncrypted = postEntity.isEncrypted,
         )
     }
-
-    @Suppress("UnusedReceiverParameter")
-    private fun Transaction.getTagsForPost(postId: UUID): Set<String> {
-        return PostTags
-            .innerJoin(Tags)
-            .slice(Tags.name)
-            .select { PostTags.post eq postId }
-            .map { it[Tags.name] }
-            .toSet()
-    }
-
-    private fun Transaction.getCommentsForPost(postId: UUID): List<CommentDto.View> {
-        return CommentEntity.find { Comments.post eq postId }.orderBy(Comments.creationTime to SortOrder.ASC).map { it.toComment(this) }
-    }
-
-    private fun Transaction.collectReactionInfo(postId: UUID): List<ReactionDto.ReactionInfo> {
-        // Get reactions with their files
-        val reactionData = (PostReactions innerJoin Reactions innerJoin Files)
-            .slice(Reactions.id, Reactions.name, Files.id)
-            .select { PostReactions.post eq postId }
-            .map { row ->
-                Triple(
-                    row[Reactions.id].value,
-                    row[Reactions.name],
-                    row[Files.id].value
-                )
-            }.distinct()
-
-        // Get user logins and nicknames for each reaction
-        val reactionUsers = mutableMapOf<UUID, MutableList<ReactionDto.UserInfo>>()
-        reactionData.forEach { (reactionId, _, _) ->
-            val userInfos = (PostReactions innerJoin Users innerJoin Diaries)
-                .slice(Diaries.login, Users.nickname)
-                .select { (PostReactions.post eq postId) and (PostReactions.reaction eq reactionId) }
-                .map { ReactionDto.UserInfo(login = it[Diaries.login], nickname = it[Users.nickname]) }
-                .distinct()
-            reactionUsers[reactionId] = userInfos.toMutableList()
-        }
-
-        // Get anonymous reactions count
-        val anonymousCounts = mutableMapOf<UUID, Int>()
-        reactionData.forEach { (reactionId, _, _) ->
-            val count = AnonymousPostReactions
-                .select { (AnonymousPostReactions.post eq postId) and (AnonymousPostReactions.reaction eq reactionId) }
-                .count()
-            anonymousCounts[reactionId] = count.toInt()
-        }
-
-        // Create ReactionInfo objects
-        return reactionData.map { (reactionId, name, fileId) ->
-            val userLogins = reactionUsers[reactionId] ?: emptyList()
-            val anonymousCount = anonymousCounts[reactionId] ?: 0
-
-            ReactionDto.ReactionInfo(
-                id = reactionId,
-                name = name,
-                iconUri = storageService.getFileURL(FileEntity.findById(fileId)!!.toBlogFile()),
-                count = userLogins.size + anonymousCount,
-                users = userLogins,
-                anonymousCount = anonymousCount
-            )
-        }
-    }
-
 
     @Suppress("UNUSED_PARAMETER")
     private fun CommentEntity.toComment(transaction: Transaction): CommentDto.View {
@@ -971,5 +721,628 @@ class PostServiceImpl(
 
     private fun Char.isCyrillic(): Boolean {
         return this in 'а'..'я' || this in 'А'..'Я'
+    }
+
+    val postDiary = Diaries.alias("post_diary")
+    val localPostAuthor = Users.alias("local_post_author")
+    val externalPostAuthor = ExternalUsers.alias("external_post_author")
+    val externalUserLinkedUser = Users.alias("external_user_linked_user")
+    val localAuthorDiary = Diaries.alias("author_diary")
+
+    private fun Transaction.toPostView(
+        row: ResultRow,
+        comments: List<CommentDto.View>,
+        reactions: List<ReactionDto.ReactionInfo>,
+        tags: Set<String>,
+        accessGroupChecks: AccessChecks,
+    ): PostDto.View {
+        val authorType = row[Posts.authorType]
+
+        val nickname: String
+        val signature: String?
+        val authorLogin: String?
+
+        if (authorType == PostAuthorType.LOCAL) {
+            nickname = row[localPostAuthor[Users.nickname]]
+            signature = row[localPostAuthor[Users.signature]]
+            authorLogin = row[localAuthorDiary[Diaries.login]]
+        } else {
+            val linkedUserId = row[externalPostAuthor[ExternalUsers.user]]
+            if (linkedUserId != null) {
+                nickname = row[externalUserLinkedUser[Users.nickname]]
+                signature = row[externalUserLinkedUser[Users.signature]]
+                authorLogin = row[localAuthorDiary[Diaries.login]]  // optional: or null
+            } else {
+                nickname = row[externalPostAuthor[ExternalUsers.nickname]]
+                signature = null
+                authorLogin = null
+            }
+        }
+
+        return PostDto.View(
+            id = row[Posts.id].value,
+            uri = row[Posts.uri],
+
+            avatar = row[Posts.avatar],
+            authorNickname = nickname,
+            authorLogin = authorLogin,
+            authorSignature = signature,
+            diaryLogin = row[postDiary[Diaries.login]],
+
+            title = row[Posts.title],
+            text = row[Posts.text],
+            creationTime = row[Posts.creationTime],
+
+            isPreface = row[Posts.isPreface],
+            isEncrypted = row[Posts.isEncrypted],
+
+            tags = tags,
+
+            classes = row[Posts.classes],
+            isCommentable = accessGroupChecks.canComment,
+            comments = comments,
+
+            readGroupId = row[Posts.readGroup].value,
+            commentGroupId = row[Posts.commentGroup].value,
+            reactionGroupId = row[Posts.reactionGroup].value,
+            commentReactionGroupId = row[Posts.reactionGroup].value,
+            isReactable = accessGroupChecks.canReact,
+            reactions = reactions,
+        )
+    }
+
+    private fun Transaction.getBulkAccessGroupChecks(
+        viewer: Viewer,
+        results: Map<UUID, ResultRow> // postId -> row
+    ): Map<UUID, AccessChecks> {
+        val userId = (viewer as? Viewer.Registered)?.userId
+
+        val groupIdToOwnerId = mutableSetOf<Pair<UUID, UUID>>() // (groupId, diaryOwnerId)
+        val postIdToAuthorUserId = mutableMapOf<UUID, UUID?>()
+
+        results.forEach { (postId, row) ->
+            val diaryOwnerId = row[postDiary[Diaries.owner]].value
+            val commentGroupId = row[Posts.commentGroup].value
+            val reactionGroupId = row[Posts.reactionGroup].value
+
+            val authorType = row[Posts.authorType]
+            val authorUserId = when (authorType) {
+                PostAuthorType.LOCAL -> row[localPostAuthor[Users.id]].value
+                PostAuthorType.EXTERNAL -> row[externalPostAuthor[ExternalUsers.user]]?.value
+            }
+            postIdToAuthorUserId[postId] = authorUserId
+
+            if (userId != authorUserId) {
+                groupIdToOwnerId.add(commentGroupId to diaryOwnerId)
+                groupIdToOwnerId.add(reactionGroupId to diaryOwnerId)
+            }
+        }
+
+        val groupResults = accessGroupService.bulkCheckGroups(viewer, groupIdToOwnerId)
+
+        return results.mapValues { (postId, row) ->
+            val diaryOwnerId = row[postDiary[Diaries.owner]].value
+            val commentGroupId = row[Posts.commentGroup].value
+            val reactionGroupId = row[Posts.reactionGroup].value
+            val authorUserId = postIdToAuthorUserId[postId]
+
+            val self = (userId == authorUserId)
+            val canComment = self || (groupResults[commentGroupId to diaryOwnerId] ?: false)
+            val canReact = self || (groupResults[reactionGroupId to diaryOwnerId] ?: false)
+
+            AccessChecks(canComment, canReact)
+        }
+    }
+
+    private fun getBasicPostJoin(): Join {
+        return Posts
+            .innerJoin(postDiary, { Posts.diary }, { postDiary[Diaries.id] })
+            .leftJoin(localPostAuthor, { Posts.localAuthor }, { localPostAuthor[Users.id] })
+            .leftJoin(externalPostAuthor, { Posts.externalAuthor }, { externalPostAuthor[ExternalUsers.id] })
+            .leftJoin(externalUserLinkedUser, { externalPostAuthor[ExternalUsers.user] }, { externalUserLinkedUser[Users.id] })
+            .innerJoin(AccessGroups, { Posts.readGroup }, { AccessGroups.id })
+            .leftJoin(localAuthorDiary, { localPostAuthor[Users.id] }, { localAuthorDiary[Diaries.owner] })
+    }
+
+    private data class AccessChecks(val canComment: Boolean, val canReact: Boolean)
+
+    private data class PostSearchParams(
+        val viewer: Viewer,
+        val authorLogin: String? = null,
+        val diaryLogin: String? = null,
+        val text: String? = null,
+        val tags: Pair<TagPolicy, Set<String>>? = null,
+        val from: LocalDate? = null,
+        val to: LocalDate? = null,
+    )
+
+    private data class PostRowsPage(
+        val rows: List<ResultRow>,
+        val currentPage: Int,
+        val totalPages: Int,
+    )
+
+    private fun buildReadAccessCondition(viewer: Viewer): Op<Boolean> {
+        return when (viewer) {
+            is Viewer.Anonymous -> {
+                AccessGroups.type eq AccessGroupType.EVERYONE
+            }
+            is Viewer.Registered -> {
+                val uid = viewer.userId
+
+                val isAuthor = (Posts.authorType eq PostAuthorType.LOCAL and (Posts.localAuthor eq uid)) or
+                        (Posts.authorType eq PostAuthorType.EXTERNAL and (externalPostAuthor[ExternalUsers.user] eq uid))
+
+                val customAccessSubquery = CustomGroupUsers
+                    .slice(CustomGroupUsers.accessGroup)
+                    .select { CustomGroupUsers.member eq uid }
+
+                val friendsUsers = Friends.slice(Friends.user2)
+                    .select { Friends.user1 eq uid }
+                    .union(
+                        Friends.slice(Friends.user1)
+                            .select { Friends.user2 eq uid }
+                    )
+
+                isAuthor or
+                        (AccessGroups.type eq AccessGroupType.EVERYONE) or
+                        (AccessGroups.type eq AccessGroupType.REGISTERED_USERS) or
+                        ((AccessGroups.type eq AccessGroupType.FRIENDS) and (postDiary[Diaries.owner] inSubQuery friendsUsers)) or
+                        ((AccessGroups.type eq AccessGroupType.CUSTOM) and (Posts.readGroup inSubQuery customAccessSubquery))
+            }
+        }
+    }
+
+    private fun Query.andFilters(
+        text: String?,
+        authorLogin: String?,
+        diaryLogin: String?,
+        from: LocalDate?,
+        to: LocalDate?
+    ): Query {
+        return this.apply {
+            andWhere {
+                val base = (Posts.isArchived eq false) and (Posts.isPreface eq false)
+                var cond: Op<Boolean> = base
+
+                if (text != null) {
+                    cond = cond and (Posts.text.regexp(stringParam(text), false) or Posts.title.regexp(stringParam(text), false))
+                }
+                if (authorLogin != null) {
+                    // автор = владелец дневника с login = authorLogin
+                    val authorDiaryId = DiaryEntity.find { Diaries.login eq authorLogin }.firstOrNull()?.id
+                    cond = if (authorDiaryId != null) {
+                        cond and (localAuthorDiary[Diaries.id] eq authorDiaryId)
+                    } else {
+                        cond and Op.FALSE
+                    }
+                }
+                if (diaryLogin != null) {
+                    val diaryId = DiaryEntity.find { Diaries.login eq diaryLogin }.firstOrNull()?.id
+                    cond = if (diaryId != null) cond and (Posts.diary eq diaryId) else cond and Op.FALSE
+                }
+                if (from != null) cond = cond and (Posts.creationTime greaterEq from.atTime(0, 0))
+                if (to != null) cond = cond and (Posts.creationTime lessEq to.atTime(23, 59, 59))
+
+                cond
+            }
+        }
+    }
+
+    private fun Query.andTagFilter(tags: Pair<TagPolicy, Set<String>>?): Query {
+        if (tags == null || tags.second.isEmpty()) return this
+        val (policy, tagSet) = tags
+
+        val unionSubquery = PostTags
+            .innerJoin(Tags)
+            .slice(PostTags.post)
+            .select { Tags.name inList tagSet }
+            .groupBy(PostTags.post)
+
+        return when (policy) {
+            TagPolicy.UNION -> {
+                andWhere { Posts.id inSubQuery unionSubquery }
+            }
+            TagPolicy.INTERSECTION -> {
+                val intersectionSubquery = unionSubquery
+                    .having { Tags.name.count() eq tagSet.size.toLong() }
+                andWhere { Posts.id inSubQuery intersectionSubquery }
+            }
+        }
+    }
+
+    // === Слайс колонок, достаточный для дальнейшей сборки DTO (и прав доступа) ===
+    private val postBaseSlice: List<Expression<*>> = listOf(
+        *Posts.columns.toTypedArray(),
+        postDiary[Diaries.login], postDiary[Diaries.owner],
+
+        localPostAuthor[Users.id], localPostAuthor[Users.nickname], localPostAuthor[Users.signature],
+        externalPostAuthor[ExternalUsers.id], externalPostAuthor[ExternalUsers.user], externalPostAuthor[ExternalUsers.nickname],
+        externalUserLinkedUser[Users.id], externalUserLinkedUser[Users.nickname], externalUserLinkedUser[Users.signature],
+
+        localAuthorDiary[Diaries.login],
+    )
+
+    // === Билдер запроса постов ===
+    private fun Transaction.buildPostQuery(params: PostSearchParams): Query {
+        val baseJoin = getBasicPostJoin()
+        val q = baseJoin
+            .slice(postBaseSlice)
+            .select { buildReadAccessCondition(params.viewer) }
+
+        return q
+            .andFilters(
+                text = params.text,
+                authorLogin = params.authorLogin,
+                diaryLogin = params.diaryLogin,
+                from = params.from,
+                to = params.to
+            )
+            .andTagFilter(params.tags)
+            .groupBy(Posts.id) // todo why?
+    }
+
+    private fun Transaction.executePaged(
+        query: Query,
+        pageable: Pageable,
+        order: Array<out Pair<Expression<*>, SortOrder>>
+    ): PostRowsPage {
+        val totalCount = query.count()
+        val totalPages = ceil(totalCount / pageable.size.toDouble()).toInt()
+        val offset = (pageable.page - 1) * pageable.size
+
+        val rows = query
+            .orderBy(*order)
+            .limit(pageable.size, offset.toLong())
+            .toList()
+
+        return PostRowsPage(rows, pageable.page, totalPages)
+    }
+
+    private fun Transaction.loadTagsForPosts(postIds: Set<UUID>): Map<UUID, Set<String>> {
+        if (postIds.isEmpty()) return emptyMap()
+        return PostTags
+            .innerJoin(Tags)
+            .slice(PostTags.post, Tags.name)
+            .select { PostTags.post inList postIds.toList() }
+            .groupBy { it[PostTags.post].value }
+            .mapValues { (_, rows) -> rows.map { it[Tags.name] }.toSet() }
+    }
+
+    // TODO inReplyTo
+    private fun Transaction.loadCommentsForPosts(
+        viewer: Viewer,
+        postIds: Set<UUID>
+    ): Map<UUID, List<CommentDto.View>> {
+        if (postIds.isEmpty()) return emptyMap()
+
+        val authorDiary = Diaries.alias("comment_author_diary")
+        val postDiaryForComment = Diaries.alias("comment_post_diary")
+        val rows = Comments
+            .innerJoin(Users, { Comments.author }, { Users.id })
+            .leftJoin(authorDiary, { Users.id }, { authorDiary[Diaries.owner] })
+            .innerJoin(Posts, { Comments.post }, { Posts.id })
+            .innerJoin(postDiaryForComment, { Posts.diary }, { postDiaryForComment[Diaries.id] })
+            .slice(
+                Comments.id, Comments.post, Comments.author, Comments.avatar, Comments.text,
+                Comments.creationTime, Comments.reactionGroup, Comments.parentComment,
+                Users.nickname,
+                authorDiary[Diaries.login],
+                Posts.uri,
+                postDiaryForComment[Diaries.login],
+                postDiaryForComment[Diaries.owner],
+            )
+            .select { Comments.post inList postIds.toList() }
+            .orderBy(Comments.creationTime to SortOrder.ASC)
+            .toList()
+
+        // Пакетные права на реакцию
+        val viewerUserId = (viewer as? Viewer.Registered)?.userId
+        val pairs = mutableSetOf<Pair<UUID, UUID>>()
+        rows.forEach { r ->
+            val authorId = r[Comments.author].value
+            if (viewerUserId != authorId) {
+                pairs.add(r[Comments.reactionGroup].value to r[postDiaryForComment[Diaries.owner]].value)
+            }
+        }
+        val canReactByPair = pairs.associateWith { (groupId, ownerId) ->
+            accessGroupService.inGroup(viewer, groupId, ownerId)
+        }
+
+// ... rows получены, canReactByPair посчитан ...
+
+// 1) Собираем id родительских комментариев
+        val parentIds = rows.mapNotNull { it[Comments.parentComment]?.value }.toSet()
+        val replyMeta = loadReplyMeta(parentIds)
+
+// 2) Реакции к комментариям
+        val commentIds = rows.map { it[Comments.id].value }.toSet()
+        val reactionsByComment = loadCommentReactions(commentIds)
+
+// 3) DTO
+        val byPost = linkedMapOf<UUID, MutableList<CommentDto.View>>()
+        rows.forEach { r ->
+            val postId = r[Comments.post].value
+            val cmAuthorId = r[Comments.author].value
+            val canReact =
+                (viewerUserId == cmAuthorId) ||
+                        (canReactByPair[r[Comments.reactionGroup].value to r[postDiaryForComment[Diaries.owner]].value] ?: false)
+
+            val parentId = r[Comments.parentComment]?.value
+            val inReply: CommentDto.ReplyView? = parentId?.let { pid ->
+                val meta = replyMeta[pid]
+                if (meta != null) CommentDto.ReplyView(id = pid, login = meta.login, nickname = meta.nickname)
+                else {
+                    // todo log
+                    CommentDto.ReplyView(id = pid, login = "unknown", nickname = "unknown")
+                }
+            }
+
+            val view = CommentDto.View(
+                id = r[Comments.id].value,
+                authorLogin = r[authorDiary[Diaries.login]],
+                authorNickname = r[Users.nickname],
+                postUri = r[Posts.uri],
+                diaryLogin = r[postDiaryForComment[Diaries.login]],
+                avatar = r[Comments.avatar],
+                text = r[Comments.text],
+                creationTime = r[Comments.creationTime],
+                isReactable = canReact,
+                reactions = reactionsByComment[r[Comments.id].value] ?: emptyList(),
+                reactionGroupId = r[Comments.reactionGroup].value,
+                inReplyTo = inReply
+            )
+            byPost.getOrPut(postId) { mutableListOf() }.add(view)
+        }
+        return byPost
+    }
+
+    private fun Transaction.loadPostReactions(postIds: Set<UUID>): Map<UUID, List<ReactionDto.ReactionInfo>> {
+        if (postIds.isEmpty()) return emptyMap()
+
+        // 1) Зарегистрированные реакции с пользователями (Users -> Diaries по owner)
+        data class RegRow(
+            val postId: UUID,
+            val reactionId: UUID,
+            val userLogin: String,
+            val userNickname: String
+        )
+
+        val regRows: List<RegRow> =
+            (PostReactions
+                .innerJoin(Reactions)                          // FK: PostReactions.reaction -> Reactions.id
+                .innerJoin(Files)                              // FK: Reactions.icon -> Files.id
+                .innerJoin(Users, { PostReactions.user }, { Users.id })
+                .innerJoin(Diaries, { Users.id }, { Diaries.owner }))
+                .slice(PostReactions.post, Reactions.id, Diaries.login, Users.nickname)
+                .select { PostReactions.post inList postIds.toList() }
+                .map {
+                    RegRow(
+                        postId = it[PostReactions.post].value,
+                        reactionId = it[Reactions.id].value,
+                        userLogin = it[Diaries.login],
+                        userNickname = it[Users.nickname]
+                    )
+                }
+
+        // 2) Анонимные реакции (агрегаты)
+        val anonCounts: Map<Pair<UUID, UUID>, Int> =
+            AnonymousPostReactions
+                .slice(AnonymousPostReactions.post, AnonymousPostReactions.reaction, AnonymousPostReactions.reaction.count())
+                .select { AnonymousPostReactions.post inList postIds.toList() }
+                .groupBy(AnonymousPostReactions.post, AnonymousPostReactions.reaction)
+                .associate { r ->
+                    (r[AnonymousPostReactions.post].value to r[AnonymousPostReactions.reaction].value) to r[AnonymousPostReactions.reaction.count()].toInt()
+                }
+
+        // 3) Мета реакций (имя + iconUrl) для всего множества reactionId (из рег. и анонимов)
+        val reactionIds: Set<UUID> =
+            regRows.map { it.reactionId }.toSet() + anonCounts.keys.map { it.second }.toSet()
+
+        val rxMeta: Map<UUID, Pair<String /*name*/, String /*iconUrl*/>> =
+            if (reactionIds.isEmpty()) emptyMap() else
+                (Reactions innerJoin Files)
+                    .slice(Reactions.id, Reactions.name, Files.id)
+                    .select { Reactions.id inList reactionIds.toList() }
+                    .associate { row ->
+                        val fileId = row[Files.id].value
+                        row[Reactions.id].value to (
+                                row[Reactions.name] to storageService.getFileURL(
+                                    FileEntity.findById(fileId)!!.toBlogFile()
+                                )
+                                )
+                    }
+
+        // 4) Группируем зарегистрированных: post -> reaction -> users
+        val usersByPostReaction: Map<UUID, Map<UUID, List<ReactionDto.UserInfo>>> =
+            regRows.groupBy { it.postId }.mapValues { (_, list) ->
+                list.groupBy { it.reactionId }.mapValues { (_, rlist) ->
+                    rlist.map { ReactionDto.UserInfo(login = it.userLogin, nickname = it.userNickname) }
+                }
+            }
+
+        // 5) Сборка результата
+        val result = mutableMapOf<UUID, MutableMap<UUID, ReactionDto.ReactionInfo>>()
+        postIds.forEach { result[it] = mutableMapOf() }
+
+        // Зарегистрированные + анонимы
+        usersByPostReaction.forEach { (postId, byReaction) ->
+            val perPost = result.getValue(postId)
+            byReaction.forEach { (reactionId, users) ->
+                val (name, iconUrl) = rxMeta.getValue(reactionId)
+                val anon = anonCounts[postId to reactionId] ?: 0
+                perPost[reactionId] = ReactionDto.ReactionInfo(
+                    id = reactionId,
+                    name = name,
+                    iconUri = iconUrl,
+                    count = users.size + anon,
+                    users = users,
+                    anonymousCount = anon
+                )
+            }
+        }
+
+        // Реакции, встречающиеся только у анонимов
+        anonCounts.forEach { (k, anon) ->
+            val (postId, reactionId) = k
+            val perPost = result.getValue(postId)
+            if (perPost[reactionId] == null) {
+                val (name, iconUrl) = rxMeta.getValue(reactionId)
+                perPost[reactionId] = ReactionDto.ReactionInfo(
+                    id = reactionId,
+                    name = name,
+                    iconUri = iconUrl,
+                    count = anon,
+                    users = emptyList(),
+                    anonymousCount = anon
+                )
+            }
+        }
+
+        return result.mapValues { (_, map) -> map.values.toList() }
+    }
+
+    private fun Transaction.loadCommentReactions(commentIds: Set<UUID>): Map<UUID, List<ReactionDto.ReactionInfo>> {
+        if (commentIds.isEmpty()) return emptyMap()
+
+        // Зарегистрированные пользователи
+        val reg = (CommentReactions innerJoin Reactions innerJoin Files innerJoin Users innerJoin Diaries)
+            .slice(
+                CommentReactions.comment, Reactions.id, Reactions.name, Files.id,
+                Diaries.login, Users.nickname
+            )
+            .select { CommentReactions.comment inList commentIds.toList() }
+            .toList()
+
+        // Анонимы: агрегаты
+        val anonCounts = AnonymousCommentReactions
+            .slice(AnonymousCommentReactions.comment, AnonymousCommentReactions.reaction, AnonymousCommentReactions.reaction.count())
+            .select { AnonymousCommentReactions.comment inList commentIds.toList() }
+            .groupBy(AnonymousCommentReactions.comment, AnonymousCommentReactions.reaction)
+            .associate { row ->
+                (row[AnonymousCommentReactions.comment].value to row[AnonymousCommentReactions.reaction].value) to row[AnonymousCommentReactions.reaction.count()].toInt()
+            }
+
+        // Иконки (уникальные по реакции)
+        val reactionToFile = reg
+            .map { it[Reactions.id].value to it[Files.id].value }
+            .distinctBy { it.first }
+            .associate { it.first to it.second }
+
+        val reactionToIconUrl = reactionToFile.mapValues { (_, fileId) ->
+            storageService.getFileURL(FileEntity.findById(fileId)!!.toBlogFile())
+        }
+
+        // Группировка: comment -> reaction -> users
+        val byCommentReaction = reg.groupBy { it[CommentReactions.comment].value }.mapValues { (_, rows) ->
+            rows.groupBy { it[Reactions.id].value }.mapValues { (_, rlist) ->
+                rlist.map {
+                    ReactionDto.UserInfo(
+                        login = it[Diaries.login],
+                        nickname = it[Users.nickname]
+                    )
+                }
+            }
+        }
+
+        val out = mutableMapOf<UUID, MutableMap<UUID, ReactionDto.ReactionInfo>>()
+
+        commentIds.forEach { cid -> out[cid] = mutableMapOf() }
+
+        byCommentReaction.forEach { (cid, byRx) ->
+            val perComment = out.getValue(cid)
+            byRx.forEach { (rxId, users) ->
+                val name = reg.first { it[Reactions.id].value == rxId }[Reactions.name]
+                val iconUrl = reactionToIconUrl.getValue(rxId)
+                val anon = anonCounts[cid to rxId] ?: 0
+                perComment[rxId] = ReactionDto.ReactionInfo(
+                    id = rxId,
+                    name = name,
+                    iconUri = iconUrl,
+                    count = users.size + anon,
+                    users = users,
+                    anonymousCount = anon
+                )
+            }
+        }
+
+        // Реакции только от анонимов
+        anonCounts.forEach { (k, anon) ->
+            val (cid, rxId) = k
+            val perComment = out.getValue(cid)
+            if (perComment[rxId] == null) {
+                val rx = Reactions.innerJoin(Files)
+                    .slice(Reactions.id, Reactions.name, Files.id)
+                    .select { Reactions.id eq rxId }
+                    .firstOrNull() ?: return@forEach
+                val iconUrl = storageService.getFileURL(FileEntity.findById(rx[Files.id].value)!!.toBlogFile())
+                perComment[rxId] = ReactionDto.ReactionInfo(
+                    id = rxId,
+                    name = rx[Reactions.name],
+                    iconUri = iconUrl,
+                    count = anon,
+                    users = emptyList(),
+                    anonymousCount = anon
+                )
+            }
+        }
+
+        return out.mapValues { (_, map) -> map.values.toList() }
+    }
+
+    private data class ReplyMeta(val login: String, val nickname: String)
+
+    private fun Transaction.loadReplyMeta(parentIds: Set<UUID>): Map<UUID, ReplyMeta> {
+        if (parentIds.isEmpty()) return emptyMap()
+
+        val authorDiary = Diaries.alias("reply_author_diary")
+        val rows = Comments
+            .innerJoin(Users, { Comments.author }, { Users.id })
+            .leftJoin(authorDiary, { Users.id }, { authorDiary[Diaries.owner] })
+            .slice(
+                Comments.id,
+                Users.nickname,
+                authorDiary[Diaries.login],
+            )
+            .select { Comments.id inList parentIds.toList() }
+            .toList()
+
+        return rows.associate { r ->
+            r[Comments.id].value to ReplyMeta(
+                login = r[authorDiary[Diaries.login]],
+                nickname = r[Users.nickname]
+            )
+        }
+    }
+
+    // Публичный фасад: из PostEntity в View одним вызовом, без N+1
+    fun toPostView(viewer: Viewer, postEntity: PostEntity): PostDto.View = transaction {
+        toPostViewById(viewer, postEntity.id.value)
+    }
+
+    // Внутренний конвейер для одного поста (один SELECT по базовому JOIN + пакетные догрузки)
+    private fun Transaction.toPostViewById(viewer: Viewer, postId: UUID): PostDto.View {
+        val baseJoin = getBasicPostJoin()
+
+        val row = baseJoin
+            .slice(postBaseSlice)
+            .select { Posts.id eq EntityID(postId, Posts) }
+            .limit(1)
+            .firstOrNull() ?: throw PostNotFoundException()
+
+        val rowsByPostId = mapOf(postId to row)
+
+        val accessChecks = getBulkAccessGroupChecks(viewer, rowsByPostId)
+        val tagsByPost = loadTagsForPosts(setOf(postId))
+        val commentsByPost = loadCommentsForPosts(viewer, setOf(postId))
+        val reactionsByPost = loadPostReactions(setOf(postId))
+
+        return toPostView(
+            row = row,
+            comments = commentsByPost[postId] ?: emptyList(),
+            reactions = reactionsByPost[postId] ?: emptyList(),
+            tags = tagsByPost[postId] ?: emptySet(),
+            accessGroupChecks = accessChecks.getValue(postId)
+        )
     }
 }

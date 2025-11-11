@@ -75,6 +75,7 @@ interface PostService {
      * @return Page of posts ordered by last comment time
      */
     fun getDiscussedPosts(viewer: Viewer, pageable: Pageable): Page<PostDto.View>
+    // TODO get friends posts
 }
 
 sealed interface Viewer {

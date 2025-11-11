@@ -11,12 +11,17 @@ import org.koin.dsl.module
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 
+// My goals
+// TODO what about Pages? Are they ready? Should I have start page or some order on them? Should pages have visibility? Own links?
+// Profile page
+// Allow post owners to delete comments of other users
+// TODO Cors
+// Better db queries
+// Restrict reactions to posts
+
 // MVP
 // Settings
-// Profile page
 // Communities
-// Allow post owners to delete comments of other users
-// TODO what about Pages? Are they ready? Should I have start page or some order on them? Should pages have visibility? Own links?
 // Ignore list
 // Custom website design css
 // Multiple diary styles (switch between them)
@@ -25,11 +30,9 @@ import org.koin.logger.slf4jLogger
 
 // POOL
 // TODO telegram integration
-// Restrict reactions to posts
 // Cascade delete and stuff
 // TODO API documentation
 // TODO Integration tests
-// TODO Cors
 
 // THIRD ITERATION
 // Caches
