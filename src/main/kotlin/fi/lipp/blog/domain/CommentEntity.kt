@@ -10,7 +10,27 @@ class CommentEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     companion object : UUIDEntityClass<CommentEntity>(Comments)
 
     val postId by Comments.post
-    val authorId by Comments.author
+    val authorType by Comments.authorType
+    val localAuthor by Comments.localAuthor
+    val externalAuthor by Comments.externalAuthor
+    val anonymousAuthor by Comments.anonymousAuthor
+    val authorId: UUID?
+        get() = when (authorType) {
+            CommentAuthorType.LOCAL -> localAuthor!!.value
+            CommentAuthorType.EXTERNAL -> ExternalUserEntity.findById(externalAuthor!!)!!.user?.value
+            CommentAuthorType.ANONYMOUS -> null
+        }
+    val authorNickname: String
+        get() = when (authorType) {
+            CommentAuthorType.LOCAL -> UserEntity.findById(localAuthor!!)!!.nickname
+            CommentAuthorType.EXTERNAL -> ExternalUserEntity.findById(externalAuthor!!)!!.nickname
+            CommentAuthorType.ANONYMOUS -> AnonymousUserEntity.findById(anonymousAuthor!!)!!.nickname
+        }
+    val authorDiaryLogin: String?
+        get() {
+            val authorId = authorId ?: return null
+            return DiaryEntity.find { Diaries.owner eq authorId }.single().login
+        }
 
     var avatar by Comments.avatar
     var text by Comments.text

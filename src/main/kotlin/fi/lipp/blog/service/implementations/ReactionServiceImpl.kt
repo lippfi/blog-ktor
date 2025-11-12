@@ -274,7 +274,7 @@ class ReactionServiceImpl(
             val diaryOwnerId = DiaryEntity.findById(postEntity.diaryId)!!.owner.value
 
             // Check reaction permissions
-            if (commentEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, commentEntity.reactionGroupId.value, diaryOwnerId)) {
+            if (commentEntity.authorId != userId && !accessGroupService.inGroup(viewer, commentEntity.reactionGroupId.value, diaryOwnerId)) {
                 throw WrongUserException()
             }
             val reactionId = ReactionEntity.find { Reactions.name eq reactionName }.firstOrNull()?.id ?: throw ReactionNotFoundException()
@@ -294,8 +294,11 @@ class ReactionServiceImpl(
                         }
 
                         // Create notification for comment author
-                        if (viewer.userId != commentEntity.authorId.value) {
-                            notificationService.notifyAboutCommentReaction(commentEntity.authorId.value)
+                        val commentAuthor = commentEntity.authorId
+                        if (commentAuthor != null) {
+                            if (viewer.userId != commentEntity.authorId) {
+                                notificationService.notifyAboutCommentReaction(commentAuthor)
+                            }
                         }
 
                         // Send WebSocket notification about reaction added
@@ -337,7 +340,7 @@ class ReactionServiceImpl(
             val diaryOwnerId = DiaryEntity.findById(postEntity.diaryId)!!.owner.value
 
             // Check reaction permissions
-            if (commentEntity.authorId.value != userId && !accessGroupService.inGroup(viewer, commentEntity.reactionGroupId.value, diaryOwnerId)) {
+            if (commentEntity.authorId != userId && !accessGroupService.inGroup(viewer, commentEntity.reactionGroupId.value, diaryOwnerId)) {
                 throw WrongUserException()
             }
             val reactionId = ReactionEntity.find { Reactions.name eq reactionName }.firstOrNull()?.id ?: throw ReactionNotFoundException()

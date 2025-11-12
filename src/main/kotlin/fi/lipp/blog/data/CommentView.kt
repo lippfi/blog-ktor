@@ -13,7 +13,7 @@ sealed interface CommentDto {
 
         val avatar : String,
         val authorNickname : String,
-        val authorLogin: String,
+        val authorLogin: String?,
 
         val diaryLogin: String,
         val postUri: String,
@@ -34,7 +34,7 @@ sealed interface CommentDto {
     data class ReplyView(
         @Serializable(with = UUIDSerializer::class)
         val id: UUID,
-        val login: String,
+        val login: String?,
         val nickname: String,
     )
 

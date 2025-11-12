@@ -135,7 +135,7 @@ class NotificationServiceImpl : NotificationService {
     override fun notifyAboutCommentReaction(commentId: UUID) {
         transaction {
             val commentAuthor = CommentEntity.findById(commentId)?.authorId ?: return@transaction
-            val shouldBeNotified = isNotificationEnabled(commentAuthor.value) { entity -> entity.notifyAboutCommentReactions }
+            val shouldBeNotified = isNotificationEnabled(commentAuthor) { entity -> entity.notifyAboutCommentReactions }
             if (shouldBeNotified) {
                 Notifications.insert {
                     it[type] = NotificationType.COMMENT_REACTION
@@ -166,7 +166,7 @@ class NotificationServiceImpl : NotificationService {
     override fun notifyAboutCommentMention(userId: UUID, commentId: UUID, mentionLogin: String) {
         transaction {
             val commentEntity = CommentEntity.findById(commentId) ?: return@transaction
-            if (commentEntity.authorId.value != userId) throw WrongUserException()
+            if (commentEntity.authorId != userId) throw WrongUserException()
 
             val diaryOwnerByLogin = DiaryEntity.find { Diaries.login eq mentionLogin }.singleOrNull()?.owner ?: return@transaction
             val shouldBeNotified = isNotificationEnabled(diaryOwnerByLogin.value) { entity -> entity.notifyAboutMentions }

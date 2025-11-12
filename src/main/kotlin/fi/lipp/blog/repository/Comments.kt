@@ -8,7 +8,10 @@ import java.time.LocalDateTime
 
 object Comments : UUIDTable() {
     val post = reference("post", Posts, onDelete = ReferenceOption.CASCADE)
-    val author = reference("author", Users, onDelete = ReferenceOption.CASCADE)
+    val authorType = enumerationByName("author_type", 32, CommentAuthorType::class)
+    val localAuthor = reference("local_author", Users, onDelete = ReferenceOption.CASCADE).nullable().index("idx_comment_local_author")
+    val externalAuthor = reference("external_author", ExternalUsers, onDelete = ReferenceOption.CASCADE).nullable().index("idx_comment_external_author")
+    val anonymousAuthor = reference("anonymous_author", AnonymousUsers, onDelete = ReferenceOption.CASCADE).nullable().index("idx_comment_anonymous_author")
 
     val avatar = varchar("avatar", 1024)
     val text = text("text")
@@ -16,6 +19,12 @@ object Comments : UUIDTable() {
 
     val parentComment = reference("parent_comment", Comments).nullable()
     val reactionGroup = reference("reaction_group", AccessGroups, onDelete = ReferenceOption.CASCADE)
+}
+
+enum class CommentAuthorType {
+    LOCAL,
+    EXTERNAL,
+    ANONYMOUS,
 }
 
 object CommentReactions : UUIDTable() {

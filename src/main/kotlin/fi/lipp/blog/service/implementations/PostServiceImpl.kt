@@ -368,15 +368,12 @@ class PostServiceImpl(
 
     private fun collectReplyTo(parentCommentId: UUID?): CommentDto.ReplyView? {
         if (parentCommentId == null) return null
-
         val parentComment = CommentEntity.findById(parentCommentId) ?: return null
-        val parentAuthor = UserEntity.findById(parentComment.authorId) ?: return null
-        val parentAuthorDiary = DiaryEntity.find { Diaries.owner eq parentComment.authorId }.singleOrNull() ?: return null
 
         return CommentDto.ReplyView(
             id = parentComment.id.value,
-            login = parentAuthorDiary.login,
-            nickname = parentAuthor.nickname
+            login = parentComment.authorDiaryLogin,
+            nickname = parentComment.authorNickname
         )
     }
 
@@ -388,32 +385,24 @@ class PostServiceImpl(
             val diaryOwnerId = diaryEntity.owner.value
             val userId = (viewer as? Viewer.Registered)?.userId
 
-            if (userId != postEntity.authorId && userId != commentEntity.authorId.value &&
+            val isAuthorOfPost = (userId == postEntity.authorId)
+            val isCommentOwner =
+                when (commentEntity.authorType) {
+                    CommentAuthorType.LOCAL -> userId == commentEntity.localAuthor?.value
+                    CommentAuthorType.EXTERNAL -> {
+                        val ext = commentEntity.externalAuthor?.let { ExternalUserEntity.findById(it) }
+                        userId != null && ext?.user?.value == userId
+                    }
+                    CommentAuthorType.ANONYMOUS -> false
+                }
+
+            if (!isAuthorOfPost && !isCommentOwner &&
                 !accessGroupService.inGroup(viewer, postEntity.readGroupId.value, diaryOwnerId)) {
                 throw CommentNotFoundException()
             }
 
-            val author = UserEntity.findById(commentEntity.authorId) ?: throw InternalServerError()
-            val authorDiary = DiaryEntity.find { Diaries.owner eq commentEntity.authorId }.single()
-            val isReactable = (userId == commentEntity.authorId.value) || 
-                (userId != null && accessGroupService.inGroup(viewer, commentEntity.reactionGroupId.value, diaryOwnerId))
-
-            val inReplyTo = collectReplyTo(commentEntity.parentComment?.value)
-
-            CommentDto.View(
-                id = commentEntity.id.value,
-                authorLogin = authorDiary.login,
-                authorNickname = author.nickname,
-                postUri = postEntity.uri,
-                diaryLogin = diaryEntity.login,
-                avatar = commentEntity.avatar,
-                text = commentEntity.text,
-                creationTime = commentEntity.creationTime,
-                isReactable = isReactable,
-                reactions = reactionService.getCommentReactions(commentEntity.id.value),
-                reactionGroupId = commentEntity.reactionGroupId.value,
-                inReplyTo = inReplyTo
-            )
+            val updated = commentEntity.toComment(this, viewer)
+            updated
         }
     }
 
@@ -433,7 +422,8 @@ class PostServiceImpl(
             val now = java.time.LocalDateTime.now().toKotlinLocalDateTime()
             val commentId = Comments.insertAndGetId {
                 it[post] = postEntity.id
-                it[author] = userId
+                it[authorType] = CommentAuthorType.LOCAL
+                it[localAuthor] = userId
                 it[avatar] = comment.avatar
                 it[text] = comment.text
                 it[parentComment] = comment.parentCommentId
@@ -455,7 +445,7 @@ class PostServiceImpl(
             notificationService.subscribeToComments(userId, postId)
             notificationService.notifyAboutComment(commentId.value, userId, postId)
 
-            val comment = CommentEntity.findById(commentId)!!.toComment(this)
+            val comment = CommentEntity.findById(commentId)!!.toComment(this, Viewer.Registered(userId))
 
             commentWebSocketService.notifyCommentAdded(comment)
 
@@ -466,13 +456,13 @@ class PostServiceImpl(
     override fun updateComment(userId: UUID, comment: CommentDto.Update): CommentDto.View {
         return transaction {
             val commentEntity = CommentEntity.findById(comment.id) ?: throw CommentNotFoundException()
-            if (userId != commentEntity.authorId.value) throw WrongUserException()
+            if (userId != commentEntity.authorId) throw WrongUserException()
             commentEntity.apply {
                 avatar = comment.avatar
                 text = comment.text
             }
 
-            val updatedComment = commentEntity.toComment(this)
+            val updatedComment = commentEntity.toComment(this, Viewer.Registered(userId))
 
             // Notify WebSocket clients about the updated comment
             commentWebSocketService.notifyCommentUpdated(updatedComment)
@@ -481,10 +471,11 @@ class PostServiceImpl(
         }
     }
 
+    // TODO allow post owner to delete comments
     override fun deleteComment(userId: UUID, commentId: UUID) {
         return transaction {
             val commentEntity = CommentEntity.findById(commentId) ?: throw CommentNotFoundException()
-            if (userId != commentEntity.authorId.value) throw WrongUserException()
+            if (userId != commentEntity.authorId) throw WrongUserException()
 
             val postId = commentEntity.postId.value
 
@@ -652,25 +643,45 @@ class PostServiceImpl(
     }
 
     @Suppress("UNUSED_PARAMETER")
-    private fun CommentEntity.toComment(transaction: Transaction): CommentDto.View {
+    private fun CommentEntity.toComment(transaction: Transaction, viewer: Viewer): CommentDto.View {
         val commentedPost = PostEntity.findById(postId)!!
         val commentedDiary = DiaryEntity.findById(commentedPost.diaryId)!!
         val commentedDiaryOwnerId = commentedDiary.owner.value
-        val author = UserEntity.findById(authorId) ?: throw InternalServerError()
-        val authorDiary = DiaryEntity.find { Diaries.owner eq authorId }.single()
-        val viewer = Viewer.Registered(authorId.value)
-        val isReactable = (authorId.value == author.id.value) || accessGroupService.inGroup(viewer, reactionGroupId.value, commentedDiaryOwnerId)
+
+        val (authorLogin: String?, authorNickname: String) = when (authorType) {
+            CommentAuthorType.LOCAL -> {
+                val u = UserEntity.findById(localAuthor!!)!!
+                val d = DiaryEntity.find { Diaries.owner eq u.id }.single()
+                d.login to u.nickname
+            }
+            CommentAuthorType.EXTERNAL -> {
+                val ext = ExternalUserEntity.findById(externalAuthor!!)!!
+                val linked = ext.user?.let { UserEntity.findById(it) }
+                if (linked != null) {
+                    val d = DiaryEntity.find { Diaries.owner eq linked.id }.single()
+                   d.login to linked.nickname
+                } else {
+                    null to ext.nickname
+                }
+            }
+            CommentAuthorType.ANONYMOUS -> {
+                val anon = AnonymousUserEntity.findById(anonymousAuthor!!)!!
+                null to anon.nickname
+            }
+        }
+
+        val canReact = accessGroupService.inGroup(viewer, reactionGroupId.value, commentedDiaryOwnerId)
         val inReplyTo = collectReplyTo(parentComment?.value)
         return CommentDto.View(
             id = id.value,
-            authorLogin = authorDiary.login,
-            authorNickname = author.nickname,
+            authorLogin = authorLogin,
+            authorNickname = authorNickname,
             diaryLogin = commentedDiary.login,
             postUri = commentedPost.uri,
             avatar = avatar,
             text = text,
             creationTime = creationTime,
-            isReactable = isReactable,
+            isReactable = canReact,
             reactions = reactionService.getCommentReactions(id.value),
             reactionGroupId = reactionGroupId.value,
             inReplyTo = inReplyTo
@@ -728,6 +739,13 @@ class PostServiceImpl(
     val externalPostAuthor = ExternalUsers.alias("external_post_author")
     val externalUserLinkedUser = Users.alias("external_user_linked_user")
     val localAuthorDiary = Diaries.alias("author_diary")
+
+    val commentLocalAuthor = Users.alias("comment_local_author")
+    val commentLocalAuthorDiary = Diaries.alias("comment_local_author_diary")
+    val commentExternalAuthor = ExternalUsers.alias("comment_external_author")
+    val commentExternalLinkedUser = Users.alias("comment_external_linked_user")
+    val commentExternalLinkedUserDiary = Diaries.alias("comment_external_linked_user_diary")
+    val commentAnonymousAuthor = AnonymousUsers.alias("comment_anonymous_author")
 
     private fun Transaction.toPostView(
         row: ResultRow,
@@ -1016,32 +1034,48 @@ class PostServiceImpl(
     ): Map<UUID, List<CommentDto.View>> {
         if (postIds.isEmpty()) return emptyMap()
 
-        val authorDiary = Diaries.alias("comment_author_diary")
         val postDiaryForComment = Diaries.alias("comment_post_diary")
+
         val rows = Comments
-            .innerJoin(Users, { Comments.author }, { Users.id })
-            .leftJoin(authorDiary, { Users.id }, { authorDiary[Diaries.owner] })
+            // LOCAL
+            .leftJoin(commentLocalAuthor, { Comments.localAuthor }, { commentLocalAuthor[Users.id] })
+            .leftJoin(commentLocalAuthorDiary, { commentLocalAuthor[Users.id] }, { commentLocalAuthorDiary[Diaries.owner] })
+            // EXTERNAL (+ linked local)
+            .leftJoin(commentExternalAuthor, { Comments.externalAuthor }, { commentExternalAuthor[ExternalUsers.id] })
+            .leftJoin(commentExternalLinkedUser, { commentExternalAuthor[ExternalUsers.user] }, { commentExternalLinkedUser[Users.id] })
+            .leftJoin(commentExternalLinkedUserDiary, { commentExternalLinkedUser[Users.id] }, { commentExternalLinkedUserDiary[Diaries.owner] })
+            // ANONYMOUS
+            .leftJoin(commentAnonymousAuthor, { Comments.anonymousAuthor }, { commentAnonymousAuthor[AnonymousUsers.id] })
+            // POST + его дневник
             .innerJoin(Posts, { Comments.post }, { Posts.id })
             .innerJoin(postDiaryForComment, { Posts.diary }, { postDiaryForComment[Diaries.id] })
             .slice(
-                Comments.id, Comments.post, Comments.author, Comments.avatar, Comments.text,
-                Comments.creationTime, Comments.reactionGroup, Comments.parentComment,
-                Users.nickname,
-                authorDiary[Diaries.login],
+                // comment
+                Comments.id, Comments.post, Comments.authorType, Comments.localAuthor, Comments.externalAuthor, Comments.anonymousAuthor,
+                Comments.avatar, Comments.text, Comments.creationTime, Comments.reactionGroup, Comments.parentComment,
+                // post
                 Posts.uri,
-                postDiaryForComment[Diaries.login],
-                postDiaryForComment[Diaries.owner],
+                postDiaryForComment[Diaries.login], postDiaryForComment[Diaries.owner],
+                // local author
+                commentLocalAuthor[Users.id], commentLocalAuthor[Users.nickname],
+                commentLocalAuthorDiary[Diaries.login],
+                // external author
+                commentExternalAuthor[ExternalUsers.id], commentExternalAuthor[ExternalUsers.user], commentExternalAuthor[ExternalUsers.nickname],
+                commentExternalLinkedUser[Users.id], commentExternalLinkedUser[Users.nickname],
+                commentExternalLinkedUserDiary[Diaries.login],
+                // anonymous author
+                commentAnonymousAuthor[AnonymousUsers.id], commentAnonymousAuthor[AnonymousUsers.nickname]
             )
             .select { Comments.post inList postIds.toList() }
             .orderBy(Comments.creationTime to SortOrder.ASC)
             .toList()
 
-        // Пакетные права на реакцию
         val viewerUserId = (viewer as? Viewer.Registered)?.userId
-        val pairs = mutableSetOf<Pair<UUID, UUID>>()
+        val pairs = mutableSetOf<Pair<UUID, UUID>>() // (reactionGroupId, diaryOwnerId)
         rows.forEach { r ->
-            val authorId = r[Comments.author].value
-            if (viewerUserId != authorId) {
+            val cmLocalAuthorId = r[Comments.localAuthor]?.value
+            val isSelf = (viewerUserId != null && cmLocalAuthorId != null && viewerUserId == cmLocalAuthorId)
+            if (!isSelf) {
                 pairs.add(r[Comments.reactionGroup].value to r[postDiaryForComment[Diaries.owner]].value)
             }
         }
@@ -1049,41 +1083,62 @@ class PostServiceImpl(
             accessGroupService.inGroup(viewer, groupId, ownerId)
         }
 
-// ... rows получены, canReactByPair посчитан ...
-
-// 1) Собираем id родительских комментариев
         val parentIds = rows.mapNotNull { it[Comments.parentComment]?.value }.toSet()
         val replyMeta = loadReplyMeta(parentIds)
 
-// 2) Реакции к комментариям
         val commentIds = rows.map { it[Comments.id].value }.toSet()
         val reactionsByComment = loadCommentReactions(commentIds)
 
-// 3) DTO
         val byPost = linkedMapOf<UUID, MutableList<CommentDto.View>>()
+
         rows.forEach { r ->
             val postId = r[Comments.post].value
-            val cmAuthorId = r[Comments.author].value
+            val diaryLogin = r[postDiaryForComment[Diaries.login]]
+            val postUri = r[Posts.uri]
+            val diaryOwnerId = r[postDiaryForComment[Diaries.owner]].value
+
+            // Автор
+            val authorType = r[Comments.authorType]
+            val (authorLogin: String?, authorNickname: String, isSelf: Boolean) = when (authorType) {
+                CommentAuthorType.LOCAL -> {
+                    val uid = r[commentLocalAuthor[Users.id]]?.value
+                    val login = r[commentLocalAuthorDiary[Diaries.login]]
+                    val nick = r[commentLocalAuthor[Users.nickname]]
+                    Triple(login, nick, viewerUserId != null && uid != null && viewerUserId == uid)
+                }
+                CommentAuthorType.EXTERNAL -> {
+                    val linkedUid = r[commentExternalAuthor[ExternalUsers.user]]?.value
+                    if (linkedUid != null) {
+                        val login = r[commentExternalLinkedUserDiary[Diaries.login]]
+                        val nick = r[commentExternalLinkedUser[Users.nickname]]
+                        Triple(login, nick, viewerUserId != null && viewerUserId == linkedUid)
+                    } else {
+                        val nick = r[commentExternalAuthor[ExternalUsers.nickname]]
+                        Triple(null, nick, false)
+                    }
+                }
+                CommentAuthorType.ANONYMOUS -> {
+                    val nick = r[commentAnonymousAuthor[AnonymousUsers.nickname]]
+                    Triple(null, nick, false)
+                }
+            }
+
             val canReact =
-                (viewerUserId == cmAuthorId) ||
-                        (canReactByPair[r[Comments.reactionGroup].value to r[postDiaryForComment[Diaries.owner]].value] ?: false)
+                isSelf || (canReactByPair[r[Comments.reactionGroup].value to diaryOwnerId] ?: false)
 
             val parentId = r[Comments.parentComment]?.value
             val inReply: CommentDto.ReplyView? = parentId?.let { pid ->
                 val meta = replyMeta[pid]
                 if (meta != null) CommentDto.ReplyView(id = pid, login = meta.login, nickname = meta.nickname)
-                else {
-                    // todo log
-                    CommentDto.ReplyView(id = pid, login = "unknown", nickname = "unknown")
-                }
+                else CommentDto.ReplyView(id = pid, login = null, nickname = "unknown")
             }
 
             val view = CommentDto.View(
                 id = r[Comments.id].value,
-                authorLogin = r[authorDiary[Diaries.login]],
-                authorNickname = r[Users.nickname],
-                postUri = r[Posts.uri],
-                diaryLogin = r[postDiaryForComment[Diaries.login]],
+                authorLogin = authorLogin,
+                authorNickname = authorNickname,
+                postUri = postUri,
+                diaryLogin = diaryLogin,
                 avatar = r[Comments.avatar],
                 text = r[Comments.text],
                 creationTime = r[Comments.creationTime],
@@ -1290,28 +1345,46 @@ class PostServiceImpl(
         return out.mapValues { (_, map) -> map.values.toList() }
     }
 
-    private data class ReplyMeta(val login: String, val nickname: String)
+    private data class ReplyMeta(val login: String?, val nickname: String)
 
     private fun Transaction.loadReplyMeta(parentIds: Set<UUID>): Map<UUID, ReplyMeta> {
         if (parentIds.isEmpty()) return emptyMap()
 
-        val authorDiary = Diaries.alias("reply_author_diary")
         val rows = Comments
-            .innerJoin(Users, { Comments.author }, { Users.id })
-            .leftJoin(authorDiary, { Users.id }, { authorDiary[Diaries.owner] })
+            .leftJoin(Users, { Comments.localAuthor }, { Users.id })
+            .leftJoin(Diaries, { Users.id }, { Diaries.owner })
+            .leftJoin(ExternalUsers, { Comments.externalAuthor }, { ExternalUsers.id })
+            .leftJoin(Users.alias("reply_ext_link_user"), { ExternalUsers.user }, { Users.alias("reply_ext_link_user")[Users.id] })
+            .leftJoin(Diaries.alias("reply_ext_link_diary"),
+                { Users.alias("reply_ext_link_user")[Users.id] },
+                { Diaries.alias("reply_ext_link_diary")[Diaries.owner] }
+            )
+            .leftJoin(AnonymousUsers, { Comments.anonymousAuthor }, { AnonymousUsers.id })
             .slice(
-                Comments.id,
-                Users.nickname,
-                authorDiary[Diaries.login],
+                Comments.id, Comments.authorType,
+                Users.nickname, Diaries.login,
+                ExternalUsers.nickname,
+                Users.alias("reply_ext_link_user")[Users.nickname],
+                Diaries.alias("reply_ext_link_diary")[Diaries.login],
+                AnonymousUsers.nickname
             )
             .select { Comments.id inList parentIds.toList() }
             .toList()
 
         return rows.associate { r ->
-            r[Comments.id].value to ReplyMeta(
-                login = r[authorDiary[Diaries.login]],
-                nickname = r[Users.nickname]
-            )
+            val authorType = r[Comments.authorType]
+            val (login: String?, nickname: String) = when (authorType) {
+                CommentAuthorType.LOCAL ->
+                    r[Diaries.login] to r[Users.nickname]
+                CommentAuthorType.EXTERNAL -> {
+                    val linkedLogin = r[Diaries.alias("reply_ext_link_diary")[Diaries.login]]
+                    val linkedNick = r[Users.alias("reply_ext_link_user")[Users.nickname]]
+                    linkedLogin to linkedNick
+                }
+                CommentAuthorType.ANONYMOUS ->
+                    null to r[AnonymousUsers.nickname]
+            }
+            r[Comments.id].value to ReplyMeta(login = login, nickname = nickname)
         }
     }
 

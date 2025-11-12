@@ -77,6 +77,7 @@ abstract class UnitTestBase {
                 SchemaUtils.create(
                     Users,
                     ExternalUsers,
+                    AnonymousUsers,
                     Files,
                     UserAvatars,
                     Tags,
