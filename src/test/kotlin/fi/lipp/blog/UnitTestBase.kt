@@ -94,6 +94,8 @@ abstract class UnitTestBase {
                     PostTags,
                     Comments,
                     Reactions,
+                    ReactionSubsets,
+                    ReactionSubsetReactions,
                     PostReactions,
                     AnonymousPostReactions,
                     UserUploads,

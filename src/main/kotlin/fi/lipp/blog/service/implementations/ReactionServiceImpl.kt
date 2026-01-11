@@ -9,6 +9,8 @@ import fi.lipp.blog.repository.*
 import fi.lipp.blog.service.*
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.FileNotFoundException
 import java.util.*
@@ -132,6 +134,17 @@ class ReactionServiceImpl(
                 throw WrongUserException()
             }
             val reactionId = ReactionEntity.find { Reactions.name eq reactionName }.firstOrNull()?.id ?: throw ReactionNotFoundException()
+
+            val subsetId = postEntity.reactionSubsetId?.value
+            if (subsetId != null) {
+                val isAllowed = ReactionSubsetReactions.select {
+                    (ReactionSubsetReactions.subset eq EntityID(subsetId, ReactionSubsets)) and
+                    (ReactionSubsetReactions.reaction eq reactionId)
+                }.any()
+                if (!isAllowed) {
+                    throw WrongUserException()
+                }
+            }
             when (viewer) {
                 is Viewer.Registered -> {
                     val hasReaction = PostReactions.select { 
@@ -176,6 +189,78 @@ class ReactionServiceImpl(
                     }
                 }
             }
+        }
+    }
+
+    override fun createReactionSubset(userId: UUID, diaryLogin: String, name: String, reactionNames: List<String>): UUID {
+        return transaction {
+            val userDiary = DiaryEntity.find { Diaries.login eq diaryLogin }.first()
+            if (userDiary.owner.value != userId) {
+                throw WrongUserException()
+            }
+
+            val subset = ReactionSubsetEntity.new {
+                this.diary = userDiary.id
+                this.name = name
+            }
+            val subsetId = subset.id.value
+
+            if (reactionNames.isNotEmpty()) {
+                val reactions = ReactionEntity.find { Reactions.name inList reactionNames }.toList()
+                // Ensure all provided names exist
+                if (reactions.size != reactionNames.toSet().size) {
+                    throw ReactionNotFoundException()
+                }
+                reactions.forEach { rx ->
+                    ReactionSubsetReactionEntity.new {
+                        this.subset = EntityID(subsetId, ReactionSubsets)
+                        this.reaction = rx.id
+                    }
+                }
+            }
+
+            subsetId
+        }
+    }
+
+    override fun updateReactionSubset(userId: UUID, subsetId: UUID, name: String?, reactionNames: List<String>?) {
+        transaction {
+            val subset = ReactionSubsetEntity.findById(subsetId) ?: return@transaction
+            val subsetDiary = DiaryEntity.findById(subset.diary)!!
+            val diaryOwner = subsetDiary.owner
+            if (diaryOwner.value != userId) throw WrongUserException()
+
+            if (name != null) {
+                subset.name = name
+            }
+
+            if (reactionNames != null) {
+                ReactionSubsetReactions.deleteWhere { ReactionSubsetReactions.subset eq EntityID(subsetId, ReactionSubsets) }
+
+                if (reactionNames.isNotEmpty()) {
+                    val reactions = ReactionEntity.find { Reactions.name inList reactionNames }.toList()
+                    if (reactions.size != reactionNames.toSet().size) {
+                        throw ReactionNotFoundException()
+                    }
+                    for (reaction in reactions) {
+                        ReactionSubsetReactions.insert {
+                            it[ReactionSubsetReactions.subset] = subset.id
+                            it[ReactionSubsetReactions.reaction] = reaction.id
+                        }
+                    }
+                }
+            }
+
+        }
+    }
+
+    override fun deleteReactionSubset(userId: UUID, subsetId: UUID) {
+        transaction {
+            val subset = ReactionSubsetEntity.findById(subsetId) ?: return@transaction
+            val subsetDiary = DiaryEntity.findById(subset.diary)!!
+            val diaryOwner = subsetDiary.owner
+            if (diaryOwner.value != userId) throw WrongUserException()
+            ReactionSubsets.deleteWhere { ReactionSubsets.id eq subsetId }
         }
     }
 

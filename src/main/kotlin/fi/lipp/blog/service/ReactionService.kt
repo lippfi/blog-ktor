@@ -25,4 +25,8 @@ interface ReactionService {
     fun getCommentReactions(commentId: UUID): List<ReactionDto.ReactionInfo>
 
     fun search(text: String): List<ReactionDto.View>
+
+    fun createReactionSubset(userId: UUID, diaryLogin: String, name: String, reactionNames: List<String>): UUID
+    fun updateReactionSubset(userId: UUID, subsetId: UUID, name: String?, reactionNames: List<String>?)
+    fun deleteReactionSubset(userId: UUID, subsetId: UUID)
 }

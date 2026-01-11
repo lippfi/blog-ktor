@@ -12,14 +12,14 @@ import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 
 // My goals
+// TODO figure out a better way to store reactions
 // TODO what about Pages? Are they ready? Should I have start page or some order on them? Should pages have visibility? Own links?
 // Profile page
-// Allow post owners to delete comments of other users
 // TODO Cors
-// Better db queries
 // Restrict reactions to posts
 
 // MVP
+// Allow post owners to delete comments of other users
 // Settings
 // Communities
 // Ignore list

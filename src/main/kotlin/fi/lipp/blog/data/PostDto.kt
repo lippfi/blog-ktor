@@ -67,6 +67,9 @@ sealed interface PostDto {
 
         val isPreface : Boolean,
         val isEncrypted: Boolean,
+
+        @Serializable(with = UUIDSerializer::class)
+        val reactionSubset: UUID? = null,
     ) : PostDto
 
     @Serializable

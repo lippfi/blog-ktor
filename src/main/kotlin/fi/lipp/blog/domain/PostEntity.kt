@@ -1,14 +1,11 @@
 package fi.lipp.blog.domain
 
-import fi.lipp.blog.repository.ExternalUsers
 import fi.lipp.blog.repository.PostAuthorType
 import fi.lipp.blog.repository.PostTags
 import fi.lipp.blog.repository.Posts
 import org.jetbrains.exposed.dao.UUIDEntity
 import org.jetbrains.exposed.dao.UUIDEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.select
 import java.util.*
 
 class PostEntity(id: EntityID<UUID>) : UUIDEntity(id) {
@@ -47,4 +44,5 @@ class PostEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var commentGroupId by Posts.commentGroup
     var reactionGroupId by Posts.reactionGroup
     var commentReactionGroupId by Posts.commentReactionGroup
+    var reactionSubsetId by Posts.reactionSubset
 }

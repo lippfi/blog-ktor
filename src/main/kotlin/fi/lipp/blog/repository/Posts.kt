@@ -29,6 +29,7 @@ object Posts : UUIDTable() {
     val commentGroup = reference("comment_group", AccessGroups, onDelete = ReferenceOption.CASCADE)
     val reactionGroup = reference("reaction_group", AccessGroups, onDelete = ReferenceOption.CASCADE)
     val commentReactionGroup = reference("comment_reaction_group", AccessGroups, onDelete = ReferenceOption.CASCADE)
+    val reactionSubset = reference("reaction_subset", ReactionSubsets, onDelete = ReferenceOption.SET_NULL).nullable()
     val lastCommentTime = datetime("last_comment_time").nullable()
 }
 

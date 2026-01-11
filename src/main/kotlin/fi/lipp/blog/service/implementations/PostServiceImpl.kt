@@ -517,6 +517,10 @@ class PostServiceImpl(
             )
 
             val commentReactionGroupEntity = validateCommentReactionGroup(diaryId, post.commentReactionGroupId)
+            val reactionSubsetEntity = post.reactionSubset?.let { ReactionSubsetEntity.findById(it) }
+            if (reactionSubsetEntity != null) {
+                if (reactionSubsetEntity.diary != diaryId) throw WrongUserException()
+            }
 
             val postId = Posts.insertAndGetId {
                 it[uri] = postUri
@@ -540,6 +544,7 @@ class PostServiceImpl(
                 it[commentGroup] = commentGroupEntity.id
                 it[reactionGroup] = reactionGroupEntity.id
                 it[commentReactionGroup] = commentReactionGroupEntity.id
+                it[reactionSubset] = reactionSubsetEntity?.id
             }
 
             for (tag in post.tags) {
