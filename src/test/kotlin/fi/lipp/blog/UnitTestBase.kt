@@ -98,7 +98,6 @@ abstract class UnitTestBase {
                     ReactionSubsetReactions,
                     PostReactions,
                     AnonymousPostReactions,
-                    UserUploads,
                     FriendRequests,
                     Friends,
                     FriendLabels,

@@ -38,7 +38,6 @@ fun Application.configureDatabases() {
             Comments,
             PostReactions,
             AnonymousPostReactions,
-            UserUploads,
             FriendRequests,
             Friends,
             FriendLabels,

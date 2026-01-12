@@ -3,7 +3,6 @@ package fi.lipp.blog.domain
 import fi.lipp.blog.data.Language
 import fi.lipp.blog.data.NSFWPolicy
 import fi.lipp.blog.data.Sex
-import fi.lipp.blog.data.StorageQuota
 import fi.lipp.blog.repository.Users
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
@@ -26,7 +25,5 @@ class UserEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var language: Language by Users.language
     var birthdate: LocalDate? by Users.birthdate
 
-    // Storage quota and avatar settings
-    var storageQuota: StorageQuota by Users.storageQuota
     var primaryAvatar: EntityID<UUID>? by Users.primaryAvatar
 }

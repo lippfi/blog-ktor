@@ -1,25 +1,39 @@
 package fi.lipp.blog.data
 
-import fi.lipp.blog.util.lastIndexOfOrNull
 import io.ktor.http.content.*
 import java.io.InputStream
 
 data class FileUploadData(
     val fullName: String,
-    val inputStream: InputStream
+    val inputStream: InputStream,
+    val forcedType: FileType? = null
 ) {
-    val name = fullName.substringBeforeLast('.')
-    val extension = fullName.lastIndexOfOrNull('.')?.let { fullName.substring(it) } ?: ""
-    var type = getFileTypeByExtension(extension)
+    val name: String = fullName.substringBeforeLast('.', missingDelimiterValue = fullName)
 
-    private fun getFileTypeByExtension(extension: String): FileType {
-        return when (extension) {
-            ".jpg", ".jpeg", ".png", ".gif" -> FileType.IMAGE
-            ".mp4", ".webm" -> FileType.VIDEO
-            ".mp3" -> FileType.AUDIO
-            ".css" -> FileType.STYLE
-            else -> FileType.OTHER
-        }
+    val ext: String? = fullName
+        .substringAfterLast('.', missingDelimiterValue = "")
+        .lowercase()
+        .takeIf { it.isNotBlank() }
+
+    val mimeType: String = when (ext) {
+        "jpg", "jpeg" -> "image/jpeg"
+        "png" -> "image/png"
+        "gif" -> "image/gif"
+        "webp" -> "image/webp"
+        "svg" -> "image/svg+xml"
+        "mp4" -> "video/mp4"
+        "webm" -> "video/webm"
+        "mp3" -> "audio/mpeg"
+        "css" -> "text/css"
+        else -> "application/octet-stream"
+    }
+
+    val type: FileType = forcedType ?: when (ext) {
+        "jpg", "jpeg", "png", "gif", "webp", "svg" -> FileType.IMAGE
+        "mp4", "webm" -> FileType.VIDEO
+        "mp3" -> FileType.AUDIO
+        "css" -> FileType.STYLE
+        else -> FileType.OTHER
     }
 }
 

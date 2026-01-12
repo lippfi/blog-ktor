@@ -13,6 +13,7 @@ class FileEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     val name by Files.name
     val owner by Files.owner
     val fileType by Files.fileType
+    val storageKey by Files.storageKey
 
     fun toBlogFile(): BlogFile {
         return BlogFile(id.value, owner.value, name, fileType)

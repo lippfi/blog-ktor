@@ -3,7 +3,6 @@ package fi.lipp.blog.repository
 import fi.lipp.blog.data.Language
 import fi.lipp.blog.data.NSFWPolicy
 import fi.lipp.blog.data.Sex
-import fi.lipp.blog.data.StorageQuota
 import kotlinx.datetime.toKotlinLocalDateTime
 import org.jetbrains.exposed.dao.id.UUIDTable
 import org.jetbrains.exposed.sql.ReferenceOption
@@ -25,7 +24,5 @@ object Users : UUIDTable() {
     val nsfw = enumerationByName("nsfw", 20, NSFWPolicy::class)
     val birthdate = date("birthdate").nullable()
 
-    // Storage quota and avatar settings
-    val storageQuota = enumerationByName("storage_quota", 20, StorageQuota::class).default(StorageQuota.BASIC)
     val primaryAvatar = reference("primary_avatar", Files, onDelete = ReferenceOption.SET_NULL).nullable()
 }

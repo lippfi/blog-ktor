@@ -3,154 +3,171 @@ package fi.lipp.blog.service.implementations
 import fi.lipp.blog.data.BlogFile
 import fi.lipp.blog.data.FileType
 import fi.lipp.blog.data.FileUploadData
-import fi.lipp.blog.data.StorageQuota
-import fi.lipp.blog.domain.DiaryEntity
 import fi.lipp.blog.domain.FileEntity
-import fi.lipp.blog.domain.UserEntity
-import fi.lipp.blog.domain.UserUploadEntity
-import fi.lipp.blog.model.exceptions.DailyUploadLimitExceededException
-import fi.lipp.blog.model.exceptions.InternalServerError
-import fi.lipp.blog.model.exceptions.InvalidAvatarExtensionException
-import fi.lipp.blog.model.exceptions.InvalidAvatarDimensionsException
-import fi.lipp.blog.model.exceptions.InvalidAvatarSizeException
-import fi.lipp.blog.model.exceptions.InvalidReactionImageException
-import fi.lipp.blog.repository.*
-import javax.imageio.ImageIO
-import kotlinx.datetime.Clock
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
+import fi.lipp.blog.model.exceptions.*
+import fi.lipp.blog.repository.Files
 import fi.lipp.blog.service.ApplicationProperties
 import fi.lipp.blog.service.StorageService
-import org.jetbrains.exposed.sql.insertAndGetId
+import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.and
 import java.io.File
 import java.nio.file.Path
-import java.util.UUID
+import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
+import java.util.*
+import javax.imageio.ImageIO
+import java.nio.file.Files as JFiles
 
 class StorageServiceImpl(private val properties: ApplicationProperties): StorageService {
     override fun store(userId: UUID, files: List<FileUploadData>): List<BlogFile> {
-        val userLogin = getUserLogin(userId)
-        return store(userId, userLogin, files) { it }
+        return store(userId, files) { it }
     }
 
     override fun storeAvatars(userId: UUID, files: List<FileUploadData>): List<BlogFile> {
-        val userLogin = getUserLogin(userId)
-        return store(userId, userLogin, files) { file ->
+        return store(userId, files) { file ->
            validateAvatar(file)
         }
     }
 
     override fun storeReaction(userId: UUID, fileName: String, file: FileUploadData): BlogFile {
-        val userLogin = getUserLogin(userId)
-        return store(userId, userLogin, listOf(file), fileName) { file ->
-            validateReaction(file)
-        }[0]
+        val validated = validateReaction(file)
+
+        val exists = transaction {
+            Files.select { (Files.fileType eq FileType.REACTION) and (Files.name eq fileName) }
+                .limit(1)
+                .empty().not()
+        }
+        if (exists) throw ReactionAlreadyExistsException()
+
+        return store(userId, listOf(validated), fileName) { it }.single()
     }
 
-    private fun getUserLogin(userId: UUID): String {
-        return transaction { DiaryEntity.find { Diaries.owner eq userId }.singleOrNull()?.login ?: throw InternalServerError() }
-    }
+    private val allowedImageExtensions = setOf("jpg", "jpeg", "png", "gif", "webp")
 
-    // TODO safer avatar storing. Only the given extensions with size & dimensions limits
-    private val allowedImageExtensions = setOf(".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp")
     private fun validateAvatar(file: FileUploadData): FileUploadData {
-        if (!allowedImageExtensions.contains(file.extension)) throw InvalidAvatarExtensionException()
+        val ext = file.ext ?: throw InvalidAvatarExtensionException()
+        if (ext !in allowedImageExtensions) throw InvalidAvatarExtensionException()
 
-        // Read the entire input stream into a byte array
         val bytes = file.inputStream.readAllBytes()
+        if (bytes.size > 1_048_576) throw InvalidAvatarSizeException()
 
-        // Check if file size is less than 1MB
-        if (bytes.size > 1_048_576) {
-            throw InvalidAvatarSizeException()
-        }
+        val image = ImageIO.read(bytes.inputStream()) ?: throw InvalidAvatarExtensionException()
+        if (image.width != image.height) throw InvalidAvatarDimensionsException()
 
-        val image = ImageIO.read(bytes.inputStream())
-
-        if (image.width != image.height) {
-            throw InvalidAvatarDimensionsException()
-        }
-
-        // Create a new FileUploadData with a fresh InputStream from the bytes
-        return FileUploadData(
-            fullName = file.fullName,
-            inputStream = bytes.inputStream()
-        )
+        return FileUploadData(fullName = file.fullName, inputStream = bytes.inputStream())
     }
 
     private fun validateReaction(file: FileUploadData): FileUploadData {
-        if (!allowedImageExtensions.contains(file.extension)) throw InvalidReactionImageException()
+        val ext = file.ext ?: throw InvalidReactionImageException()
+        if (ext !in allowedImageExtensions) throw InvalidReactionImageException()
 
-        // Read the entire input stream into a byte array
         val bytes = file.inputStream.readAllBytes()
+        if (bytes.size > 512 * 1024) throw InvalidReactionImageException()
 
-        // Check if file size is less than 512KB
-        if (bytes.size > 512 * 1024) {
-            throw InvalidReactionImageException()
-        }
+        ImageIO.read(bytes.inputStream()) ?: throw InvalidReactionImageException()
 
-        val image = ImageIO.read(bytes.inputStream())
-
-        // Check if image is square and dimensions are <= 100x100
-//        if (image.width != image.height || image.width > 100) {
-//            throw InvalidReactionImageException()
-//        }
-
-        // Create a new FileUploadData with a fresh InputStream from the bytes
-        return FileUploadData(
-            fullName = file.fullName,
-            inputStream = bytes.inputStream()
-        ).apply { 
-            type = FileType.REACTION 
-        }
+        return FileUploadData(fullName = file.fullName, inputStream = bytes.inputStream(), forcedType = FileType.REACTION)
     }
 
     override fun getFile(file: BlogFile): File {
-        val userLogin = transaction { 
+        val storageKey = transaction {
             val fileEntity = FileEntity.findById(file.id) ?: throw InternalServerError()
-            DiaryEntity.find { Diaries.owner eq fileEntity.owner.value }.singleOrNull()?.login ?: throw InternalServerError()
+            fileEntity.storageKey
         }
-        val path = getSavingPath(userLogin, file.type)
-        return File("$path/${file.name}")
+        return resolveStoragePath(storageKey).toFile()
     }
 
-    private fun getUserQuota(userId: UUID): StorageQuota {
-        return transaction {
-            UserEntity.findById(userId)?.storageQuota ?: StorageQuota.BASIC
-        }
-    }
-
-    private fun store(userId: UUID, userLogin: String, files: List<FileUploadData>, fileName: String? = null, performChecks: (FileUploadData) -> FileUploadData): List<BlogFile> {
-        val blogFiles = mutableListOf<BlogFile>()
-        transaction {
-            val validatedFiles = files.map { performChecks(it) }
-            val totalSize = validatedFiles.sumOf { it.inputStream.available().toLong() }
-
-            val currentUpload = getDailyUpload(userId)
-            val userQuota = getUserQuota(userId)
-            val dailyLimit = userQuota.getDailyLimitBytes(properties)
-
-            if (dailyLimit != null) {
-                val newTotal = currentUpload + totalSize
-                if (newTotal > dailyLimit) {
-                    throw DailyUploadLimitExceededException(dailyLimit, newTotal)
-                }
+    private fun sha256HexFromPath(path: Path): String {
+        val md = MessageDigest.getInstance("SHA-256")
+        val buf = ByteArray(1024 * 64)
+        JFiles.newInputStream(path).use { input ->
+            while (true) {
+                val read = input.read(buf)
+                if (read <= 0) break
+                md.update(buf, 0, read)
             }
+        }
+        return md.digest().joinToString("") { "%02x".format(it) }
+    }
 
-            validatedFiles.forEach { file ->
-                val fileName = fileName ?: (UUID.randomUUID().toString() + file.extension)
-                val fileId = Files.insertAndGetId {
-                    it[name] = fileName
+    private fun store(
+        userId: UUID,
+        files: List<FileUploadData>,
+        fileName: String? = null,
+        performChecks: (FileUploadData) -> FileUploadData
+    ): List<BlogFile> {
+        val blogFiles = mutableListOf<BlogFile>()
+
+        files.forEach { original ->
+            val file = performChecks(original)
+
+            val logicalName = (fileName ?: file.name).ifBlank { UUID.randomUUID().toString() }
+
+            val fileId = transaction {
+                Files.insertAndGetId {
+                    it[name] = logicalName
                     it[owner] = userId
                     it[fileType] = file.type
-                }
-                val blogFile = createFile(userId, userLogin, fileId.value, fileName, file)
-                blogFiles.add(blogFile)
+                    it[mimeType] = file.mimeType
+                    it[Files.ext] = file.ext
+                    it[hash] = null
+                    it[storageKey] = ""
+                }.value
             }
 
-            trackUpload(userId, totalSize)
+            val typeFolder = file.type.name.lowercase()
+            val physicalFileName = if (file.ext != null) "$fileId.${file.ext}" else fileId.toString()
+
+            val storageKeyValue = if (file.type == FileType.REACTION) {
+                "reactions/$physicalFileName"
+            } else {
+                "u/$userId/$typeFolder/$physicalFileName"
+            }
+
+            val savedPath: Path = try {
+                val blogFile = createFile(
+                    userId = userId,
+                    fileId = fileId,
+                    storageKey = storageKeyValue,
+                    fileUploadData = file
+                )
+                blogFiles.add(blogFile)
+                resolveStoragePath(storageKeyValue)
+            } catch (e: Exception) {
+                transaction {
+                    Files.deleteWhere { Files.id eq fileId }
+                }
+                throw e
+            }
+
+            val h = try {
+                sha256HexFromPath(savedPath)
+            } catch (e: Exception) {
+                runCatching { savedPath.toFile().delete() }
+                transaction {
+                    Files.deleteWhere { Files.id eq fileId }
+                }
+                throw e
+            }
+
+            try {
+                transaction {
+                    Files.update({ Files.id eq fileId }) {
+                        it[storageKey] = storageKeyValue
+                        it[hash] = h
+                    }
+                }
+            } catch (e: Exception) {
+                runCatching { savedPath.toFile().delete() }
+                transaction {
+                    Files.deleteWhere { Files.id eq fileId }
+                }
+                throw e
+            }
         }
-        return blogFiles.toMutableList()
+
+        return blogFiles.toList()
     }
 
     private fun ensureDirectoryExists(path: Path) {
@@ -164,71 +181,35 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
         }
     }
 
-    private fun createFile(userId: UUID, userLogin: String, fileId: UUID, fileName: String, fileUploadData: FileUploadData): BlogFile {
-        val path = getSavingPath(userLogin, fileUploadData.type)
+    private fun createFile(userId: UUID, fileId: UUID, storageKey: String, fileUploadData: FileUploadData): BlogFile {
+        val targetPath = resolveStoragePath(storageKey)
+        ensureDirectoryExists(targetPath.parent)
 
-        ensureDirectoryExists(path)
+        val tmpPath = targetPath.resolveSibling("${targetPath.fileName}.tmp-${UUID.randomUUID()}")
 
-        val file = path.resolve(fileName).toFile()
-        fileUploadData.inputStream.use { input ->
-            file.outputStream().use { output ->
-                input.copyTo(output)
+        try {
+            fileUploadData.inputStream.use { input ->
+                tmpPath.toFile().outputStream().use { output ->
+                    input.copyTo(output)
+                }
             }
+            JFiles.move(tmpPath, targetPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+        } catch (e: Exception) {
+            runCatching { JFiles.deleteIfExists(tmpPath) }
+            throw e
         }
-        return BlogFile(fileId, userId, fileName, fileUploadData.type)
+
+        return BlogFile(fileId, userId, targetPath.fileName.toString(), fileUploadData.type)
     }
+
+    private fun resolveStoragePath(storageKey: String): Path =
+        properties.storageBaseDir().resolve(storageKey)
 
     override fun getFileURL(file: BlogFile): String {
-        val userLogin = transaction {
+        val storageKey = transaction {
             val fileEntity = FileEntity.findById(file.id) ?: throw InternalServerError()
-            DiaryEntity.find { (Diaries.owner eq fileEntity.owner.value) and (Diaries.type eq DiaryType.PERSONAL) }
-                .singleOrNull()?.login ?: throw InternalServerError()
+            fileEntity.storageKey
         }
-        val url = when (file.type) {
-            FileType.AVATAR -> properties.avatarsUrl(userLogin)
-            FileType.IMAGE -> properties.imagesUrl(userLogin)
-            FileType.VIDEO -> properties.videosUrl(userLogin)
-            FileType.AUDIO -> properties.audiosUrl(userLogin)
-            FileType.STYLE -> properties.stylesUrl(userLogin)
-            FileType.OTHER -> properties.otherUrl(userLogin)
-            FileType.REACTION -> properties.reactionsUrl(userLogin)
-        }
-        return "$url/${file.name}"
-    }
-
-    private fun getDailyUpload(userId: UUID): Long {
-        val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
-        return UserUploadEntity.find { 
-            (UserUploads.user eq userId) and (UserUploads.date eq today)
-        }.firstOrNull()?.totalBytes ?: 0
-    }
-
-    private fun trackUpload(userId: UUID, size: Long) {
-        val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
-        val upload = UserUploadEntity.find { 
-            (UserUploads.user eq userId) and (UserUploads.date eq today)
-        }.firstOrNull()
-
-        if (upload != null) {
-            upload.totalBytes += size
-        } else {
-            UserUploadEntity.new {
-                user = UserEntity[userId]
-                date = today
-                totalBytes = size
-            }
-        }
-    }
-
-    private fun getSavingPath(userLogin: String, fileType: FileType): Path {
-        return when (fileType) {
-            FileType.AVATAR -> properties.avatarsDirectory(userLogin)
-            FileType.IMAGE -> properties.imagesDirectory(userLogin)
-            FileType.VIDEO -> properties.videosDirectory(userLogin)
-            FileType.AUDIO -> properties.audiosDirectory(userLogin)
-            FileType.STYLE -> properties.stylesDirectory(userLogin)
-            FileType.OTHER -> properties.otherDirectory(userLogin)
-            FileType.REACTION -> properties.reactionsDirectory(userLogin)
-        }
+        return "${properties.filesBaseUrl()}/$storageKey"
     }
 }
