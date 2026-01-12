@@ -25,6 +25,7 @@ class UserServiceImpl(
     private val storageService: StorageService,
     private val accessGroupService: AccessGroupService,
     private val notificationService: NotificationService,
+    private val properties: ApplicationProperties
 ) : UserService {
     override fun generateInviteCode(userId: UUID): String {
         val inviteCode = transaction {
@@ -927,8 +928,21 @@ class UserServiceImpl(
 
     @Suppress("UnusedReceiverParameter")
     private fun Transaction.getFileEntityByUri(uri: String): FileEntity {
-        val fileName = Regex("""([^/]+)/?$""").find(uri)?.groupValues?.get(1) ?: throw InvalidAvatarUriException()
-        return FileEntity.find { Files.name eq fileName }.firstOrNull() ?: throw InvalidAvatarUriException()
+        val base = properties.filesBaseUrl().removeSuffix("/")
+
+        if (!uri.startsWith(base)) {
+            throw InvalidAvatarUriException()
+        }
+
+        val storageKey = uri
+            .removePrefix(base)
+            .removePrefix("/")
+            .substringBefore("?")
+            .ifBlank { throw InvalidAvatarUriException() }
+
+        return FileEntity.find { Files.storageKey eq storageKey }
+            .firstOrNull()
+            ?: throw InvalidAvatarUriException()
     }
 
     @Suppress("UnusedReceiverParameter")

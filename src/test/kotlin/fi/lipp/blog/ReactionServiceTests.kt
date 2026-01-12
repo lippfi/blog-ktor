@@ -1,7 +1,10 @@
 package fi.lipp.blog
 
-import fi.lipp.blog.data.*
-import fi.lipp.blog.model.exceptions.*
+import fi.lipp.blog.data.BlogFile
+import fi.lipp.blog.data.FileUploadData
+import fi.lipp.blog.data.PostDto
+import fi.lipp.blog.data.UserDto
+import fi.lipp.blog.model.exceptions.WrongUserException
 import fi.lipp.blog.service.NotificationService
 import fi.lipp.blog.service.PostService
 import fi.lipp.blog.service.ReactionService
@@ -9,10 +12,10 @@ import fi.lipp.blog.service.Viewer
 import fi.lipp.blog.service.implementations.PostServiceImpl
 import fi.lipp.blog.service.implementations.ReactionDatabaseSeeder
 import fi.lipp.blog.service.implementations.ReactionServiceImpl
-import io.ktor.server.config.MapApplicationConfig
+import io.ktor.server.config.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.mockito.kotlin.mock
-import java.util.UUID
+import java.util.*
 import kotlin.test.*
 
 class ReactionServiceTests : UnitTestBase() {
@@ -43,7 +46,7 @@ class ReactionServiceTests : UnitTestBase() {
                 put("reactions.basic.5", "angry")
             }
             val reactionDatabaseSeeder = ReactionDatabaseSeeder(storageService, userService)
-            reactionService = ReactionServiceImpl(storageService, groupService, notificationService, userService, reactionDatabaseSeeder, commentWebSocketService)
+            reactionService = ReactionServiceImpl(storageService, groupService, notificationService, reactionDatabaseSeeder, commentWebSocketService)
             postService = PostServiceImpl(groupService, storageService, reactionService, notificationService, commentWebSocketService)
         }
     }

@@ -51,7 +51,7 @@ class PostServiceTests : UnitTestBase() {
         private val mailService = mock<MailService>()
         private val notificationService = mock<NotificationService>()
         private val storageService = StorageServiceImpl(properties)
-        private val userService = UserServiceImpl(encoder, mailService, storageService, groupService, notificationService)
+        private val userService = UserServiceImpl(encoder, mailService, storageService, groupService, notificationService, properties)
         private lateinit var postService: PostService
 
         private val testUser = UserDto.Registration(

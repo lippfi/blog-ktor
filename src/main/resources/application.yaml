@@ -16,26 +16,8 @@ mail:
     password: ""
     from: ""
     api-key: ""
-directory:
-    avatars: "/tmp/{userLogin}/avatars"
-    images: "/tmp/{userLogin}/images"
-    videos: "/tmp/{userLogin}/videos"
-    audios: "/tmp/{userLogin}/audios"
-    styles: "/tmp/{userLogin}/styles"
-    other: "/tmp/{userLogin}/other"
-    reactions: "/tmp/{userLogin}/reactions"
-url:
-    avatars: "???"
-    images: "???"
-    videos: "???"
-    audios: "???"
-    styles: "???"
-    other: "???"
-    reactions: "http://localhost:8000"
+storage:
+    base_dir: "/tmp"
+    base_url: "http://localhost:8000"
 reactions:
     basic: ["like", "love", "haha", "wow", "sad", "angry"]
-storage:
-    quota:
-        basic: 8
-        standard: 16
-        max: 32

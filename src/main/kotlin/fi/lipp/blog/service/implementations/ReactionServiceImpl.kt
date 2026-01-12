@@ -10,7 +10,6 @@ import fi.lipp.blog.service.*
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.FileNotFoundException
 import java.util.*
@@ -19,7 +18,6 @@ class ReactionServiceImpl(
     private val storageService: StorageService,
     private val accessGroupService: AccessGroupService,
     private val notificationService: NotificationService,
-    private val userService: UserService,
     private val reactionDatabaseSeeder: ReactionDatabaseSeeder,
     private val commentWebSocketService: CommentWebSocketService
 ) : ReactionService {
@@ -82,30 +80,29 @@ class ReactionServiceImpl(
     override fun createReaction(userId: UUID, name: String, icon: FileUploadData): ReactionDto.View {
         ReactionDto.validateName(name)
 
-        // TODO it is a race
-        val isNameUsed = transaction { isReactionNameUsed(name) }
-        if (isNameUsed) {
+        val storedFile = try {
+            storageService.storeReaction(userId, name, icon)
+        } catch (_: ReactionAlreadyExistsException) {
             throw ReactionNameIsTakenException()
         }
 
-        val extension = icon.extension
+        return try {
+            transaction {
+                val iconFile = FileEntity.findById(storedFile.id) ?: throw FileNotFoundException()
 
-        val storedFile = storageService.storeReaction(userId, name + extension, icon)
-
-        return transaction {
-            val iconFile = FileEntity.findById(storedFile.id) ?: throw FileNotFoundException()
-
-            val reactionEntity = ReactionEntity.new {
-                this.name = name
-                this.icon = iconFile
-                this.creator = EntityID(userId, Users)
+                val reactionEntity = ReactionEntity.new {
+                    this.name = name
+                    this.icon = iconFile
+                    this.creator = EntityID(userId, Users)
+                }
+                toReactionView(reactionEntity)
             }
-            toReactionView(reactionEntity)
+        } catch (e: Exception) {
+            transaction {
+                Files.deleteWhere { Files.id eq storedFile.id }
+            }
+            throw e
         }
-    }
-
-    private fun Transaction.isReactionNameUsed(name: String): Boolean {
-        return ReactionEntity.find { Reactions.name eq name }.firstOrNull() != null
     }
 
     override fun deleteReaction(userId: UUID, name: String) {

@@ -121,7 +121,7 @@ abstract class UnitTestBase {
                     single<AccessGroupService> { AccessGroupServiceImpl() }
                     single<NotificationService> { mock() }
                     single<CommentWebSocketService> { mock() }
-                    single<UserService> { UserServiceImpl(get(), get(), get(), get(), get()) }
+                    single<UserService> { UserServiceImpl(get(), get(), get(), get(), get(), get()) }
 
                     // Database seeders
                     single { ReactionDatabaseSeeder(get(), get()) }
@@ -134,7 +134,6 @@ abstract class UnitTestBase {
                         storageService = get(),
                         accessGroupService = get(),
                         notificationService = get(),
-                        userService = get(),
                         reactionDatabaseSeeder = get(),
                         commentWebSocketService = get()
                     ) }

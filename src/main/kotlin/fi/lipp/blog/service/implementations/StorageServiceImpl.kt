@@ -43,7 +43,7 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
         return store(userId, listOf(validated), fileName) { it }.single()
     }
 
-    private val allowedImageExtensions = setOf("jpg", "jpeg", "png", "gif", "webp")
+    private val allowedImageExtensions = setOf("jpg", "jpeg", "png", "gif", "webp", "svg")
 
     private fun validateAvatar(file: FileUploadData): FileUploadData {
         val ext = file.ext ?: throw InvalidAvatarExtensionException()
@@ -64,8 +64,6 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
 
         val bytes = file.inputStream.readAllBytes()
         if (bytes.size > 512 * 1024) throw InvalidReactionImageException()
-
-        ImageIO.read(bytes.inputStream()) ?: throw InvalidReactionImageException()
 
         return FileUploadData(fullName = file.fullName, inputStream = bytes.inputStream(), forcedType = FileType.REACTION)
     }
@@ -102,7 +100,10 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
         files.forEach { original ->
             val file = performChecks(original)
 
-            val logicalName = (fileName ?: file.name).ifBlank { UUID.randomUUID().toString() }
+            val logicalName = when (file.type) {
+                FileType.REACTION -> (fileName ?: file.name).ifBlank { UUID.randomUUID().toString() }
+                else -> UUID.randomUUID().toString()
+            }
 
             val fileId = transaction {
                 Files.insertAndGetId {

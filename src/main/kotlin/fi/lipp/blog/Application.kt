@@ -81,7 +81,7 @@ fun KoinApplication.loadMyKoins(environment: ApplicationEnvironment): KoinApplic
         single<StorageService> { StorageServiceImpl(get()) }
         single<DiaryService> { DiaryServiceImpl(get()) }
         single<PasswordEncoder> { PasswordEncoderImpl() }
-        single<UserService> { UserServiceImpl(get(), get(), get(), get(), get<NotificationService>()) }
+        single<UserService> { UserServiceImpl(get(), get(), get(), get(), get<NotificationService>(), get()) }
         single<AccessGroupService> { AccessGroupServiceImpl() }
         single<NotificationService> { NotificationServiceImpl() }
         single<CommentWebSocketService> { CommentWebSocketServiceImpl() }
@@ -93,7 +93,7 @@ fun KoinApplication.loadMyKoins(environment: ApplicationEnvironment): KoinApplic
         single { DatabaseInitializer(listOf(get<ReactionDatabaseSeeder>())) }
 
         // Services that depend on seeders
-        single<ReactionService> { ReactionServiceImpl(get<StorageService>(), get<AccessGroupService>(), get<NotificationService>(), get<UserService>(), get(), get<CommentWebSocketService>()) }
+        single<ReactionService> { ReactionServiceImpl(get<StorageService>(), get<AccessGroupService>(), get<NotificationService>(), get(), get<CommentWebSocketService>()) }
         single<PostService> { PostServiceImpl(get<AccessGroupService>(), get<StorageService>(), get<ReactionService>(), get<NotificationService>(), get<CommentWebSocketService>()) }
         single<DialogService> { DialogServiceImpl(get<UserService>(), get<NotificationService>()) }
     }

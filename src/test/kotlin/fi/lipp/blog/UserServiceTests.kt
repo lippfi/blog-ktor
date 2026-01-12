@@ -40,7 +40,7 @@ class UserServiceTests : UnitTestBase() {
         @JvmStatic
         @BeforeClass
         fun setUp() {
-            File(properties.imagesDirectory("").toString()).mkdirs()
+            File(properties.storageBaseDir().toString()).mkdirs()
         }
 
         @JvmStatic
