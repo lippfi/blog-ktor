@@ -27,7 +27,7 @@ object Reactions : UUIDTable() {
 
     init {
         uniqueIndex("reactions_pack_name_unique", pack, name)
-        check("reaction_name_pattern") { name.regexp("^[a-zA-Z][a-zA-Z0-9-]*$") }
+        check("reaction_name_pattern") { name.regexp("^[a-zA-Z0-9][a-zA-Z0-9-]*$") }
     }
 }
 
