@@ -56,15 +56,15 @@ fun Application.module() {
         loadMyKoins(environment)
     }
 
-    install(CORS) {
-        allowHost("localhost:5173")
-        allowHeader(HttpHeaders.ContentType)
-        allowHeader(HttpHeaders.Authorization)
-        allowMethod(HttpMethod.Delete)
-        allowMethod(HttpMethod.Put)
-        allowCredentials = true
-        allowNonSimpleContentTypes = true
-    }
+//    install(CORS) {
+//        allowHost("localhost:5173")
+//        allowHeader(HttpHeaders.ContentType)
+//        allowHeader(HttpHeaders.Authorization)
+//        allowMethod(HttpMethod.Delete)
+//        allowMethod(HttpMethod.Put)
+//        allowCredentials = true
+//        allowNonSimpleContentTypes = true
+//    }
 
     configureSerialization()
     configureDatabases()
