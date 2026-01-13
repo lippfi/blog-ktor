@@ -9,6 +9,11 @@ class ApplicationPropertiesStub : ApplicationProperties {
     val baseUrl = "https://blog.com"
 
     override val resendAPIKey: String = ""
+    override val databaseUrl: String = "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1"
+    override val databaseUser: String = "sa"
+    override val databasePassword: String = ""
+    override val databaseDriver: String = "org.h2.Driver"
+
     override fun storageBaseDir(): Path = basePath
     override fun filesBaseUrl(): String = baseUrl
 

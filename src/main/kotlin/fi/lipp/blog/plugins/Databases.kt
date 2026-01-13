@@ -9,11 +9,17 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.koin.core.context.GlobalContext.get
 
 fun Application.configureDatabases() {
+    val databaseUrl = environment.config.propertyOrNull("database.url")?.getString()
+        ?: "jdbc:h2:file:./data/blog;DB_CLOSE_DELAY=-1"
+    val databaseUser = environment.config.propertyOrNull("database.user")?.getString() ?: "root"
+    val databasePassword = environment.config.propertyOrNull("database.password")?.getString() ?: ""
+    val databaseDriver = environment.config.propertyOrNull("database.driver")?.getString() ?: "org.h2.Driver"
+
     Database.connect(
-        url = "jdbc:h2:file:./data/blog;DB_CLOSE_DELAY=-1",
-        user = "root",
-        driver = "org.h2.Driver",
-        password = ""
+        url = databaseUrl,
+        user = databaseUser,
+        driver = databaseDriver,
+        password = databasePassword
     )
     transaction {
         SchemaUtils.create(

@@ -4,6 +4,7 @@ val koin_version: String by project
 val logback_version: String by project
 val exposed_version: String by project
 val h2_version: String by project
+val postgres_version: String by project
 val jakarta_mail_version: String by project
 
 plugins {
@@ -39,6 +40,7 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-dao:$exposed_version")
     implementation("org.jetbrains.exposed:exposed-kotlin-datetime:$exposed_version")
     implementation("com.h2database:h2:$h2_version")
+    implementation("org.postgresql:postgresql:$postgres_version")
     implementation("io.ktor:ktor-server-host-common-jvm")
     implementation("io.ktor:ktor-server-status-pages-jvm")
     implementation("io.ktor:ktor-client-core-jvm")
