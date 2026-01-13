@@ -6,6 +6,7 @@ import fi.lipp.blog.util.UUIDSerializer
 
 @Serializable
 data class ReactionPackDto(
+    val name: String,
     val iconUri: String,
     val reactions: List<ReactionDto.View>
 )

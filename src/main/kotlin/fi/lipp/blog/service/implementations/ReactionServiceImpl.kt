@@ -45,39 +45,24 @@ class ReactionServiceImpl(
         // Ensure reactions are seeded
         reactionDatabaseSeeder.seed()
 
-        val basicReactionViews = getReactionsByPrefix("heart", "fire")
-        val smolReactionViews = getReactionsByPrefix("smol-")
-
-        listOf(
-            createReactionPackDto(basicReactionViews),
-            createReactionPackDto(smolReactionViews, "smol-alien")
-        )
-    }
-
-    private fun getReactionsByPrefix(vararg prefixes: String): List<ReactionDto.View> {
-        return transaction {
-            ReactionEntity.all()
-                .filter { entity -> 
-                    prefixes.any { prefix -> 
-                        entity.name.startsWith(prefix) || entity.name == prefix 
-                    }
-                }
-                .map { toReactionView(it) }
+        transaction {
+            ReactionPackEntity.all().map { pack ->
+                ReactionPackDto(
+                    name = pack.name,
+                    iconUri = pack.icon?.let { storageService.getFileURL(it.toBlogFile()) }
+                        ?: pack.reactions.firstOrNull()?.let { storageService.getFileURL(it.icon.toBlogFile()) } 
+                        ?: "",
+                    reactions = pack.reactions.map { toReactionView(it) }
+                )
+            }
         }
-    }
-
-    private fun createReactionPackDto(reactionViews: List<ReactionDto.View>, icon: String? = null): ReactionPackDto {
-        return ReactionPackDto(
-            iconUri = icon?.let { reactionViews.firstOrNull { it.name == icon }?.iconUri } ?: reactionViews.firstOrNull()?.iconUri ?: "",
-            reactions = reactionViews
-        )
     }
 
     override fun getBasicReactions(): List<ReactionPackDto> {
         return cachedBasicReactions
     }
 
-    override fun createReaction(userId: UUID, name: String, icon: FileUploadData): ReactionDto.View {
+    override fun createReaction(userId: UUID, name: String, packName: String, icon: FileUploadData): ReactionDto.View {
         ReactionDto.validateName(name)
 
         val storedFile = try {
@@ -89,10 +74,16 @@ class ReactionServiceImpl(
         return try {
             transaction {
                 val iconFile = FileEntity.findById(storedFile.id) ?: throw FileNotFoundException()
+                val pack = ReactionPackEntity.find { ReactionPacks.name eq packName }.firstOrNull() 
+                    ?: ReactionPackEntity.new { 
+                        this.name = packName
+                        this.creator = UserEntity.findById(userId)!!
+                    }
 
                 val reactionEntity = ReactionEntity.new {
                     this.name = name
                     this.icon = iconFile
+                    this.pack = pack
                     this.creator = EntityID(userId, Users)
                 }
                 toReactionView(reactionEntity)

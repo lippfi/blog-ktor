@@ -44,12 +44,13 @@ fun Route.reactionRoutes(reactionService: ReactionService) {
         authenticate {
             post("/create") {
                 val name = call.request.queryParameters["name"] ?: throw IllegalArgumentException("Missing name parameter")
+                val packName = call.request.queryParameters["pack"] ?: throw IllegalArgumentException("Missing pack parameter")
                 val multipart = call.receiveMultipart()
                 val files = multipart.toFileUploadDatas()
                 if (files.isEmpty()) {
                     throw IllegalArgumentException("No icon file provided")
                 }
-                val reaction = reactionService.createReaction(userId, name, files.first())
+                val reaction = reactionService.createReaction(userId, name, packName, files.first())
                 call.respond(reaction)
             }
 

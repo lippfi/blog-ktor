@@ -90,6 +90,7 @@ abstract class UnitTestBase {
                     PasswordResets,
                     PendingRegistrations,
                     PendingEmailChanges,
+                    ReactionPacks,
                     Posts,
                     PostTags,
                     Comments,
@@ -254,6 +255,7 @@ abstract class UnitTestBase {
             exec("DELETE FROM ${AnonymousPostReactions.tableName}")
             exec("DELETE FROM ${PostReactions.tableName}")
             exec("DELETE FROM ${Reactions.tableName}")
+            exec("DELETE FROM ${ReactionPacks.tableName}")
             exec("DELETE FROM ${Comments.tableName}")
             exec("DELETE FROM ${PostTags.tableName}")
             exec("DELETE FROM ${Posts.tableName}")

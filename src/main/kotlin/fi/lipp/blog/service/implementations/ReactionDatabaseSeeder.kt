@@ -3,6 +3,9 @@ package fi.lipp.blog.service.implementations
 import fi.lipp.blog.data.FileUploadData
 import fi.lipp.blog.domain.FileEntity
 import fi.lipp.blog.domain.ReactionEntity
+import fi.lipp.blog.domain.ReactionPackEntity
+import fi.lipp.blog.domain.UserEntity
+import fi.lipp.blog.repository.ReactionPacks
 import fi.lipp.blog.repository.Reactions
 import fi.lipp.blog.repository.Users
 import fi.lipp.blog.service.DatabaseSeeder
@@ -32,7 +35,7 @@ class ReactionDatabaseSeeder(
     private val smolReactions = mapOf(
         "sticker1.webp" to "smol-suicide",
         "sticker2.webp" to "smol-speech",
-        "sticker3.webp" to "smol-shef",
+        "sticker3.webp" to "smol-chef",
         "sticker4.webp" to "smol-cereal",
         "sticker5.webp" to "smol-fyou",
         "sticker6.webp" to "smol-punch",
@@ -53,7 +56,7 @@ class ReactionDatabaseSeeder(
         "sticker21.webp" to "smol-tilt",
         "sticker22.webp" to "smol-angry",
         "sticker23.webp" to "smol-suspicious",
-        "sticker24.webp" to "smol-surprized",
+        "sticker24.webp" to "smol-surprised",
         "sticker25.webp" to "smol-furious",
         "sticker26.webp" to "smol-nerd",
         "sticker27.webp" to "smol-nerd2",
@@ -106,10 +109,10 @@ class ReactionDatabaseSeeder(
         
         transaction {
             // Seed basic reactions
-            seedReactions(systemUserId, basicReactions, "img/reactions/basic")
+            seedReactions(systemUserId, "basic", basicReactions, "img/reactions/basic")
             
             // Seed smol reactions
-            seedReactions(systemUserId, smolReactions, "img/reactions/smol")
+            seedReactions(systemUserId, "smol", smolReactions, "img/reactions/smol", "smol-alien")
             
             commit()
         }
@@ -119,10 +122,24 @@ class ReactionDatabaseSeeder(
      * Seeds a set of reactions from a specific resource path.
      * 
      * @param systemUserId The ID of the system user who will be the creator of the reactions
+     * @param packName The name of the reaction pack
      * @param reactions A map of filename to reaction name
      * @param resourcePathPrefix The prefix path where the reaction images are stored
+     * @param packIconReactionName The name of the reaction whose icon will be used as pack icon
      */
-    private fun seedReactions(systemUserId: UUID, reactions: Map<String, String>, resourcePathPrefix: String) {
+    private fun seedReactions(
+        systemUserId: UUID, 
+        packName: String, 
+        reactions: Map<String, String>, 
+        resourcePathPrefix: String,
+        packIconReactionName: String? = null
+    ) {
+        val pack = ReactionPackEntity.find { ReactionPacks.name eq packName }.firstOrNull() 
+            ?: ReactionPackEntity.new { 
+                this.name = packName
+                this.creator = UserEntity.findById(systemUserId)!!
+            }
+
         reactions.forEach { (fileName, reactionName) ->
             if (!isReactionNameUsed(reactionName)) {
                 val resourcePath = "$resourcePathPrefix/$fileName"
@@ -140,7 +157,12 @@ class ReactionDatabaseSeeder(
                 ReactionEntity.new {
                     this.name = reactionName
                     this.icon = iconFile
+                    this.pack = pack
                     this.creator = EntityID(systemUserId, Users)
+                }
+
+                if (reactionName == packIconReactionName) {
+                    pack.icon = iconFile
                 }
             }
         }

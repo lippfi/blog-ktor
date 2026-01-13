@@ -83,7 +83,7 @@ class ReactionServiceTests : UnitTestBase() {
             inputStream = avatarFile1.inputStream()
         )
 
-        val created = reactionService.createReaction(testUser.id, name, icon)
+        val created = reactionService.createReaction(testUser.id, name, "custom", icon)
         assertNotNull(created)
         assertEquals(name, created.name)
     }
@@ -97,6 +97,7 @@ class ReactionServiceTests : UnitTestBase() {
         reactionService.createReaction(
             testUser.id,
             name,
+            "custom",
             FileUploadData(
                 fullName = "reaction.png",
                 inputStream = avatarFile1.inputStream()
@@ -122,6 +123,7 @@ class ReactionServiceTests : UnitTestBase() {
         val reaction = reactionService.createReaction(
             testUser.id,
             reactionName,
+            "custom",
             FileUploadData(
                 fullName = "reaction.png",
                 inputStream = avatarFile1.inputStream()
@@ -142,6 +144,7 @@ class ReactionServiceTests : UnitTestBase() {
         val reaction = reactionService.createReaction(
             testUser.id,
             reactionName,
+            "custom",
             FileUploadData(
                 fullName = "reaction.png",
                 inputStream = avatarFile1.inputStream()
@@ -162,6 +165,7 @@ class ReactionServiceTests : UnitTestBase() {
         val reaction = reactionService.createReaction(
             testUser.id,
             "like",
+            "custom",
             FileUploadData(
                 fullName = "reaction.png",
                 inputStream = avatarFile1.inputStream()
@@ -191,6 +195,7 @@ class ReactionServiceTests : UnitTestBase() {
                 reactionService.createReaction(
                     testUser.id,
                     invalidName,
+                    "custom",
                     FileUploadData(
                         fullName = "reaction.png",
                         inputStream = avatarFile1.inputStream()
@@ -212,6 +217,7 @@ class ReactionServiceTests : UnitTestBase() {
             reactionService.createReaction(
                 testUser.id,
                 validName,
+                "custom",
                 FileUploadData(
                     fullName = "reaction.png",
                     inputStream = avatarFile1.inputStream()
@@ -228,10 +234,10 @@ class ReactionServiceTests : UnitTestBase() {
             inputStream = avatarFile1.inputStream()
         )
 
-        reactionService.createReaction(testUser.id, name, icon)
+        reactionService.createReaction(testUser.id, name, "custom", icon)
 
         assertFailsWith<Exception>("Should not allow duplicate reaction names") {
-            reactionService.createReaction(testUser.id, name, FileUploadData(
+            reactionService.createReaction(testUser.id, name, "custom", FileUploadData(
                 fullName = "reaction2.png",
                 inputStream = avatarFile2.inputStream()
             ))
@@ -247,6 +253,7 @@ class ReactionServiceTests : UnitTestBase() {
         val reaction = reactionService.createReaction(
             testUser.id,
             "like",
+            "custom",
             FileUploadData(
                 fullName = "reaction.png",
                 inputStream = avatarFile1.inputStream()
@@ -288,6 +295,7 @@ class ReactionServiceTests : UnitTestBase() {
         val reaction = reactionService.createReaction(
             testUser.id,
             "like",
+            "custom",
             FileUploadData(
                 fullName = "reaction.png",
                 inputStream = avatarFile1.inputStream()
@@ -331,6 +339,7 @@ class ReactionServiceTests : UnitTestBase() {
             reactionService.createReaction(
                 testUser.id,
                 name,
+                "custom",
                 FileUploadData(
                     fullName = "reaction.png",
                     inputStream = avatarFile1.inputStream()
@@ -367,6 +376,7 @@ class ReactionServiceTests : UnitTestBase() {
             reactionService.createReaction(
                 testUser.id,
                 name,
+                "custom",
                 FileUploadData(
                     fullName = "reaction.png",
                     inputStream = avatarFile1.inputStream()
@@ -405,6 +415,7 @@ class ReactionServiceTests : UnitTestBase() {
             reactionService.createReaction(
                 testUser.id,
                 name,
+                "basic",
                 FileUploadData(
                     fullName = "reaction.png",
                     inputStream = avatarFile1.inputStream()
@@ -415,6 +426,7 @@ class ReactionServiceTests : UnitTestBase() {
         // Create a non-basic reaction
         reactionService.createReaction(
             testUser.id,
+            "custom-reaction",
             "custom",
             FileUploadData(
                 fullName = "reaction.png",
@@ -438,6 +450,31 @@ class ReactionServiceTests : UnitTestBase() {
     }
 
     @Test
+    fun `test get reaction packs`() {
+        val packName = "test-pack"
+        reactionService.createReaction(
+            testUser.id,
+            "pack-reaction",
+            packName,
+            FileUploadData(
+                fullName = "reaction.png",
+                inputStream = avatarFile1.inputStream()
+            )
+        )
+
+        // We need to bypass the cache for this test or use a fresh service
+        // Since getBasicReactions uses cachedBasicReactions which is lazy,
+        // it might already be initialized.
+        // But in tests, cleanDatabase is called before each test, 
+        // and Koin is usually restarted or the service is fresh.
+        // Wait, cachedBasicReactions is a property of ReactionServiceImpl.
+        
+        val packs = reactionService.getBasicReactions()
+        val testPack = packs.find { it.name == packName }
+        assertNotNull(testPack, "Pack $packName should be found")
+    }
+
+    @Test
     fun `test search reactions with limit and sorting`() {
         // Create test reactions with names that will test sorting
         val testReactionNames = listOf(
@@ -452,6 +489,7 @@ class ReactionServiceTests : UnitTestBase() {
             reactionService.createReaction(
                 testUser.id,
                 name,
+                "custom",
                 FileUploadData(
                     fullName = "reaction.png",
                     inputStream = avatarFile1.inputStream()

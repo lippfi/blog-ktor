@@ -7,11 +7,22 @@ import org.jetbrains.exposed.dao.UUIDEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
 import java.util.UUID
 
+class ReactionPackEntity(id: EntityID<UUID>) : UUIDEntity(id) {
+    companion object : UUIDEntityClass<ReactionPackEntity>(ReactionPacks)
+
+    var name by ReactionPacks.name
+    var icon by FileEntity optionalReferencedOn ReactionPacks.icon
+    var creator by UserEntity referencedOn ReactionPacks.creator
+    var createdAt by ReactionPacks.createdAt
+    val reactions by ReactionEntity referrersOn Reactions.pack
+}
+
 class ReactionEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     companion object : UUIDEntityClass<ReactionEntity>(Reactions)
 
     var name by Reactions.name
     var icon by FileEntity referencedOn Reactions.icon
+    var pack by ReactionPackEntity referencedOn Reactions.pack
     var creator by Reactions.creator
 }
 

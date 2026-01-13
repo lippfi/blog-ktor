@@ -30,6 +30,7 @@ fun Application.configureDatabases() {
             PasswordResets,
             PendingRegistrations,
             PendingEmailChanges,
+            ReactionPacks,
             Reactions,
             ReactionSubsets,
             ReactionSubsetReactions,
