@@ -1207,6 +1207,38 @@ class PostServiceTests : UnitTestBase() {
         }
     }
 
+    @Test
+    fun `test no duplicate posts when user has multiple diaries`() {
+        transaction {
+            val (user1, _) = signUsersUp()
+            
+            // Create a second diary for user1
+            Diaries.insert {
+                it[name] = "Second Diary"
+                it[subtitle] = "Subtitle"
+                it[login] = "second_diary"
+                it[owner] = user1
+                it[type] = DiaryType.PERSONAL
+                it[defaultReadGroup] = groupService.everyoneGroupUUID
+                it[defaultCommentGroup] = groupService.registeredGroupUUID
+                it[defaultReactGroup] = groupService.friendsGroupUUID
+            }
+
+            // Create one post
+            val post1 = createPostPostData(title = "Single Post")
+            postService.addPost(user1, post1)
+
+            // Get posts
+            val pageable = Pageable(1, 10, SortOrder.DESC)
+            val page = postService.getPosts(Viewer.Registered(user1), pageable)
+
+            // Should only have 1 post, not 2
+            assertEquals(1, page.content.size)
+
+            rollback()
+        }
+    }
+
     // todo access groups
     // todo commenting
     // todo generating url when busy

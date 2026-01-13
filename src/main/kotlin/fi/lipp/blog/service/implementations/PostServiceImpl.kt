@@ -1002,7 +1002,6 @@ class PostServiceImpl(
                 to = params.to
             )
             .andTagFilter(params.tags)
-            .groupBy(Posts.id) // todo why?
     }
 
     private fun Transaction.executePaged(
