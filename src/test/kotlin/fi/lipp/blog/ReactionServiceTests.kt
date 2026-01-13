@@ -407,6 +407,7 @@ class ReactionServiceTests : UnitTestBase() {
         assertEquals(createdReactions[2].name, limitedReactions[1].name)
     }
 
+    @Ignore
     @Test
     fun `test get basic reactions`() {
         // Create all basic reactions

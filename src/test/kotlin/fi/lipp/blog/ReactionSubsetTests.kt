@@ -34,7 +34,7 @@ class ReactionSubsetTests : UnitTestBase() {
     @Test
     fun `test create reaction subset`() {
         val name = "My Favorites"
-        val reactionNames = listOf("like", "love")
+        val reactionNames = listOf("fire", "heart")
 
         val subsetId = reactionService.createReactionSubset(user1Id, testUser.login, name, reactionNames)
 
@@ -100,16 +100,16 @@ class ReactionSubsetTests : UnitTestBase() {
 
     @Test
     fun `test update reaction subset reactions`() {
-        val subsetId = reactionService.createReactionSubset(user1Id, testUser.login, "Subset", listOf("like"))
+        val subsetId = reactionService.createReactionSubset(user1Id, testUser.login, "Subset", listOf("wolf"))
 
-        reactionService.updateReactionSubset(user1Id, subsetId, null, listOf("love", "haha"))
+        reactionService.updateReactionSubset(user1Id, subsetId, null, listOf("fire", "heart"))
 
         transaction {
             val subsetReactions = ReactionSubsetReactionEntity.find { ReactionSubsetReactions.subset eq subsetId }.toList()
             assertEquals(2, subsetReactions.size)
             val names = subsetReactions.map { ReactionEntity.findById(it.reaction)!!.name }
-            assertTrue(names.containsAll(listOf("love", "haha")))
-            assertFalse(names.contains("like"))
+            assertTrue(names.containsAll(listOf("fire", "heart")))
+            assertFalse(names.contains("wolf"))
         }
     }
 
