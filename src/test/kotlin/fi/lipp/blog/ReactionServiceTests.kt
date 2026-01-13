@@ -510,10 +510,10 @@ class ReactionServiceTests : UnitTestBase() {
             assertTrue(resultNames.contains(name), "Result should contain $name")
         }
 
-        // Verify results are sorted by name
+        // Verify results are sorted by ordinal (creation order)
         val sortedNames = resultNames.filter { testReactionNames.contains(it) }
-        val expectedSortedNames = testReactionNames.sorted()
-        assertEquals(expectedSortedNames, sortedNames, "Results should be sorted by name")
+        val expectedSortedNames = testReactionNames
+        assertEquals(expectedSortedNames, sortedNames, "Results should be sorted by ordinal")
 
         // Verify limit works (this is more of a code check since we can't easily create 120+ reactions in a test)
         // The implementation should limit to 120 results

@@ -140,8 +140,17 @@ class ReactionDatabaseSeeder(
                 this.creator = UserEntity.findById(systemUserId)!!
             }
 
-        reactions.forEach { (fileName, reactionName) ->
-            if (!isReactionNameUsed(reactionName)) {
+        reactions.toList().forEachIndexed { index, (fileName, reactionName) ->
+            val existingReaction = ReactionEntity.find { Reactions.name eq reactionName }.firstOrNull()
+            
+            if (existingReaction != null) {
+                if (existingReaction.ordinal != index) {
+                    existingReaction.ordinal = index
+                }
+                if (reactionName == packIconReactionName) {
+                    pack.icon = existingReaction.icon
+                }
+            } else {
                 val resourcePath = "$resourcePathPrefix/$fileName"
                 val inputStream = this::class.java.classLoader.getResourceAsStream(resourcePath)
                     ?: throw IllegalStateException("Resource not found: $resourcePath")
@@ -151,7 +160,7 @@ class ReactionDatabaseSeeder(
                     inputStream = inputStream
                 )
 
-                val storedFile = storageService.storeReaction(systemUserId, fileName,fileUploadData)
+                val storedFile = storageService.storeReaction(systemUserId, fileName, fileUploadData)
                 val iconFile = FileEntity.findById(storedFile.id) ?: throw FileNotFoundException()
 
                 ReactionEntity.new {
@@ -159,6 +168,7 @@ class ReactionDatabaseSeeder(
                     this.icon = iconFile
                     this.pack = pack
                     this.creator = EntityID(systemUserId, Users)
+                    this.ordinal = index
                 }
 
                 if (reactionName == packIconReactionName) {
@@ -168,13 +178,4 @@ class ReactionDatabaseSeeder(
         }
     }
     
-    /**
-     * Checks if a reaction with the given name already exists in the database.
-     * 
-     * @param name The name of the reaction to check
-     * @return true if a reaction with the given name exists, false otherwise
-     */
-    private fun isReactionNameUsed(name: String): Boolean {
-        return ReactionEntity.find { Reactions.name eq name }.firstOrNull() != null
-    }
 }

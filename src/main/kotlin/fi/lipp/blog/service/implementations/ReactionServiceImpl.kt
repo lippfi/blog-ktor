@@ -50,9 +50,9 @@ class ReactionServiceImpl(
                 ReactionPackDto(
                     name = pack.name,
                     iconUri = pack.icon?.let { storageService.getFileURL(it.toBlogFile()) }
-                        ?: pack.reactions.firstOrNull()?.let { storageService.getFileURL(it.icon.toBlogFile()) } 
+                        ?: pack.reactions.minByOrNull { it.ordinal }?.let { storageService.getFileURL(it.icon.toBlogFile()) } 
                         ?: "",
-                    reactions = pack.reactions.map { toReactionView(it) }
+                    reactions = pack.reactions.sortedBy { it.ordinal }.map { toReactionView(it) }
                 )
             }
         }
@@ -85,6 +85,12 @@ class ReactionServiceImpl(
                     this.icon = iconFile
                     this.pack = pack
                     this.creator = EntityID(userId, Users)
+
+                    val maxOrdinal = Reactions.slice(Reactions.ordinal.max())
+                        .select { Reactions.pack eq pack.id }
+                        .map { it[Reactions.ordinal.max()] }
+                        .firstOrNull() ?: -1
+                    this.ordinal = maxOrdinal + 1
                 }
                 toReactionView(reactionEntity)
             }
@@ -108,7 +114,7 @@ class ReactionServiceImpl(
 
     override fun getReactions(): List<ReactionDto.View> {
         return transaction {
-            ReactionEntity.all().map { toReactionView(it) }
+            ReactionEntity.all().sortedBy { it.ordinal }.map { toReactionView(it) }
         }
     }
 
@@ -286,7 +292,7 @@ class ReactionServiceImpl(
     private fun toReactionView(reactionEntity: ReactionEntity): ReactionDto.View {
         return ReactionDto.View(
             name = reactionEntity.name,
-            iconUri = storageService.getFileURL(reactionEntity.icon.toBlogFile())
+            iconUri = storageService.getFileURL(reactionEntity.icon.toBlogFile()),
         )
     }
 
@@ -297,6 +303,7 @@ class ReactionServiceImpl(
     override fun searchReactionsByName(namePattern: String): List<ReactionDto.View> {
         return transaction {
             ReactionEntity.find { Reactions.name like "%${namePattern}%" }
+                .orderBy(Reactions.pack to SortOrder.ASC, Reactions.ordinal to SortOrder.ASC)
                 .map { toReactionView(it) }
         }
     }
@@ -335,7 +342,9 @@ class ReactionServiceImpl(
 
     override fun getReactions(names: List<String>): List<ReactionDto.View> {
         return transaction {
-            ReactionEntity.find { Reactions.name inList names }.map { toReactionView(it) }
+            ReactionEntity.find { Reactions.name inList names }
+                .orderBy(Reactions.pack to SortOrder.ASC, Reactions.ordinal to SortOrder.ASC)
+                .map { toReactionView(it) }
         }
     }
 
@@ -506,7 +515,7 @@ class ReactionServiceImpl(
     override fun search(text: String): List<ReactionDto.View> {
         return transaction {
             ReactionEntity.find { Reactions.name like "%${text}%" }
-                .orderBy(Reactions.name to SortOrder.ASC)
+                .orderBy(Reactions.pack to SortOrder.ASC, Reactions.ordinal to SortOrder.ASC)
                 .limit(120)
                 .map { toReactionView(it) }
         }

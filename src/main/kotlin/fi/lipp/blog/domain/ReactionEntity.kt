@@ -24,6 +24,7 @@ class ReactionEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var icon by FileEntity referencedOn Reactions.icon
     var pack by ReactionPackEntity referencedOn Reactions.pack
     var creator by Reactions.creator
+    var ordinal by Reactions.ordinal
 }
 
 class PostReactionEntity(id: EntityID<UUID>) : UUIDEntity(id) {

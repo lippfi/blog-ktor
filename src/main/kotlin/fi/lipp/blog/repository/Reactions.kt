@@ -22,6 +22,7 @@ object Reactions : UUIDTable() {
     val icon = reference("icon", Files, onDelete = ReferenceOption.RESTRICT)
     val pack = reference("pack", ReactionPacks, onDelete = ReferenceOption.CASCADE)
     val creator = reference("creator", Users, onDelete = ReferenceOption.CASCADE)
+    val ordinal = integer("ordinal").default(0)
     val createdAt = datetime("created_at").clientDefault { LocalDateTime.now().toKotlinLocalDateTime() }
 
     init {
