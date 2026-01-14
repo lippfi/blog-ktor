@@ -1265,7 +1265,12 @@ class PostServiceImpl(
         if (commentIds.isEmpty()) return emptyMap()
 
         // Зарегистрированные пользователи
-        val reg = (CommentReactions innerJoin Reactions innerJoin Files innerJoin Users innerJoin Diaries)
+        val reg = (CommentReactions
+            .innerJoin(Reactions)
+            .innerJoin(Files)
+            .innerJoin(Users, { CommentReactions.user }, { Users.id })
+            .innerJoin(Diaries, { Users.id }, { Diaries.owner })
+                )
             .slice(
                 CommentReactions.comment, Reactions.id, Reactions.name, Files.id,
                 Diaries.login, Users.nickname
