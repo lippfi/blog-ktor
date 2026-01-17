@@ -140,7 +140,7 @@ class PostServiceImpl(
         pageable: Pageable
     ): DiaryPage {
         val page = transaction {
-            val params = PostSearchParams(viewer = viewer, authorLogin = null, diaryLogin = diaryLogin, text = text, tags = tags, from = from, to = to)
+            val params = PostSearchParams(viewer = viewer, authorLogin = null, diaryLogin = diaryLogin, text = text, tags = tags, from = from, to = to, isHidden = false)
             getPosts(params, emptyList(), pageable, Posts.isPreface to SortOrder.DESC, Posts.creationTime to pageable.direction)
         }
 
@@ -877,6 +877,7 @@ class PostServiceImpl(
         val tags: Pair<TagPolicy, Set<String>>? = null,
         val from: LocalDate? = null,
         val to: LocalDate? = null,
+        val isHidden: Boolean? = null,
     )
 
     private data class PostRowsPage(
@@ -921,7 +922,8 @@ class PostServiceImpl(
         authorLogin: String?,
         diaryLogin: String?,
         from: LocalDate?,
-        to: LocalDate?
+        to: LocalDate?,
+        isHidden: Boolean?
     ): Query {
         return this.apply {
             andWhere {
@@ -946,6 +948,7 @@ class PostServiceImpl(
                 }
                 if (from != null) cond = cond and (Posts.creationTime greaterEq from.atTime(0, 0))
                 if (to != null) cond = cond and (Posts.creationTime lessEq to.atTime(23, 59, 59))
+                if (isHidden != null) cond = cond and (Posts.isHidden eq isHidden)
 
                 cond
             }
@@ -999,7 +1002,8 @@ class PostServiceImpl(
                 authorLogin = params.authorLogin,
                 diaryLogin = params.diaryLogin,
                 from = params.from,
-                to = params.to
+                to = params.to,
+                isHidden = params.isHidden,
             )
             .andTagFilter(params.tags)
     }

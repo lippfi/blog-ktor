@@ -18,6 +18,7 @@ object Posts : UUIDTable() {
     val text = text("text")
     val creationTime = datetime("creation_time").clientDefault { LocalDateTime.now().toKotlinLocalDateTime() }
 
+    val isHidden = bool("is_hidden")
     val isPreface = bool("is_preface")
     val isEncrypted = bool("is_encrypted")
 
