@@ -141,7 +141,7 @@ class PostServiceImpl(
     ): DiaryPage {
         val page = transaction {
             val params = PostSearchParams(viewer = viewer, authorLogin = null, diaryLogin = diaryLogin, text = text, tags = tags, from = from, to = to)
-            getPosts(params, emptyList(), pageable, Posts.creationTime to pageable.direction)
+            getPosts(params, emptyList(), pageable, Posts.isPreface to SortOrder.DESC, Posts.creationTime to pageable.direction)
         }
 
         val userId = (viewer as? Viewer.Registered)?.userId
@@ -925,7 +925,7 @@ class PostServiceImpl(
     ): Query {
         return this.apply {
             andWhere {
-                val base = (Posts.isArchived eq false) and (Posts.isPreface eq false)
+                val base = (Posts.isArchived eq false) // and (Posts.isPreface eq false)
                 var cond: Op<Boolean> = base
 
                 if (text != null) {
