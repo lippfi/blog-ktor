@@ -218,8 +218,8 @@ class PostServiceTests : UnitTestBase() {
             val preface = createPostPostData(title = "Welcome to my blog", text = "preface text", isPreface = true, classes = "rounded", tags = setOf("info", "photos"))
             postService.addPost(user1, preface)
             page = getPosts(userId = user1, pageable = pageable)
-            assertEquals(0, page.totalPages)
-            assertEquals(0, page.content.size)
+            assertEquals(1, page.totalPages)
+            assertEquals(1, page.content.size)
 
             val foundPreface1 = postService.getPreface(Viewer.Registered(user1), testUser.login)!!
             val foundPreface2 = postService.getPreface(Viewer.Registered(user2), testUser.login)!!
@@ -302,7 +302,9 @@ class PostServiceTests : UnitTestBase() {
             assertNow(updatedPreface.creationTime)
 
             val page = getPosts(userId = user1, pageable = pageable)
-            assertEquals(Page(emptyList(), 1, 0), page)
+            assertEquals(1, page.totalPages)
+            assertEquals(1, page.content.size)
+            assertEquals(updatedPreface.id, page.content.first().id)
 
             rollback()
         }
@@ -339,7 +341,9 @@ class PostServiceTests : UnitTestBase() {
             assertNow(updatedPreface.creationTime)
 
             val page = getPosts(userId = user1, pageable = pageable)
-            assertEquals(Page(emptyList(), 1, 0), page)
+            assertEquals(1, page.totalPages)
+            assertEquals(1, page.content.size)
+            assertEquals(updatedPreface.id, page.content.first().id)
 
             rollback()
         }
@@ -391,8 +395,8 @@ class PostServiceTests : UnitTestBase() {
             val preface = createPostPostData(title = "Welcome to my blog", text = "preface text", isPreface = true, readGroup = groupService.privateGroupUUID, commentGroup = groupService.privateGroupUUID, classes = "rounded", tags = setOf("info", "photos"))
             postService.addPost(user1, preface)
             page = getPosts(userId = user1, pageable = pageable)
-            assertEquals(0, page.totalPages)
-            assertEquals(0, page.content.size)
+            assertEquals(1, page.totalPages)
+            assertEquals(1, page.content.size)
 
             val foundPreface1 = postService.getPreface(Viewer.Registered(user1), testUser.login)!!
             val foundPreface2 = postService.getPreface(Viewer.Registered(user2), testUser.login)
@@ -541,18 +545,18 @@ class PostServiceTests : UnitTestBase() {
 
             // Test access for user1 (owner)
             var page = getPosts(Viewer.Registered(user1Id), pageable = Pageable(0, 10, SortOrder.DESC))
-            assertEquals(3, page.content.size)
-            assertEquals(listOf("post3", "post2", "post1"), page.content.map { it.title })
+            assertEquals(4, page.content.size)
+            assertEquals(listOf("post5", "post3", "post2", "post1"), page.content.map { it.title })
 
             // Test access for user2 (has access to custom group)
             page = getPosts(Viewer.Registered(user2Id), pageable = Pageable(0, 10, SortOrder.DESC))
-            assertEquals(3, page.content.size)
-            assertEquals(listOf("post3", "post2", "post1"), page.content.map { it.title })
+            assertEquals(4, page.content.size)
+            assertEquals(listOf("post5", "post3", "post2", "post1"), page.content.map { it.title })
 
             // Test access for user3 (no access to custom group)
             page = getPosts(Viewer.Registered(user3Id), pageable = Pageable(0, 10, SortOrder.DESC))
-            assertEquals(2, page.content.size)
-            assertEquals(listOf("post2", "post1"), page.content.map { it.title })
+            assertEquals(3, page.content.size)
+            assertEquals(listOf("post5", "post2", "post1"), page.content.map { it.title })
 
             rollback()
         }
