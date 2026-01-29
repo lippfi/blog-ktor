@@ -539,6 +539,7 @@ class PostServiceImpl(
                 it[classes] = post.classes
 
                 it[isArchived] = false
+                it[isHidden] = false
 
                 it[readGroup] = readGroupEntity.id
                 it[commentGroup] = commentGroupEntity.id
