@@ -38,15 +38,15 @@ fun Application.configureSecurity() {
                 val h = call.request.parseAuthorizationHeader()
                 if (h != null) return@authHeader h
 
-                // 2) Browser WebSocket: token in Sec-WebSocket-Protocol
-                val proto = call.request.headers["Sec-WebSocket-Protocol"] ?: return@authHeader null
-                val token = proto.split(',')
-                    .map { it.trim() }
-                    .firstOrNull { it.startsWith("bearer.") }
-                    ?.removePrefix("bearer.")
-                    ?: return@authHeader null
+                // 2) WebSocket
+                call.request.queryParameters["token"]
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { raw ->
+                        val token = raw.removePrefix("Bearer ").trim()
+                        return@authHeader HttpAuthHeader.Single("Bearer", token)
+                    }
 
-                HttpAuthHeader.Single("Bearer", token)
+                null
             }
 
             validate { credential ->
