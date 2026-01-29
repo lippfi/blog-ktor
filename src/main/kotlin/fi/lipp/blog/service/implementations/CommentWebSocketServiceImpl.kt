@@ -90,8 +90,11 @@ class CommentWebSocketServiceImpl(
         println("sessions: ${postSessions.count()}")
         postSessions.forEach { sessionInfo ->
             val message = transaction {
+                println("searching entity for $commentId")
                 val entity = CommentEntity.findById(commentId) ?: return@transaction null
+                println("entity - $entity")
                 val view = entity.toComment(this, sessionInfo.viewer, accessGroupService, reactionService)
+                println("view - $view")
                 messageFactory(view)
             } ?: return@forEach
 
