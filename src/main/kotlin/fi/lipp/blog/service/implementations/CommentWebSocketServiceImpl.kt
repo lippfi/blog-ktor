@@ -46,19 +46,15 @@ class CommentWebSocketServiceImpl(
 
     override fun notifyCommentAdded(comment: CommentEntity) {
         println("notifyCommentAdded start")
-        val postId = comment.postId.value
-        val commentId = comment.id.value
         GlobalScope.launch {
-            notifySubscribers(postId, commentId) { CommentWebSocketMessage.CommentAdded(it) }
+            notifySubscribers(comment) { CommentWebSocketMessage.CommentAdded(it) }
         }
         println("notifyCommentAdded end")
     }
 
     override fun notifyCommentUpdated(comment: CommentEntity) {
-        val postId = comment.postId.value
-        val commentId = comment.id.value
         GlobalScope.launch {
-            notifySubscribers(postId, commentId) { CommentWebSocketMessage.CommentUpdated(it) }
+            notifySubscribers(comment) { CommentWebSocketMessage.CommentUpdated(it) }
         }
     }
 
@@ -83,20 +79,18 @@ class CommentWebSocketServiceImpl(
         }
     }
 
-    private suspend fun notifySubscribers(postId: UUID, commentId: UUID, messageFactory: (CommentDto.View) -> CommentWebSocketMessage) {
+    private suspend fun notifySubscribers(commentEntity: CommentEntity, messageFactory: (CommentDto.View) -> CommentWebSocketMessage) {
         println("in notifySubscribers")
-        val postSessions = sessions[postId] ?: return
+        val postSessions = sessions[commentEntity.postId.value] ?: return
 
         println("sessions: ${postSessions.count()}")
         postSessions.forEach { sessionInfo ->
             val message = transaction {
-                println("searching entity for $commentId")
-                val entity = CommentEntity.findById(commentId) ?: return@transaction null
-                println("entity - $entity")
-                val view = entity.toComment(this, sessionInfo.viewer, accessGroupService, reactionService)
+                println("searching entity for ${commentEntity.postId}")
+                val view = commentEntity.toComment(this, sessionInfo.viewer, accessGroupService, reactionService)
                 println("view - $view")
                 messageFactory(view)
-            } ?: return@forEach
+            }
 
             val jsonMessage = webSocketJson.encodeToString(message)
             println("json $jsonMessage")
