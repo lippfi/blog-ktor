@@ -146,7 +146,7 @@ abstract class UnitTestBase {
                         commentWebSocketService = get()
                     ) }
                     single<DialogService> { DialogServiceImpl(get(), get()) }
-                    single<CommentWebSocketService> { CommentWebSocketServiceImpl() }
+                    single<CommentWebSocketService> { CommentWebSocketServiceImpl(get()) }
                 })
             }
             // Initialize default access groups

@@ -10,13 +10,7 @@ import fi.lipp.blog.model.PostPage
 import fi.lipp.blog.model.TagPolicy
 import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.repository.*
-import fi.lipp.blog.service.AccessGroupService
-import fi.lipp.blog.service.CommentWebSocketService
-import fi.lipp.blog.service.NotificationService
-import fi.lipp.blog.service.PostService
-import fi.lipp.blog.service.ReactionService
-import fi.lipp.blog.service.StorageService
-import fi.lipp.blog.service.Viewer
+import fi.lipp.blog.service.*
 import kotlinx.datetime.*
 import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.dao.id.EntityID
@@ -366,16 +360,6 @@ class PostServiceImpl(
         }
     }
 
-    private fun collectReplyTo(parentCommentId: UUID?): CommentDto.ReplyView? {
-        if (parentCommentId == null) return null
-        val parentComment = CommentEntity.findById(parentCommentId) ?: return null
-
-        return CommentDto.ReplyView(
-            id = parentComment.id.value,
-            login = parentComment.authorDiaryLogin,
-            nickname = parentComment.authorNickname
-        )
-    }
 
     override fun getComment(viewer: Viewer, commentId: UUID): CommentDto.View {
         return transaction {
@@ -401,7 +385,7 @@ class PostServiceImpl(
                 throw CommentNotFoundException()
             }
 
-            val updated = commentEntity.toComment(this, viewer)
+            val updated = commentEntity.toComment(this, viewer, accessGroupService, reactionService)
             updated
         }
     }
@@ -445,11 +429,10 @@ class PostServiceImpl(
             notificationService.subscribeToComments(userId, postId)
             notificationService.notifyAboutComment(commentId.value, userId, postId)
 
-            val comment = CommentEntity.findById(commentId)!!.toComment(this, Viewer.Registered(userId))
+            val commentEntity = CommentEntity.findById(commentId)!!
+            commentWebSocketService.notifyCommentAdded(commentEntity)
 
-            commentWebSocketService.notifyCommentAdded(comment)
-
-            comment
+            commentEntity.toComment(this, Viewer.Registered(userId), accessGroupService, reactionService)
         }
     }
 
@@ -462,12 +445,9 @@ class PostServiceImpl(
                 text = comment.text
             }
 
-            val updatedComment = commentEntity.toComment(this, Viewer.Registered(userId))
+            commentWebSocketService.notifyCommentUpdated(commentEntity)
 
-            // Notify WebSocket clients about the updated comment
-            commentWebSocketService.notifyCommentUpdated(updatedComment)
-
-            updatedComment
+            commentEntity.toComment(this, Viewer.Registered(userId), accessGroupService, reactionService)
         }
     }
 
@@ -648,51 +628,6 @@ class PostServiceImpl(
         )
     }
 
-    @Suppress("UNUSED_PARAMETER")
-    private fun CommentEntity.toComment(transaction: Transaction, viewer: Viewer): CommentDto.View {
-        val commentedPost = PostEntity.findById(postId)!!
-        val commentedDiary = DiaryEntity.findById(commentedPost.diaryId)!!
-        val commentedDiaryOwnerId = commentedDiary.owner.value
-
-        val (authorLogin: String?, authorNickname: String) = when (authorType) {
-            CommentAuthorType.LOCAL -> {
-                val u = UserEntity.findById(localAuthor!!)!!
-                val d = DiaryEntity.find { Diaries.owner eq u.id }.single()
-                d.login to u.nickname
-            }
-            CommentAuthorType.EXTERNAL -> {
-                val ext = ExternalUserEntity.findById(externalAuthor!!)!!
-                val linked = ext.user?.let { UserEntity.findById(it) }
-                if (linked != null) {
-                    val d = DiaryEntity.find { Diaries.owner eq linked.id }.single()
-                   d.login to linked.nickname
-                } else {
-                    null to ext.nickname
-                }
-            }
-            CommentAuthorType.ANONYMOUS -> {
-                val anon = AnonymousUserEntity.findById(anonymousAuthor!!)!!
-                null to anon.nickname
-            }
-        }
-
-        val canReact = accessGroupService.inGroup(viewer, reactionGroupId.value, commentedDiaryOwnerId)
-        val inReplyTo = collectReplyTo(parentComment?.value)
-        return CommentDto.View(
-            id = id.value,
-            authorLogin = authorLogin,
-            authorNickname = authorNickname,
-            diaryLogin = commentedDiary.login,
-            postUri = commentedPost.uri,
-            avatar = avatar,
-            text = text,
-            creationTime = creationTime,
-            isReactable = canReact,
-            reactions = reactionService.getCommentReactions(id.value),
-            reactionGroupId = reactionGroupId.value,
-            inReplyTo = inReplyTo
-        )
-    }
 
     // TODO do not duplicate this method
     @Suppress("UnusedReceiverParameter")

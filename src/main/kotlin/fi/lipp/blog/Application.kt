@@ -84,7 +84,7 @@ fun KoinApplication.loadMyKoins(environment: ApplicationEnvironment): KoinApplic
         single<UserService> { UserServiceImpl(get(), get(), get(), get(), get<NotificationService>(), get()) }
         single<AccessGroupService> { AccessGroupServiceImpl() }
         single<NotificationService> { NotificationServiceImpl() }
-        single<CommentWebSocketService> { CommentWebSocketServiceImpl() }
+        single<CommentWebSocketService> { CommentWebSocketServiceImpl(get()) }
 
         // Database seeders
         single { ReactionDatabaseSeeder(get(), get()) }

@@ -4,34 +4,37 @@ import fi.lipp.blog.data.CommentDto
 import fi.lipp.blog.data.CommentWebSocketMessage
 import fi.lipp.blog.data.ReactionDto
 import fi.lipp.blog.data.webSocketJson
-import fi.lipp.blog.domain.DiaryEntity
-import fi.lipp.blog.domain.PostEntity
-import fi.lipp.blog.repository.Diaries
-import fi.lipp.blog.repository.Posts
-import fi.lipp.blog.service.CommentWebSocketService
+import fi.lipp.blog.domain.CommentEntity
+import fi.lipp.blog.service.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
-import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
-class CommentWebSocketServiceImpl : CommentWebSocketService {
-    private val sessions = ConcurrentHashMap<UUID, MutableSet<WebSocketSession>>()
+class CommentWebSocketServiceImpl(
+    private val accessGroupService: AccessGroupService
+) : CommentWebSocketService, KoinComponent {
+    private val reactionService: ReactionService by inject()
+
+    private val sessions = ConcurrentHashMap<UUID, MutableSet<SessionInfo>>()
 
     private val sessionToPost = ConcurrentHashMap<WebSocketSession, UUID>()
 
-    override suspend fun addSession(postId: UUID, session: WebSocketSession) {
-        sessions.computeIfAbsent(postId) { mutableSetOf() }.add(session)
+    data class SessionInfo(val session: WebSocketSession, val viewer: Viewer)
+
+    override suspend fun addSession(postId: UUID, viewer: Viewer, session: WebSocketSession) {
+        sessions.computeIfAbsent(postId) { mutableSetOf() }.add(SessionInfo(session, viewer))
         sessionToPost[session] = postId
     }
 
     override suspend fun removeSession(session: WebSocketSession) {
         val postId = sessionToPost[session] ?: return
-        sessions[postId]?.remove(session)
+        sessions[postId]?.removeIf { it.session == session }
 
         if (sessions[postId]?.isEmpty() == true) {
             sessions.remove(postId)
@@ -39,66 +42,72 @@ class CommentWebSocketServiceImpl : CommentWebSocketService {
         sessionToPost.remove(session)
     }
 
-    override fun notifyCommentAdded(comment: CommentDto.View) {
-        val postId = getPostIdFromComment(comment)
-        val message = CommentWebSocketMessage.CommentAdded(comment)
+    override fun notifyCommentAdded(comment: CommentEntity) {
+        val postId = comment.postId.value
+        val commentId = comment.id.value
         GlobalScope.launch {
-            sendToPost(postId, message)
+            notifySubscribers(postId, commentId) { CommentWebSocketMessage.CommentAdded(it) }
         }
     }
 
-    override fun notifyCommentUpdated(comment: CommentDto.View) {
-        val postId = getPostIdFromComment(comment)
-        val message = CommentWebSocketMessage.CommentUpdated(comment)
+    override fun notifyCommentUpdated(comment: CommentEntity) {
+        val postId = comment.postId.value
+        val commentId = comment.id.value
         GlobalScope.launch {
-            sendToPost(postId, message)
+            notifySubscribers(postId, commentId) { CommentWebSocketMessage.CommentUpdated(it) }
         }
     }
 
     override fun notifyCommentDeleted(commentId: UUID, postId: UUID) {
         val message = CommentWebSocketMessage.CommentDeleted(commentId)
         GlobalScope.launch {
-            sendToPost(postId, message)
+            sendSimpleMessage(postId, message)
         }
     }
 
     override fun notifyReactionAdded(commentId: UUID, reaction: ReactionDto.ReactionInfo, postId: UUID) {
         val message = CommentWebSocketMessage.ReactionAdded(commentId, reaction)
         GlobalScope.launch {
-            sendToPost(postId, message)
+            sendSimpleMessage(postId, message)
         }
     }
 
     override fun notifyReactionRemoved(commentId: UUID, reaction: ReactionDto.ReactionInfo, postId: UUID) {
         val message = CommentWebSocketMessage.ReactionRemoved(commentId, reaction)
         GlobalScope.launch {
-            sendToPost(postId, message)
+            sendSimpleMessage(postId, message)
         }
     }
 
-    private suspend fun sendToPost(postId: UUID, message: CommentWebSocketMessage) {
+    private suspend fun notifySubscribers(postId: UUID, commentId: UUID, messageFactory: (CommentDto.View) -> CommentWebSocketMessage) {
         val postSessions = sessions[postId] ?: return
-        val jsonMessage = webSocketJson.encodeToString(message)
 
-        postSessions.forEach { session ->
+        postSessions.forEach { sessionInfo ->
+            val message = transaction {
+                val entity = CommentEntity.findById(commentId) ?: return@transaction null
+                val view = entity.toComment(this, sessionInfo.viewer, accessGroupService, reactionService)
+                messageFactory(view)
+            } ?: return@forEach
+
+            val jsonMessage = webSocketJson.encodeToString(message)
             try {
-                session.send(Frame.Text(jsonMessage))
+                sessionInfo.session.send(Frame.Text(jsonMessage))
             } catch (e: Exception) {
-                removeSession(session)
+                removeSession(sessionInfo.session)
             }
         }
     }
 
-    private fun getPostIdFromComment(comment: CommentDto.View): UUID {
-        return transaction {
-            val diaryEntity = DiaryEntity.find { Diaries.login eq comment.diaryLogin }.singleOrNull()
-                ?: throw Exception("Diary not found: ${comment.diaryLogin}")
+    private suspend fun sendSimpleMessage(postId: UUID, message: CommentWebSocketMessage) {
+        val postSessions = sessions[postId] ?: return
+        val jsonMessage = webSocketJson.encodeToString(message)
 
-            val postEntity = PostEntity.find {
-                (Posts.diary eq diaryEntity.id) and (Posts.uri eq comment.postUri) 
-            }.singleOrNull() ?: throw Exception("Post not found: ${comment.postUri}")
-
-            postEntity.id.value
+        postSessions.forEach { sessionInfo ->
+            try {
+                sessionInfo.session.send(Frame.Text(jsonMessage))
+            } catch (e: Exception) {
+                removeSession(sessionInfo.session)
+            }
         }
     }
 }

@@ -166,7 +166,7 @@ class AccessGroupServiceImpl : AccessGroupService {
         return when (groupId) {
             everyoneGroupUUID -> true
             registeredGroupUUID -> viewer is Viewer.Registered
-            privateGroupUUID -> false
+            privateGroupUUID -> (viewer as? Viewer.Registered)?.userId == groupOwner
             friendsGroupUUID -> {
                 if (viewer is Viewer.Anonymous) {
                     return false

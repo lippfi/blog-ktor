@@ -3,18 +3,19 @@ package fi.lipp.blog.service
 import fi.lipp.blog.data.CommentDto
 import fi.lipp.blog.data.CommentWebSocketMessage
 import fi.lipp.blog.data.ReactionDto
+import fi.lipp.blog.domain.CommentEntity
+import fi.lipp.blog.service.Viewer
 import io.ktor.websocket.*
-import kotlinx.serialization.json.Json
 import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
 
 interface CommentWebSocketService {
     /**
      * Add a WebSocket session for a specific post
      * @param postId ID of the post to subscribe to
+     * @param viewer Viewer of the session
      * @param session WebSocket session
      */
-    suspend fun addSession(postId: UUID, session: WebSocketSession)
+    suspend fun addSession(postId: UUID, viewer: Viewer, session: WebSocketSession)
 
     /**
      * Remove a WebSocket session
@@ -26,14 +27,14 @@ interface CommentWebSocketService {
      * This method is not suspend to allow it to be called from non-suspend functions
      * It will handle the suspension internally
      */
-    fun notifyCommentAdded(comment: CommentDto.View)
+    fun notifyCommentAdded(comment: CommentEntity)
 
     /**
      * Notify all subscribers about an updated comment
      * This method is not suspend to allow it to be called from non-suspend functions
      * It will handle the suspension internally
      */
-    fun notifyCommentUpdated(comment: CommentDto.View)
+    fun notifyCommentUpdated(comment: CommentEntity)
 
     /**
      * Notify all subscribers about a deleted comment

@@ -65,19 +65,23 @@ fun createJwtToken(userId: UUID): String {
         .sign(Algorithm.HMAC256(jwtSecret))
 }
 
-inline val PipelineContext<*, ApplicationCall>.userId: UUID get() {
-    val string = this.call.principal<JWTPrincipal>()!!.payload.getClaim(USER_ID).asString()
+inline val ApplicationCall.userId: UUID get() {
+    val string = this.principal<JWTPrincipal>()!!.payload.getClaim(USER_ID).asString()
     return UUID.fromString(string)
 }
 
-inline val PipelineContext<*, ApplicationCall>.viewer: Viewer
+inline val PipelineContext<*, ApplicationCall>.userId: UUID get() = call.userId
+
+inline val ApplicationCall.viewer: Viewer
     get() {
-    val principal = this.call.principal<JWTPrincipal>()
+    val principal = this.principal<JWTPrincipal>()
     if (principal == null) {
-        val ip = this.call.request.origin.remoteHost
-        val browserFingerprint = call.request.headers["User-Agent"] ?: "unknown"
+        val ip = this.request.origin.remoteHost
+        val browserFingerprint = this.request.headers["User-Agent"] ?: "unknown"
         return Viewer.Anonymous(ip, browserFingerprint)
     }
     val userId = principal.payload.getClaim(USER_ID).asString()
     return Viewer.Registered(UUID.fromString(userId))
 }
+
+inline val PipelineContext<*, ApplicationCall>.viewer: Viewer get() = call.viewer
