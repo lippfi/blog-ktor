@@ -24,6 +24,7 @@ import java.util.*
 
 fun Route.postRoutes(postService: PostService, reactionService: ReactionService, commentWebSocketService: CommentWebSocketService) {
     route("/posts") {
+        authenticate(optional = true) {
             webSocket("/comments") {
                 try {
                     for (frame in incoming) {
@@ -63,6 +64,7 @@ fun Route.postRoutes(postService: PostService, reactionService: ReactionService,
                     commentWebSocketService.removeSession(this)
                 }
             }
+        }
 
         authenticate(optional = true) {
             get("/preface") {

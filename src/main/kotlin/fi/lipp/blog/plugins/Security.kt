@@ -4,6 +4,7 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import fi.lipp.blog.service.Viewer
 import io.ktor.http.*
+import io.ktor.http.auth.HttpAuthHeader
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.auth.jwt.*
@@ -31,6 +32,22 @@ fun Application.configureSecurity() {
                     .withIssuer(jwtIssuer)
                     .build()
             )
+
+            authHeader { call ->
+                // 1) Normal HTTP: Authorization: Bearer <token>
+                val h = call.request.parseAuthorizationHeader()
+                if (h != null) return@authHeader h
+
+                // 2) Browser WebSocket: token in Sec-WebSocket-Protocol
+                val proto = call.request.headers["Sec-WebSocket-Protocol"] ?: return@authHeader null
+                val token = proto.split(',')
+                    .map { it.trim() }
+                    .firstOrNull { it.startsWith("bearer.") }
+                    ?.removePrefix("bearer.")
+                    ?: return@authHeader null
+
+                HttpAuthHeader.Single("Bearer", token)
+            }
 
             validate { credential ->
                 if (credential.payload.getClaim(USER_ID).asString() != "") {
