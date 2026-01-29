@@ -391,7 +391,7 @@ class PostServiceImpl(
     }
 
     override fun addComment(userId: UUID, comment: CommentDto.Create): CommentDto.View {
-        return transaction {
+        val (commentEntity, comment) = transaction {
             val postEntity = PostEntity.findById(comment.postId) ?: throw PostNotFoundException()
             val diaryEntity = DiaryEntity.findById(postEntity.diaryId.value) ?: throw InternalServerError()
             val diaryOwnerId = diaryEntity.owner.value
@@ -430,10 +430,11 @@ class PostServiceImpl(
             notificationService.notifyAboutComment(commentId.value, userId, postId)
 
             val commentEntity = CommentEntity.findById(commentId)!!
-            commentWebSocketService.notifyCommentAdded(commentEntity)
 
-            commentEntity.toComment(this, Viewer.Registered(userId), accessGroupService, reactionService)
+            commentEntity to commentEntity.toComment(this, Viewer.Registered(userId), accessGroupService, reactionService)
         }
+        commentWebSocketService.notifyCommentAdded(commentEntity)
+        return comment
     }
 
     override fun updateComment(userId: UUID, comment: CommentDto.Update): CommentDto.View {
