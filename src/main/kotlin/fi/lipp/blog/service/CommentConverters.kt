@@ -39,6 +39,8 @@ fun CommentEntity.toComment(
         }
     }
 
+    println("viewer - ${(viewer as Viewer.Registered).userId}")
+    println("owner - $commentedDiaryOwnerId")
     val canReact = accessGroupService.inGroup(viewer, reactionGroupId.value, commentedDiaryOwnerId)
     val inReplyTo = collectReplyTo(parentComment?.value)
     return CommentDto.View(
