@@ -35,6 +35,7 @@ fun Route.postRoutes(postService: PostService, reactionService: ReactionService,
 
                                     when (message) {
                                         is CommentWebSocketMessage.Subscribe -> {
+                                            println("in subscribe router")
                                             commentWebSocketService.addSession(message.postId, call.viewer, this)
                                         }
                                         else -> {

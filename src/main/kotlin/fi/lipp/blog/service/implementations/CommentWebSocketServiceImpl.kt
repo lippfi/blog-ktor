@@ -30,6 +30,7 @@ class CommentWebSocketServiceImpl(
     override suspend fun addSession(postId: UUID, viewer: Viewer, session: WebSocketSession) {
         sessions.computeIfAbsent(postId) { mutableSetOf() }.add(SessionInfo(session, viewer))
         sessionToPost[session] = postId
+        println("added session for viewer $viewer")
     }
 
     override suspend fun removeSession(session: WebSocketSession) {
@@ -40,14 +41,17 @@ class CommentWebSocketServiceImpl(
             sessions.remove(postId)
         }
         sessionToPost.remove(session)
+        println("removed session")
     }
 
     override fun notifyCommentAdded(comment: CommentEntity) {
+        println("notifyCommentAdded start")
         val postId = comment.postId.value
         val commentId = comment.id.value
         GlobalScope.launch {
             notifySubscribers(postId, commentId) { CommentWebSocketMessage.CommentAdded(it) }
         }
+        println("notifyCommentAdded end")
     }
 
     override fun notifyCommentUpdated(comment: CommentEntity) {
@@ -80,8 +84,10 @@ class CommentWebSocketServiceImpl(
     }
 
     private suspend fun notifySubscribers(postId: UUID, commentId: UUID, messageFactory: (CommentDto.View) -> CommentWebSocketMessage) {
+        println("in notifySubscribers")
         val postSessions = sessions[postId] ?: return
 
+        println("sessions: ${postSessions.count()}")
         postSessions.forEach { sessionInfo ->
             val message = transaction {
                 val entity = CommentEntity.findById(commentId) ?: return@transaction null
@@ -90,6 +96,7 @@ class CommentWebSocketServiceImpl(
             } ?: return@forEach
 
             val jsonMessage = webSocketJson.encodeToString(message)
+            println("json $jsonMessage")
             try {
                 sessionInfo.session.send(Frame.Text(jsonMessage))
             } catch (e: Exception) {
