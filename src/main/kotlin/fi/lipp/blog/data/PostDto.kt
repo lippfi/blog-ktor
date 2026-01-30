@@ -68,6 +68,7 @@ sealed interface PostDto {
 
         val isPreface : Boolean,
         val isEncrypted: Boolean,
+        val isHidden: Boolean = false,
 
         @Serializable(with = UUIDSerializer::class)
         val reactionSubset: UUID? = null,
@@ -96,5 +97,6 @@ sealed interface PostDto {
         val classes : String,
 
         val isEncrypted: Boolean,
+        val isHidden: Boolean = false,
     ) : PostDto
 }

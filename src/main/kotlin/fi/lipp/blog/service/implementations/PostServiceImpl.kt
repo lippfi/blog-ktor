@@ -293,6 +293,7 @@ class PostServiceImpl(
                 classes = post.classes
 
                 isEncrypted = post.isEncrypted
+                isHidden = post.isHidden
                 readGroupId = readGroup.id
                 commentGroupId = commentGroup.id
                 reactionGroupId = reactionGroup.id
@@ -532,11 +533,11 @@ class PostServiceImpl(
 
                 it[isPreface] = post.isPreface
                 it[isEncrypted] = post.isEncrypted
+                it[isHidden] = post.isHidden
 
                 it[classes] = post.classes
 
                 it[isArchived] = false
-                it[isHidden] = false
 
                 it[readGroup] = readGroupEntity.id
                 it[commentGroup] = commentGroupEntity.id
@@ -642,6 +643,7 @@ class PostServiceImpl(
             classes = postEntity.classes,
 
             isEncrypted = postEntity.isEncrypted,
+            isHidden = postEntity.isHidden,
         )
     }
 

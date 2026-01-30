@@ -942,6 +942,62 @@ class PostServiceTests : UnitTestBase() {
     }
 
     @Test
+    fun `test creating hidden post`() {
+        transaction {
+            val (user1, _) = signUsersUp()
+
+            val postData = createPostPostData(title = "hidden post", isHidden = true)
+            val createdPost = postService.addPost(user1, postData)
+
+            assertTrue(createdPost.isHidden)
+
+            val retrievedPost = postService.getPost(Viewer.Registered(user1), testUser.login, createdPost.uri).post
+            assertTrue(retrievedPost.isHidden)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `test updating post hidden status`() {
+        transaction {
+            val (user1, _) = signUsersUp()
+
+            val postData = createPostPostData(title = "post")
+            val createdPost = postService.addPost(user1, postData)
+            assertFalse(createdPost.isHidden)
+
+            val updateData = createPostUpdateData(id = createdPost.id, title = "post", isHidden = true)
+            val updatedPost = postService.updatePost(user1, updateData)
+            assertTrue(updatedPost.isHidden)
+
+            val retrievedPost = postService.getPost(Viewer.Registered(user1), testUser.login, createdPost.uri).post
+            assertTrue(retrievedPost.isHidden)
+
+            val updateData2 = createPostUpdateData(id = createdPost.id, title = "post", isHidden = false)
+            val updatedPost2 = postService.updatePost(user1, updateData2)
+            assertFalse(updatedPost2.isHidden)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `test getPostForEdit includes isHidden`() {
+        transaction {
+            val (user1, _) = signUsersUp()
+
+            val postData = createPostPostData(title = "hidden post", isHidden = true)
+            val createdPost = postService.addPost(user1, postData)
+
+            val editData = postService.getPostForEdit(user1, createdPost.id)
+            assertTrue(editData.isHidden)
+
+            rollback()
+        }
+    }
+
+    @Test
     fun `test hiding and showing post`() {
         transaction {
             val (user1, user2) = signUsersUp()
@@ -1330,6 +1386,7 @@ class PostServiceTests : UnitTestBase() {
         text : String = "sample text",
         isPreface : Boolean = false,
         isEncrypted: Boolean = false,
+        isHidden: Boolean = false,
         classes : String = "bold",
         tags : Set<String> = emptySet(),
         readGroup: UUID = groupService.everyoneGroupUUID,
@@ -1344,6 +1401,7 @@ class PostServiceTests : UnitTestBase() {
             text  = text,
             isPreface  = isPreface,
             isEncrypted = isEncrypted,
+            isHidden = isHidden,
             classes  = classes,
             tags = tags,
             readGroupId = readGroup,
@@ -1360,6 +1418,7 @@ class PostServiceTests : UnitTestBase() {
         title : String = "sample title",
         text : String = "sample text",
         isEncrypted: Boolean = false,
+        isHidden: Boolean = false,
         classes : String = "bold",
         tags : Set<String> = emptySet(),
         readGroup: UUID = groupService.everyoneGroupUUID,
@@ -1374,6 +1433,7 @@ class PostServiceTests : UnitTestBase() {
             title  = title,
             text  = text,
             isEncrypted = isEncrypted,
+            isHidden = isHidden,
             classes  = classes,
             tags = tags,
             readGroupId = readGroup,
