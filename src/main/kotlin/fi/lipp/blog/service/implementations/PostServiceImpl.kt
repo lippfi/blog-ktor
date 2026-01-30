@@ -69,12 +69,12 @@ class PostServiceImpl(
 
             val accessChecks = getBulkAccessGroupChecks(viewer, rowsByPostId)
             val tagsByPost = loadTagsForPosts(setOf(postId))
-            val commentsByPost = loadCommentsForPosts(viewer, setOf(postId))
+            val commentCountsByPost = loadCommentCountsForPosts(setOf(postId))
             val reactionsByPost = loadPostReactions(setOf(postId))
 
             toPostView(
                 row = row,
-                comments = commentsByPost[postId] ?: emptyList(),
+                commentsCount = commentCountsByPost[postId] ?: 0,
                 reactions = reactionsByPost[postId] ?: emptyList(),
                 tags = tagsByPost[postId] ?: emptySet(),
                 accessGroupChecks = accessChecks.getValue(postId)
@@ -85,7 +85,7 @@ class PostServiceImpl(
     override fun getPost(viewer: Viewer, diaryLogin: String, uri: String): PostPage {
         val userId = (viewer as? Viewer.Registered)?.userId
 
-        val postView = transaction {
+        val postAndComments = transaction {
             val baseJoin = getBasicPostJoin()
             val q = baseJoin
                 .slice(postBaseSlice)
@@ -109,19 +109,24 @@ class PostServiceImpl(
             val accessChecks = getBulkAccessGroupChecks(viewer, rowsByPostId)
             val tagsByPost = loadTagsForPosts(postIds)
             val commentsByPost = loadCommentsForPosts(viewer, postIds)
+            val commentCountsByPost = loadCommentCountsForPosts(postIds)
             val reactionsByPost = loadPostReactions(postIds)
 
-            toPostView(
+            val postId = row[Posts.id].value
+            val comments = commentsByPost[postId] ?: emptyList()
+
+            val postView = toPostView(
                 row = row,
-                comments = commentsByPost[row[Posts.id].value] ?: emptyList(),
-                reactions = reactionsByPost[row[Posts.id].value] ?: emptyList(),
-                tags = tagsByPost[row[Posts.id].value] ?: emptySet(),
-                accessGroupChecks = accessChecks.getValue(row[Posts.id].value)
+                commentsCount = commentCountsByPost[postId] ?: 0,
+                reactions = reactionsByPost[postId] ?: emptyList(),
+                tags = tagsByPost[postId] ?: emptySet(),
+                accessGroupChecks = accessChecks.getValue(postId)
             )
+            postView to comments
         }
 
         val diary = getDiaryView(userId, diaryLogin)
-        return PostPage(post = postView, diary = diary)
+        return PostPage(post = postAndComments.first, diary = diary, comments = postAndComments.second)
     }
 
     override fun getDiaryPosts(
@@ -229,13 +234,13 @@ class PostServiceImpl(
 
         val accessChecks = getBulkAccessGroupChecks(params.viewer, rowsByPostId)
         val tagsByPost = loadTagsForPosts(postIds)
-        val commentsByPost = loadCommentsForPosts(params.viewer, postIds)
+        val commentCountsByPost = loadCommentCountsForPosts(postIds)
         val reactionsByPost = loadPostReactions(postIds)
 
         val content = rowsByPostId.map { (postId, row) ->
             toPostView(
                 row = row,
-                comments = commentsByPost[postId] ?: emptyList(),
+                commentsCount = commentCountsByPost[postId] ?: 0,
                 reactions = reactionsByPost[postId] ?: emptyList(),
                 tags = tagsByPost[postId] ?: emptySet(),
                 accessGroupChecks = accessChecks.getValue(postId)
@@ -709,7 +714,7 @@ class PostServiceImpl(
 
     private fun Transaction.toPostView(
         row: ResultRow,
-        comments: List<CommentDto.View>,
+        commentsCount: Int,
         reactions: List<ReactionDto.ReactionInfo>,
         tags: Set<String>,
         accessGroupChecks: AccessChecks,
@@ -759,7 +764,7 @@ class PostServiceImpl(
 
             classes = row[Posts.classes],
             isCommentable = accessGroupChecks.canComment,
-            comments = comments,
+            commentsCount = commentsCount,
 
             readGroupId = row[Posts.readGroup].value,
             commentGroupId = row[Posts.commentGroup].value,
@@ -989,6 +994,15 @@ class PostServiceImpl(
             .select { PostTags.post inList postIds.toList() }
             .groupBy { it[PostTags.post].value }
             .mapValues { (_, rows) -> rows.map { it[Tags.name] }.toSet() }
+    }
+
+    private fun Transaction.loadCommentCountsForPosts(postIds: Set<UUID>): Map<UUID, Int> {
+        if (postIds.isEmpty()) return emptyMap()
+        return Comments
+            .slice(Comments.post, Comments.id.count())
+            .select { Comments.post inList postIds.toList() }
+            .groupBy(Comments.post)
+            .associate { it[Comments.post].value to it[Comments.id.count()].toInt() }
     }
 
     // TODO inReplyTo
@@ -1376,12 +1390,12 @@ class PostServiceImpl(
 
         val accessChecks = getBulkAccessGroupChecks(viewer, rowsByPostId)
         val tagsByPost = loadTagsForPosts(setOf(postId))
-        val commentsByPost = loadCommentsForPosts(viewer, setOf(postId))
+        val commentCountsByPost = loadCommentCountsForPosts(setOf(postId))
         val reactionsByPost = loadPostReactions(setOf(postId))
 
         return toPostView(
             row = row,
-            comments = commentsByPost[postId] ?: emptyList(),
+            commentsCount = commentCountsByPost[postId] ?: 0,
             reactions = reactionsByPost[postId] ?: emptyList(),
             tags = tagsByPost[postId] ?: emptySet(),
             accessGroupChecks = accessChecks.getValue(postId)

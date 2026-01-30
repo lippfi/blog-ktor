@@ -33,7 +33,7 @@ sealed interface PostDto {
         val isReactable: Boolean,
         val reactions: List<ReactionDto.ReactionInfo>,
         val isCommentable: Boolean,
-        val comments: List<CommentDto.View>,
+        val commentsCount: Int,
 
         @Serializable(with = UUIDSerializer::class)
         val readGroupId: UUID,

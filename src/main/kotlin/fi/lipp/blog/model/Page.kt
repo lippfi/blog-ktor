@@ -1,5 +1,6 @@
 package fi.lipp.blog.model
 
+import fi.lipp.blog.data.CommentDto
 import fi.lipp.blog.data.PostDto
 import fi.lipp.blog.util.SerializableMap
 import kotlinx.serialization.Serializable
@@ -15,6 +16,7 @@ data class Page<T>(
 data class PostPage(
     val diary: DiaryView,
     val post: PostDto.View,
+    val comments: List<CommentDto.View>,
 )
 
 @Serializable

@@ -1125,7 +1125,7 @@ class PostServiceTests : UnitTestBase() {
             postService.addComment(user1, comment1)
             postService.addComment(user2, comment2)
 
-            val comments = postService.getPost(Viewer.Registered(user1), testUser.login, "post1").post.comments
+            val comments = postService.getPost(Viewer.Registered(user1), testUser.login, "post1").comments
             assertEquals(2, comments.size)
             assertEquals(comment1.text, comments[0].text)
             assertEquals(comment1.avatar, comments[0].avatar)
@@ -1192,7 +1192,7 @@ class PostServiceTests : UnitTestBase() {
             }
 
             // Verify comments
-            val comments = postService.getPost(Viewer.Registered(user1Id), user1Login, "friends-comment").post.comments
+            val comments = postService.getPost(Viewer.Registered(user1Id), user1Login, "friends-comment").comments
             assertEquals(2, comments.size)
             assertEquals("Owner comment", comments[0].text)
             assertEquals("User2 comment", comments[1].text)
