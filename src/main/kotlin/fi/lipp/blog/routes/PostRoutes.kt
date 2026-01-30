@@ -7,7 +7,6 @@ import fi.lipp.blog.plugins.userId
 import fi.lipp.blog.plugins.viewer
 import fi.lipp.blog.service.CommentWebSocketService
 import fi.lipp.blog.service.PostService
-import fi.lipp.blog.service.ReactionService
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -17,12 +16,11 @@ import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
 import kotlinx.datetime.LocalDate
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.sql.SortOrder
 import java.util.*
 
-fun Route.postRoutes(postService: PostService, reactionService: ReactionService, commentWebSocketService: CommentWebSocketService) {
+fun Route.postRoutes(postService: PostService, commentWebSocketService: CommentWebSocketService) {
     route("/posts") {
         authenticate(optional = true) {
             webSocket("/comments") {
@@ -31,7 +29,6 @@ fun Route.postRoutes(postService: PostService, reactionService: ReactionService,
                         when (frame) {
                             is Frame.Text -> {
                                 val text = frame.readText()
-                                println("received: $text")
                                 try {
                                     val message = webSocketJson.decodeFromString<CommentWebSocketMessage>(text)
 

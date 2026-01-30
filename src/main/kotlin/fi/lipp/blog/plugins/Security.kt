@@ -43,11 +43,9 @@ fun Application.configureSecurity() {
                     ?.takeIf { it.isNotBlank() }
                     ?.let { raw ->
                         val token = raw.removePrefix("Bearer ").trim()
-                        println("token: $token")
                         return@authHeader HttpAuthHeader.Single("Bearer", token)
                     }
 
-                println("token: null")
                 null
             }
 

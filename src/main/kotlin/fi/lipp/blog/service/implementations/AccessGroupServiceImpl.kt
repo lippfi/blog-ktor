@@ -169,7 +169,7 @@ class AccessGroupServiceImpl : AccessGroupService {
             privateGroupUUID -> (viewer as? Viewer.Registered)?.userId == groupOwner
             friendsGroupUUID -> {
                 if (viewer is Viewer.Anonymous) {
-                    return false
+                    false
                 } else {
                     val memberId = (viewer as Viewer.Registered).userId
                     transaction {
@@ -182,7 +182,7 @@ class AccessGroupServiceImpl : AccessGroupService {
             }
             else -> {
                 if (viewer is Viewer.Anonymous) {
-                    return false
+                    false
                 } else {
                     val memberId = (viewer as Viewer.Registered).userId
                     transaction {
