@@ -360,6 +360,22 @@ class PostServiceImpl(
         }
     }
 
+    override fun hidePost(userId: UUID, postId: UUID) {
+        return transaction {
+            val postEntity = PostEntity.findById(postId) ?: throw PostNotFoundException()
+            if (postEntity.authorId != userId) throw WrongUserException()
+            postEntity.isHidden = true
+        }
+    }
+
+    override fun showPost(userId: UUID, postId: UUID) {
+        return transaction {
+            val postEntity = PostEntity.findById(postId) ?: throw PostNotFoundException()
+            if (postEntity.authorId != userId) throw WrongUserException()
+            postEntity.isHidden = false
+        }
+    }
+
 
     override fun getComment(viewer: Viewer, commentId: UUID): CommentDto.View {
         return transaction {
@@ -735,6 +751,7 @@ class PostServiceImpl(
 
             isPreface = row[Posts.isPreface],
             isEncrypted = row[Posts.isEncrypted],
+            isHidden = row[Posts.isHidden],
 
             tags = tags,
 

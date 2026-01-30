@@ -192,6 +192,18 @@ fun Route.postRoutes(postService: PostService, reactionService: ReactionService,
                 call.respondText("Post deleted successfully")
             }
 
+            post("/hide") {
+                val postId = UUID.fromString(call.request.queryParameters["postId"])
+                postService.hidePost(userId, postId)
+                call.respond(HttpStatusCode.OK)
+            }
+
+            post("/show") {
+                val postId = UUID.fromString(call.request.queryParameters["postId"])
+                postService.showPost(userId, postId)
+                call.respond(HttpStatusCode.OK)
+            }
+
             post("/comment") {
                 val comment = call.receive<CommentDto.Create>()
                 val addedComment = postService.addComment(userId, comment)

@@ -31,6 +31,7 @@ class PostEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var title by Posts.title
     var text by Posts.text
     val creationTime by Posts.creationTime
+    var isHidden by Posts.isHidden
 
     var isEncrypted by Posts.isEncrypted
     val isPreface by Posts.isPreface

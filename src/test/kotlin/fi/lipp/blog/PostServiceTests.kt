@@ -942,6 +942,72 @@ class PostServiceTests : UnitTestBase() {
     }
 
     @Test
+    fun `test hiding and showing post`() {
+        transaction {
+            val (user1, user2) = signUsersUp()
+
+            val postData = createPostPostData(title = "post1")
+            val createdPost = postService.addPost(user1, postData)
+            val postId = createdPost.id
+
+            // Initially not hidden
+            assertFalse(createdPost.isHidden)
+
+            // Hide post
+            postService.hidePost(user1, postId)
+
+            // Verify it's hidden in DTO
+            val hiddenPost = postService.getPost(Viewer.Registered(user1), testUser.login, "post1").post
+            assertTrue(hiddenPost.isHidden)
+
+            // Show post
+            postService.showPost(user1, postId)
+
+            // Verify it's not hidden anymore
+            val shownPost = postService.getPost(Viewer.Registered(user1), testUser.login, "post1").post
+            assertFalse(shownPost.isHidden)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `test hiding post of other user should fail`() {
+        transaction {
+            val (user1, user2) = signUsersUp()
+
+            val postData = createPostPostData(title = "post1")
+            val createdPost = postService.addPost(user1, postData)
+            val postId = createdPost.id
+
+            assertThrows(WrongUserException::class.java) {
+                postService.hidePost(user2, postId)
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `test showing post of other user should fail`() {
+        transaction {
+            val (user1, user2) = signUsersUp()
+
+            val postData = createPostPostData(title = "post1")
+            val createdPost = postService.addPost(user1, postData)
+            val postId = createdPost.id
+
+            postService.hidePost(user1, postId)
+
+            assertThrows(WrongUserException::class.java) {
+                postService.showPost(user2, postId)
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
     fun `test custom access groups`() {
         transaction {
             val pageable = Pageable(1, 4, SortOrder.DESC)

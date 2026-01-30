@@ -46,6 +46,8 @@ interface PostService {
     fun addPost(userId: UUID, post: PostDto.Create): PostDto.View
     fun updatePost(userId: UUID, post: PostDto.Update): PostDto.View
     fun deletePost(userId: UUID, postId: UUID)
+    fun hidePost(userId: UUID, postId: UUID)
+    fun showPost(userId: UUID, postId: UUID)
 
     fun getComment(viewer: Viewer, commentId: UUID): CommentDto.View
     fun addComment(userId: UUID, comment: CommentDto.Create): CommentDto.View

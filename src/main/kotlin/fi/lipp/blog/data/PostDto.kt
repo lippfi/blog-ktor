@@ -25,6 +25,7 @@ sealed interface PostDto {
 
         val isPreface : Boolean,
         val isEncrypted: Boolean,
+        val isHidden: Boolean,
 
         val classes : String,
         var tags : Set<String>,
