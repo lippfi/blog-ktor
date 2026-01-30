@@ -28,6 +28,7 @@ class CommentWebSocketServiceImpl(
     data class SessionInfo(val session: WebSocketSession, val viewer: Viewer)
 
     override suspend fun addSession(postId: UUID, viewer: Viewer, session: WebSocketSession) {
+        println("Adding session $postId, viewer $viewer")
         sessions.computeIfAbsent(postId) { mutableSetOf() }.add(SessionInfo(session, viewer))
         sessionToPost[session] = postId
     }
@@ -43,6 +44,7 @@ class CommentWebSocketServiceImpl(
     }
 
     override fun notifyCommentAdded(comment: CommentEntity) {
+        println("Notifying comment")
         GlobalScope.launch {
             notifySubscribers(comment) { CommentWebSocketMessage.CommentAdded(it) }
         }
@@ -77,6 +79,7 @@ class CommentWebSocketServiceImpl(
 
     private suspend fun notifySubscribers(commentEntity: CommentEntity, messageFactory: (CommentDto.View) -> CommentWebSocketMessage) {
         val postSessions = sessions[commentEntity.postId.value] ?: return
+        println("postSessions: ${postSessions.count()}")
 
         postSessions.forEach { sessionInfo ->
             val message = transaction {

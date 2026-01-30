@@ -31,6 +31,7 @@ fun Route.postRoutes(postService: PostService, reactionService: ReactionService,
                         when (frame) {
                             is Frame.Text -> {
                                 val text = frame.readText()
+                                println("received: $text")
                                 try {
                                     val message = webSocketJson.decodeFromString<CommentWebSocketMessage>(text)
 
