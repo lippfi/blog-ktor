@@ -56,15 +56,24 @@ fun Application.module() {
         loadMyKoins(environment)
     }
 
-//    install(CORS) {
-//        allowHost("localhost:5173")
-//        allowHeader(HttpHeaders.ContentType)
-//        allowHeader(HttpHeaders.Authorization)
-//        allowMethod(HttpMethod.Delete)
-//        allowMethod(HttpMethod.Put)
-//        allowCredentials = true
-//        allowNonSimpleContentTypes = true
-//    }
+    install(CORS) {
+        allowHost("localhost:5173", schemes = listOf("http"))
+        allowHost("lipp.fi", schemes = listOf("https"))
+
+        allowMethod(HttpMethod.Options)
+        allowMethod(HttpMethod.Get)
+        allowMethod(HttpMethod.Post)
+        allowMethod(HttpMethod.Put)
+        allowMethod(HttpMethod.Delete)
+        allowMethod(HttpMethod.Patch)
+
+        allowHeader(HttpHeaders.ContentType)
+        allowHeader(HttpHeaders.Authorization)
+        allowHeader(HttpHeaders.Accept)
+
+        allowCredentials = true
+        allowNonSimpleContentTypes = true
+    }
 
     configureSerialization()
     configureDatabases()
