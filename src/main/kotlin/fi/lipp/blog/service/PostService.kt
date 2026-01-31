@@ -86,7 +86,14 @@ interface PostService {
      * @return Page of hidden posts
      */
     fun getHiddenPosts(userId: UUID, diaryLogin: String, pageable: Pageable): Page<PostDto.View>
-    // TODO get friends posts
+
+    /**
+     * Get posts from friends of the specified user
+     * @param userId ID of the user whose friends' posts to retrieve
+     * @param pageable pagination parameters
+     * @return Page of posts from friends
+     */
+    fun getFriendsPosts(userId: UUID, pageable: Pageable): Page<PostDto.View>
 }
 
 sealed interface Viewer {

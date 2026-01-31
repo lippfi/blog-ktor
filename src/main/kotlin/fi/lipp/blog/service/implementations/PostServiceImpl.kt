@@ -278,6 +278,25 @@ class PostServiceImpl(
         }
     }
 
+    override fun getFriendsPosts(userId: UUID, pageable: Pageable): Page<PostDto.View> {
+        return transaction {
+            val friends = Friends
+                .select { (Friends.user1 eq userId) or (Friends.user2 eq userId) }
+                .map {
+                    if (it[Friends.user1].value == userId) it[Friends.user2].value else it[Friends.user1].value
+                }
+                .toSet()
+
+            if (friends.isEmpty()) {
+                return@transaction Page(emptyList(), pageable.page, 0)
+            }
+
+            val params = PostSearchParams(viewer = Viewer.Registered(userId))
+            val authorCondition = ((Posts.authorType eq PostAuthorType.LOCAL) and (localPostAuthor[Users.id] inList friends.toList())) or ((Posts.authorType eq PostAuthorType.EXTERNAL) and (externalPostAuthor[ExternalUsers.user] inList friends.toList()))
+            getPosts(params, listOf(authorCondition), pageable, Posts.creationTime to pageable.direction)
+        }
+    }
+
     override fun updatePost(userId: UUID, post: PostDto.Update): PostDto.View {
         return transaction {
             val postEntity = post.id.let { PostEntity.findById(it) } ?: throw PostNotFoundException()

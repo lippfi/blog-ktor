@@ -156,6 +156,16 @@ Retrieves posts from followed users.
   - `size` (optional): Items per page (default: 10)
 - **Response**: Page of Post objects
 
+### 🔒 Get Friends Posts
+Retrieves posts from friends.
+
+- **Method**: GET
+- **Path**: `/posts/friends`
+- **Query Parameters**:
+  - `page` (optional): Page number (default: 0)
+  - `size` (optional): Items per page (default: 10)
+- **Response**: Page of Post objects
+
 ### 🔒 Get Post for Editing
 Retrieves a post in edit format.
 

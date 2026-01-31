@@ -132,4 +132,63 @@ class PostRoutesTests {
 
         assertEquals(HttpStatusCode.OK, response.status)
     }
+
+    @Test
+    fun `test get friends posts route`() = testApplication {
+        environment {
+            config = MapApplicationConfig(
+                "jwt.secret" to jwtSecret,
+                "jwt.issuer" to jwtIssuer,
+                "jwt.audience" to jwtAudience,
+                "jwt.realm" to "test-realm"
+            )
+        }
+
+        application {
+            configureSerialization()
+            configureSecurity()
+            configureWebSockets()
+            configureRouting()
+        }
+
+        val mockPosts = Page<PostDto.View>(
+            content = listOf(
+                PostDto.View(
+                    id = UUID.randomUUID(),
+                    uri = "friends-post",
+                    avatar = "avatar",
+                    authorLogin = "friend",
+                    diaryLogin = "friend-diary",
+                    authorNickname = "friend-nick",
+                    authorSignature = null,
+                    title = "Friends Post",
+                    text = "Friend content",
+                    creationTime = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()),
+                    isPreface = false,
+                    isEncrypted = false,
+                    isHidden = false,
+                    classes = "",
+                    tags = emptySet(),
+                    isReactable = true,
+                    reactions = emptyList(),
+                    isCommentable = true,
+                    commentsCount = 0,
+                    readGroupId = UUID.randomUUID(),
+                    commentGroupId = UUID.randomUUID(),
+                    reactionGroupId = UUID.randomUUID(),
+                    commentReactionGroupId = UUID.randomUUID()
+                )
+            ),
+            currentPage = 0,
+            totalPages = 1
+        )
+
+        whenever(postService.getFriendsPosts(eq(testUserId), any())).thenReturn(mockPosts)
+
+        val response = client.get("/posts/friends") {
+            header(HttpHeaders.Authorization, "Bearer $testToken")
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+    }
 }
