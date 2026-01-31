@@ -77,6 +77,15 @@ interface PostService {
      * @return Page of posts ordered by last comment time
      */
     fun getDiscussedPosts(viewer: Viewer, pageable: Pageable): Page<PostDto.View>
+
+    /**
+     * Get hidden posts for a specific diary
+     * @param userId ID of the user requesting the posts
+     * @param diaryLogin login of the diary
+     * @param pageable pagination parameters
+     * @return Page of hidden posts
+     */
+    fun getHiddenPosts(userId: UUID, diaryLogin: String, pageable: Pageable): Page<PostDto.View>
     // TODO get friends posts
 }
 

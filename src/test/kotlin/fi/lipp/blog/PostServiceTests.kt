@@ -30,6 +30,7 @@ import org.junit.Test
 import org.mockito.Mockito.mock
 import java.util.UUID
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 
@@ -1360,6 +1361,41 @@ class PostServiceTests : UnitTestBase() {
 
             // Should only have 1 post, not 2
             assertEquals(1, page.content.size)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `test get hidden posts`() {
+        transaction {
+            val (user1, user2) = signUsersUp()
+
+            val post1 = createPostPostData(
+                title = "Public Post",
+                text = "This is public",
+                isHidden = false
+            )
+            val post2 = createPostPostData(
+                title = "Hidden Post",
+                text = "This is hidden",
+                isHidden = true
+            )
+
+            postService.addPost(user1, post1)
+            postService.addPost(user1, post2)
+
+            val pageable = Pageable(1, 10, SortOrder.DESC)
+
+            // User 1 should see their hidden post
+            val hiddenPosts = postService.getHiddenPosts(user1, testUser.login, pageable)
+            assertEquals(1, hiddenPosts.content.size)
+            assertEquals("Hidden Post", hiddenPosts.content.first().title)
+
+            // User 2 should NOT be able to see User 1's hidden posts
+            assertFailsWith<WrongUserException> {
+                postService.getHiddenPosts(user2, testUser.login, pageable)
+            }
 
             rollback()
         }

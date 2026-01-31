@@ -144,6 +144,22 @@ fun Route.postRoutes(postService: PostService, commentWebSocketService: CommentW
                 call.respond(posts)
             }
 
+            get("/hidden") {
+                val diaryLogin = call.request.queryParameters["diary"]
+                if (diaryLogin == null) {
+                    call.respond(HttpStatusCode.BadRequest, "Missing diary parameter")
+                    return@get
+                }
+                val pageable = Pageable(
+                    page = call.request.queryParameters["page"]?.toInt() ?: 0,
+                    size = call.request.queryParameters["size"]?.toInt() ?: 10,
+                    direction = SortOrder.DESC,
+                )
+
+                val posts = postService.getHiddenPosts(userId, diaryLogin, pageable)
+                call.respond(posts)
+            }
+
             get("/comment") {
                 val commentId = UUID.fromString(call.request.queryParameters["commentId"])
                 val comment = postService.getComment(viewer, commentId)

@@ -221,6 +221,16 @@ class PostServiceImpl(
             getPosts(params, emptyList(), pageable,Posts.lastCommentTime to SortOrder.DESC_NULLS_LAST, Posts.creationTime to SortOrder.DESC)
         }
     }
+    
+    override fun getHiddenPosts(userId: UUID, diaryLogin: String, pageable: Pageable): Page<PostDto.View> {
+        return transaction {
+            val diary = findDiaryByLogin(diaryLogin)
+            if (diary.owner.value != userId) throw WrongUserException()
+
+            val params = PostSearchParams(viewer = Viewer.Registered(userId), diaryLogin = diaryLogin, isHidden = true)
+            getPosts(params, emptyList(), pageable, Posts.creationTime to pageable.direction)
+        }
+    }
 
     private fun Transaction.getPosts(params: PostSearchParams, conditions: List<Op<Boolean>> = emptyList(), pageable: Pageable, vararg order: Pair<Expression<*>, SortOrder>): Page<PostDto.View> {
         var query = buildPostQuery(params)
