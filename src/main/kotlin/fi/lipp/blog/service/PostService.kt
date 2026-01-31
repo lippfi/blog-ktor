@@ -39,6 +39,7 @@ interface PostService {
         tags: Pair<TagPolicy, Set<String>>?,
         from: LocalDate?,
         to: LocalDate?,
+        isHidden: Boolean?,
         pageable: Pageable,
         vararg order: Pair<Expression<*>, SortOrder> = arrayOf(Posts.creationTime to pageable.direction),
     ): Page<PostDto.View>

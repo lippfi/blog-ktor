@@ -176,10 +176,11 @@ class PostServiceImpl(
         tags: Pair<TagPolicy, Set<String>>?,
         from: LocalDate?,
         to: LocalDate?,
+        isHidden: Boolean?,
         pageable: Pageable,
         vararg order: Pair<Expression<*>, SortOrder>
     ): Page<PostDto.View> {
-        val params = PostSearchParams(viewer = viewer, authorLogin = authorLogin, diaryLogin = diaryLogin, text = text, tags = tags, from = from, to = to)
+        val params = PostSearchParams(viewer = viewer, authorLogin = authorLogin, diaryLogin = diaryLogin, text = text, tags = tags, from = from, to = to, isHidden = isHidden)
         return transaction {
             getPosts(params, emptyList(), pageable, *order)
         }

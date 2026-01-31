@@ -119,8 +119,9 @@ fun Route.postRoutes(postService: PostService, commentWebSocketService: CommentW
                     direction = if (call.request.queryParameters["sort"]?.lowercase() == "asc") SortOrder.ASC else SortOrder.DESC,
                 )
                 val tagPolicy = TagPolicy.valueOf(call.request.queryParameters["tagPolicy"] ?: "UNION")
+                val isHidden = call.request.queryParameters["isHidden"]?.toBoolean()
 
-                val posts = postService.getPosts(viewer, author, diary, text, tags?.let { Pair(tagPolicy, it) }, from, to, pageable)
+                val posts = postService.getPosts(viewer, author, diary, text, tags?.let { Pair(tagPolicy, it) }, from, to, isHidden, pageable)
                 call.respond(posts)
             }
 

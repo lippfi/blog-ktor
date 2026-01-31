@@ -1408,7 +1408,7 @@ class PostServiceTests : UnitTestBase() {
 
 
     private fun getPosts(viewer: Viewer, author: String? = null, diary: String? = null, pattern: String? = null, tags: Pair<TagPolicy, Set<String>>? = null, pageable: Pageable): Page<PostDto.View> {
-        return postService.getPosts(viewer, author, diary, pattern, tags, null, null, pageable)
+        return postService.getPosts(viewer, author, diary, pattern, tags, null, null, null, pageable)
     }
 
     private fun getPosts(userId: UUID, author: String? = null, diary: String? = null, pattern: String? = null, tags: Pair<TagPolicy, Set<String>>? = null, pageable: Pageable): Page<PostDto.View> {
