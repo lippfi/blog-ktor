@@ -13,9 +13,10 @@ import io.ktor.server.response.*
 import io.ktor.util.pipeline.*
 import org.koin.java.KoinJavaComponent.inject
 import java.util.*
+import kotlin.time.Duration.Companion.days
 
 const val USER_ID = "user-id"
-private const val TOKEN_LIFETIME = 365 * 24 * 60 * 60 * 1000
+private val TOKEN_LIFETIME = 365.days.inWholeMilliseconds
 
 fun Application.configureSecurity() {
     val jwtAudience = environment.config.property("jwt.audience").getString()
