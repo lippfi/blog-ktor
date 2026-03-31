@@ -453,14 +453,6 @@ class PostServiceImpl(
                 it[avatar] = comment.avatar
                 it[text] = comment.text
                 it[parentComment] = comment.parentCommentId
-                it[reactionGroup] = comment.reactionGroupId?.let { groupId ->
-                    // Verify the reaction group belongs to the diary
-                    val groupEntity = AccessGroupEntity.findById(groupId) ?: throw InvalidAccessGroupException()
-                    if (groupEntity.diaryId?.value != postEntity.diaryId.value) {
-                        throw InvalidAccessGroupException()
-                    }
-                    groupEntity.id
-                } ?: postEntity.reactionGroupId
             }
 
             Posts.update({ Posts.id eq postEntity.id }) {
@@ -1049,9 +1041,9 @@ class PostServiceImpl(
             .slice(
                 // comment
                 Comments.id, Comments.post, Comments.authorType, Comments.localAuthor, Comments.externalAuthor, Comments.anonymousAuthor,
-                Comments.avatar, Comments.text, Comments.creationTime, Comments.reactionGroup, Comments.parentComment,
+                Comments.avatar, Comments.text, Comments.creationTime, Comments.parentComment,
                 // post
-                Posts.uri,
+                Posts.uri, Posts.commentReactionGroup,
                 postDiaryForComment[Diaries.login], postDiaryForComment[Diaries.owner],
                 // local author
                 commentLocalAuthor[Users.id], commentLocalAuthor[Users.nickname],
@@ -1073,7 +1065,7 @@ class PostServiceImpl(
             val cmLocalAuthorId = r[Comments.localAuthor]?.value
             val isSelf = (viewerUserId != null && cmLocalAuthorId != null && viewerUserId == cmLocalAuthorId)
             if (!isSelf) {
-                pairs.add(r[Comments.reactionGroup].value to r[postDiaryForComment[Diaries.owner]].value)
+                pairs.add(r[Posts.commentReactionGroup].value to r[postDiaryForComment[Diaries.owner]].value)
             }
         }
         val canReactByPair = pairs.associateWith { (groupId, ownerId) ->
@@ -1120,8 +1112,9 @@ class PostServiceImpl(
                 }
             }
 
+            val commentReactionGroupId = r[Posts.commentReactionGroup].value
             val canReact =
-                isSelf || (canReactByPair[r[Comments.reactionGroup].value to diaryOwnerId] ?: false)
+                isSelf || (canReactByPair[commentReactionGroupId to diaryOwnerId] ?: false)
 
             val parentId = r[Comments.parentComment]?.value
             val inReply: CommentDto.ReplyView? = parentId?.let { pid ->
@@ -1141,7 +1134,7 @@ class PostServiceImpl(
                 creationTime = r[Comments.creationTime],
                 isReactable = canReact,
                 reactions = reactionsByComment[r[Comments.id].value] ?: emptyList(),
-                reactionGroupId = r[Comments.reactionGroup].value,
+                reactionGroupId = commentReactionGroupId,
                 inReplyTo = inReply
             )
             byPost.getOrPut(postId) { mutableListOf() }.add(view)

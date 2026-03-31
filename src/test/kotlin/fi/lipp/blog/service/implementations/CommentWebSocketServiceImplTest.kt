@@ -89,7 +89,6 @@ class CommentWebSocketServiceImplTest : UnitTestBase() {
                 it[avatar] = "avatar"
                 it[text] = "Nice post"
                 it[creationTime] = LocalDateTime.now().toKotlinLocalDateTime()
-                it[reactionGroup] = groupService.privateGroupUUID
             }
             CommentEntity.findById(id)!!
         }

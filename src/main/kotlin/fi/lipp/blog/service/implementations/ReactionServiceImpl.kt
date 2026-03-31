@@ -356,7 +356,7 @@ class ReactionServiceImpl(
             val diaryOwnerId = DiaryEntity.findById(postEntity.diaryId)!!.owner.value
 
             // Check reaction permissions
-            if (commentEntity.authorId != userId && !accessGroupService.inGroup(viewer, commentEntity.reactionGroupId.value, diaryOwnerId)) {
+            if (commentEntity.authorId != userId && !accessGroupService.inGroup(viewer, postEntity.commentReactionGroupId.value, diaryOwnerId)) {
                 throw WrongUserException()
             }
             val reactionId = ReactionEntity.find { Reactions.name eq reactionName }.firstOrNull()?.id ?: throw ReactionNotFoundException()
@@ -422,7 +422,7 @@ class ReactionServiceImpl(
             val diaryOwnerId = DiaryEntity.findById(postEntity.diaryId)!!.owner.value
 
             // Check reaction permissions
-            if (commentEntity.authorId != userId && !accessGroupService.inGroup(viewer, commentEntity.reactionGroupId.value, diaryOwnerId)) {
+            if (commentEntity.authorId != userId && !accessGroupService.inGroup(viewer, postEntity.commentReactionGroupId.value, diaryOwnerId)) {
                 throw WrongUserException()
             }
             val reactionId = ReactionEntity.find { Reactions.name eq reactionName }.firstOrNull()?.id ?: throw ReactionNotFoundException()

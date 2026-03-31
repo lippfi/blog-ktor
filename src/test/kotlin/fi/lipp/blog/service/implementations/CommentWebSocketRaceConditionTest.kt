@@ -85,7 +85,6 @@ class CommentWebSocketRaceConditionTest : UnitTestBase() {
                 it[avatar] = "avatar"
                 it[text] = "Race comment"
                 it[creationTime] = LocalDateTime.now().toKotlinLocalDateTime()
-                it[reactionGroup] = groupService.privateGroupUUID
             }
             val commentEntity = CommentEntity.findById(id)!!
             

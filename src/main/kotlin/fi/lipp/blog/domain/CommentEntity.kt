@@ -20,7 +20,6 @@ class CommentEntity(id: EntityID<UUID>) : UUIDEntity(id) {
 
     var parentComment by CommentEntity optionalReferencedOn Comments.parentComment
     val creationTime by Comments.creationTime
-    var reactionGroupId by Comments.reactionGroup
     var isPublished by Comments.isPublished
 
     val postId: EntityID<UUID>

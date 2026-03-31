@@ -3,7 +3,6 @@ package fi.lipp.blog.service
 import fi.lipp.blog.data.CommentDto
 import fi.lipp.blog.domain.*
 import org.jetbrains.exposed.sql.Transaction
-import java.util.*
 
 fun CommentEntity.toComment(
     transaction: Transaction,
@@ -14,12 +13,13 @@ fun CommentEntity.toComment(
     val commentedPost = post
     val commentedDiary = commentedPost.diary
     val commentedDiaryOwnerId = commentedDiary.owner.value
+    val commentReactionGroupId = commentedPost.commentReactionGroupId.value
 
     val authorView = toAuthorView()
     val viewerUserId = (viewer as? Viewer.Registered)?.userId
     val isSelf = viewerUserId != null && viewerUserId == getEffectiveAuthor()?.id?.value
 
-    val canReact = isSelf || accessGroupService.inGroup(viewer, reactionGroupId.value, commentedDiaryOwnerId)
+    val canReact = isSelf || accessGroupService.inGroup(viewer, commentReactionGroupId, commentedDiaryOwnerId)
     val inReplyTo = collectReplyTo(parentComment)
 
     return CommentDto.View(
@@ -33,7 +33,7 @@ fun CommentEntity.toComment(
         creationTime = creationTime,
         isReactable = canReact,
         reactions = reactionService.getCommentReactions(id.value),
-        reactionGroupId = reactionGroupId.value,
+        reactionGroupId = commentReactionGroupId,
         inReplyTo = inReplyTo,
         isPublished = isPublished
     )
