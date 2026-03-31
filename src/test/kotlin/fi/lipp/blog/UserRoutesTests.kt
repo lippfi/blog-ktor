@@ -23,6 +23,7 @@ import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
 import org.koin.dsl.module
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import java.util.*
 import kotlin.test.Test
@@ -260,7 +261,8 @@ class UserRoutesTests {
             UserDto.View(
                 login = "friend1",
                 nickname = "Friend One",
-                avatarUri = null
+                avatarUri = null,
+                signature = null
             )
         )
         `when`(userService.getFriends(testUserId)).thenReturn(mockFriends)
@@ -301,6 +303,45 @@ class UserRoutesTests {
             assertEquals(HttpStatusCode.OK, status)
             assertEquals("Friend removed successfully", bodyAsText())
         }
+    }
+
+    @Test
+    fun `test update signature - authenticated`() = testApplication {
+        environment {
+            config = MapApplicationConfig(
+                "jwt.secret" to jwtSecret,
+                "jwt.issuer" to jwtIssuer,
+                "jwt.audience" to jwtAudience,
+                "jwt.realm" to "test-realm"
+            )
+        }
+
+        application {
+            configureSerialization()
+            configureSecurity()
+            configureWebSockets()
+            configureRouting()
+        }
+
+        // Test setting a signature
+        client.post("/user/signature") {
+            header(HttpHeaders.Authorization, "Bearer $testToken")
+            setBody("My cool signature")
+        }.apply {
+            assertEquals(HttpStatusCode.OK, status)
+            assertEquals("Signature updated successfully", bodyAsText())
+        }
+        verify(userService).updateSignature(testUserId, "My cool signature")
+
+        // Test removing a signature (blank body)
+        client.post("/user/signature") {
+            header(HttpHeaders.Authorization, "Bearer $testToken")
+            setBody("")
+        }.apply {
+            assertEquals(HttpStatusCode.OK, status)
+            assertEquals("Signature updated successfully", bodyAsText())
+        }
+        verify(userService).updateSignature(testUserId, null)
     }
 
     @Test

@@ -192,6 +192,12 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService)
                 userService.removeFriend(userId, friendLogin)
                 call.respondText("Friend removed successfully")
             }
+
+            post("/signature") {
+                val signature = call.receiveText().takeIf { it.isNotBlank() }
+                userService.updateSignature(userId, signature)
+                call.respondText("Signature updated successfully")
+            }
         }
     }
 }

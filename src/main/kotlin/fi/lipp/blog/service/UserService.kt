@@ -208,6 +208,13 @@ interface UserService {
      */
     fun updateNotificationSettings(userId: UUID, settings: NotificationSettings)
 
+    /**
+     * Update user's signature
+     * @param userId ID of the user
+     * @param signature New signature text, can be null to remove signature
+     */
+    fun updateSignature(userId: UUID, signature: String?)
+
     fun search(text: String): List<UserDto.View>
     fun getByLogins(logins: List<String>): List<UserDto.View>
 }

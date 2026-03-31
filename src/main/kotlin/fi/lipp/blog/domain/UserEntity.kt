@@ -17,6 +17,7 @@ class UserEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var email: String by Users.email
     var password: String by Users.password
     var nickname: String by Users.nickname
+    var signature: String? by Users.signature
     var registrationTime: LocalDateTime by Users.registrationTime
 
     var sex: Sex by Users.sex

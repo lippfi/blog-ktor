@@ -76,6 +76,7 @@ sealed interface UserDto {
         val login: String,
         val nickname: String,
         val avatarUri: String?,
+        val signature: String?,
     ) : UserDto
 }
 

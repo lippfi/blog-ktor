@@ -348,6 +348,15 @@ class UserServiceImpl(
         }
     }
 
+    override fun updateSignature(userId: UUID, signature: String?) {
+        transaction {
+            val userEntity = UserEntity.findById(userId) ?: throw UserNotFoundException()
+            userEntity.apply {
+                this.signature = signature
+            }
+        }
+    }
+
     override fun getUserView(userId: UUID): UserDto.View {
         return transaction {
             val userEntity = UserEntity.findById(userId) ?: throw UserNotFoundException()
@@ -357,6 +366,7 @@ class UserServiceImpl(
                 login = userDiary.login,
                 nickname = userEntity.nickname,
                 avatarUri = primaryAvatarUri,
+                signature = userEntity.signature
             )
         }
     }
@@ -629,7 +639,7 @@ class UserServiceImpl(
             val searchPattern = "%${text.trim()}%"
 
             (Users innerJoin Diaries)
-                .slice(Users.nickname, Diaries.login, Users.primaryAvatar)
+                .slice(Users.nickname, Diaries.login, Users.primaryAvatar, Users.signature)
                 .select {
                     (Users.nickname like searchPattern or (Diaries.login like searchPattern)) and
                     (Diaries.type eq DiaryType.PERSONAL) and
@@ -646,7 +656,8 @@ class UserServiceImpl(
                     UserDto.View(
                         login = row[Diaries.login],
                         nickname = row[Users.nickname],
-                        avatarUri = primaryAvatarUrl
+                        avatarUri = primaryAvatarUrl,
+                        signature = row[Users.signature]
                     )
                 }
         }
@@ -659,7 +670,7 @@ class UserServiceImpl(
 
         return transaction {
             (Users innerJoin Diaries)
-                .slice(Users.nickname, Diaries.login, Users.primaryAvatar)
+                .slice(Users.nickname, Diaries.login, Users.primaryAvatar, Users.signature)
                 .select {
                     (Diaries.login inList logins) and
                     (Diaries.type eq DiaryType.PERSONAL) and
@@ -673,7 +684,8 @@ class UserServiceImpl(
                     UserDto.View(
                         login = row[Diaries.login],
                         nickname = row[Users.nickname],
-                        avatarUri = primaryAvatarUrl
+                        avatarUri = primaryAvatarUrl,
+                        signature = row[Users.signature]
                     )
                 }
         }
@@ -815,7 +827,7 @@ class UserServiceImpl(
                 .select { Friends.user2 eq userId }
 
             (Users innerJoin Diaries)
-                .slice(Users.nickname, Diaries.login, Users.primaryAvatar)
+                .slice(Users.nickname, Diaries.login, Users.primaryAvatar, Users.signature)
                 .select {
                     ((Users.id inSubQuery friendsAsUser1) or (Users.id inSubQuery friendsAsUser2)) and
                     (Diaries.owner eq Users.id) and
@@ -829,7 +841,8 @@ class UserServiceImpl(
                     UserDto.View(
                         login = row[Diaries.login],
                         nickname = row[Users.nickname],
-                        avatarUri = primaryAvatarUrl
+                        avatarUri = primaryAvatarUrl,
+                        signature = row[Users.signature]
                     )
                 }
         }
@@ -1014,7 +1027,7 @@ class UserServiceImpl(
             }
 
             (Users innerJoin Diaries)
-                .slice(Users.nickname, Diaries.login, Users.primaryAvatar)
+                .slice(Users.nickname, Diaries.login, Users.primaryAvatar, Users.signature)
                 .select {
                     (Users.id inList followingUsers) and
                     (Diaries.owner eq Users.id) and
@@ -1028,7 +1041,8 @@ class UserServiceImpl(
                     UserDto.View(
                         login = row[Diaries.login],
                         nickname = row[Users.nickname],
-                        avatarUri = primaryAvatarUrl
+                        avatarUri = primaryAvatarUrl,
+                        signature = row[Users.signature]
                     )
                 }
         }
@@ -1044,7 +1058,7 @@ class UserServiceImpl(
             }
 
             (Users innerJoin Diaries)
-                .slice(Users.nickname, Diaries.login, Users.primaryAvatar)
+                .slice(Users.nickname, Diaries.login, Users.primaryAvatar, Users.signature)
                 .select {
                     (Users.id inList followerUsers) and
                     (Diaries.owner eq Users.id) and
@@ -1058,7 +1072,8 @@ class UserServiceImpl(
                     UserDto.View(
                         login = row[Diaries.login],
                         nickname = row[Users.nickname],
-                        avatarUri = primaryAvatarUrl
+                        avatarUri = primaryAvatarUrl,
+                        signature = row[Users.signature]
                     )
                 }
         }
