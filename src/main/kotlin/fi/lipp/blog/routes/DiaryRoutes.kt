@@ -24,6 +24,19 @@ fun Route.diaryRoutes(diaryService: DiaryService) {
                 diaryService.updateDiaryInfo(userId, diaryLogin, info)
                 call.respondText("Diary info updated successfully")
             }
+
+            post("/update-profile") {
+                val diaryLogin = call.request.queryParameters["login"] ?: ""
+                val profileContent = call.receiveText()
+                diaryService.updateProfileContent(userId, diaryLogin, profileContent)
+                call.respondText("Profile content updated successfully")
+            }
+        }
+
+        get("/profile") {
+            val diaryLogin = call.request.queryParameters["login"] ?: ""
+            val userProfilePage = diaryService.getUserProfilePage(diaryLogin)
+            call.respond(userProfilePage)
         }
 
         // New routes for multiple styles

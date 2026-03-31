@@ -9,6 +9,7 @@ import java.time.LocalDateTime
 object Diaries : UUIDTable() {
     val name = varchar("name", 40)
     val subtitle = varchar("subtitle", 200)
+    val profileContent = text("profile_content").nullable()
 
     val login = varchar("login", 50).uniqueIndex("idx_diary_login")
     val creationTime = datetime("creation_time").clientDefault { LocalDateTime.now().toKotlinLocalDateTime() }

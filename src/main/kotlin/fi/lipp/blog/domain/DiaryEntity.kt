@@ -14,6 +14,8 @@ class DiaryEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var name by Diaries.name
     var subtitle by Diaries.subtitle
 
+    var profileContent by Diaries.profileContent
+
     var login: String by Diaries.login
     val creationTime by Diaries.creationTime
 

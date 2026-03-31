@@ -31,7 +31,7 @@ class DiaryServiceTest : UnitTestBase() {
     @Before
     fun setUp() {
         // Create DiaryService instance
-        diaryService = DiaryServiceImpl(storageService)
+        diaryService = DiaryServiceImpl(storageService, userService)
 
         // Register DiaryService in Koin
         loadKoinModules(module {
@@ -746,6 +746,93 @@ class DiaryServiceTest : UnitTestBase() {
             // Try to reorder with missing style
             assertThrows(InvalidStyleException::class.java) {
                 diaryService.reorderDiaryStyles(userId, diaryLogin, listOf(style1.id, style2.id))
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `updateProfileContent updates profile content`() {
+        transaction {
+            // Create a user and get their diary
+            val (userId, _) = signUsersUp()
+            val diaryEntity = DiaryEntity.find { Diaries.owner eq userId }.single()
+            val diaryLogin = diaryEntity.login
+
+            // Update profile content
+            val profileContent = "This is my profile content"
+            diaryService.updateProfileContent(userId, diaryLogin, profileContent)
+
+            // Verify profile content was updated
+            val updatedDiary = DiaryEntity.find { Diaries.login eq diaryLogin }.single()
+            assertEquals(profileContent, updatedDiary.profileContent)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `updateProfileContent with wrong user throws exception`() {
+        transaction {
+            // Create two users
+            val (userId1, userId2) = signUsersUp()
+            val diaryEntity = DiaryEntity.find { Diaries.owner eq userId1 }.single()
+            val diaryLogin = diaryEntity.login
+
+            // Try to update profile content with wrong user
+            assertThrows(WrongUserException::class.java) {
+                diaryService.updateProfileContent(userId2, diaryLogin, "This is my profile content")
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `updateProfileContent with nonexistent diary throws exception`() {
+        transaction {
+            // Create a user
+            val (userId, _) = signUsersUp()
+
+            // Try to update nonexistent diary
+            assertThrows(DiaryNotFoundException::class.java) {
+                diaryService.updateProfileContent(userId, "nonexistent-diary", "This is my profile content")
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `getUserProfilePage returns user profile page`() {
+        transaction {
+            // Create a user and get their diary
+            val (userId, _) = signUsersUp()
+            val diaryEntity = DiaryEntity.find { Diaries.owner eq userId }.single()
+            val diaryLogin = diaryEntity.login
+
+            // Update profile content
+            val profileContent = "This is my profile content"
+            diaryService.updateProfileContent(userId, diaryLogin, profileContent)
+
+            // Get user profile page
+            val userProfilePage = diaryService.getUserProfilePage(diaryLogin)
+
+            // Verify user profile page
+            assertEquals(diaryLogin, userProfilePage.login)
+            assertEquals(profileContent, userProfilePage.content)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `getUserProfilePage with nonexistent diary throws exception`() {
+        transaction {
+            // Try to get nonexistent diary
+            assertThrows(DiaryNotFoundException::class.java) {
+                diaryService.getUserProfilePage("nonexistent-diary")
             }
 
             rollback()

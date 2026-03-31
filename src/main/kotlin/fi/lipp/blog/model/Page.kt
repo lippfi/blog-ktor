@@ -2,6 +2,7 @@ package fi.lipp.blog.model
 
 import fi.lipp.blog.data.CommentDto
 import fi.lipp.blog.data.PostDto
+import fi.lipp.blog.data.UserDto
 import fi.lipp.blog.util.SerializableMap
 import kotlinx.serialization.Serializable
 
@@ -32,4 +33,17 @@ data class DiaryView(
     val styles: List<String>,
     @Serializable
     val defaultGroups: SerializableMap?,
+)
+
+@Serializable
+data class UserProfilePage(
+    val login: String,
+    val nickname: String,
+
+    val content: String,
+
+    val song: String?,
+    val styles: List<String>,
+
+    val friends: List<UserDto.View>,
 )

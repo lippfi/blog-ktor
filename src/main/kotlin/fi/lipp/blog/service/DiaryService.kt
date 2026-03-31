@@ -6,6 +6,7 @@ import fi.lipp.blog.data.DiaryStylePreview
 import fi.lipp.blog.data.DiaryStyleUpdate
 import fi.lipp.blog.data.FileUploadData
 import fi.lipp.blog.data.UserDto
+import fi.lipp.blog.model.UserProfilePage
 import java.util.*
 
 interface DiaryService {
@@ -32,4 +33,22 @@ interface DiaryService {
     fun updateDiaryDefaultReadGroup(userId: UUID, diaryLogin: String, groupId: UUID)
     fun updateDiaryDefaultCommentGroup(userId: UUID, diaryLogin: String, groupId: UUID)
     fun updateDiaryDefaultReactGroup(userId: UUID, diaryLogin: String, groupId: UUID)
+
+    /**
+     * Update profile content for a diary
+     * @param userId ID of the user making the update
+     * @param diaryLogin Login of the diary to update
+     * @param profileContent New profile content
+     * @throws WrongUserException if the user is not the owner of the diary
+     * @throws DiaryNotFoundException if the diary doesn't exist
+     */
+    fun updateProfileContent(userId: UUID, diaryLogin: String, profileContent: String)
+
+    /**
+     * Get user profile page by diary login
+     * @param diaryLogin Login of the diary
+     * @return UserProfilePage containing profile information
+     * @throws DiaryNotFoundException if the diary doesn't exist
+     */
+    fun getUserProfilePage(diaryLogin: String): UserProfilePage
 }

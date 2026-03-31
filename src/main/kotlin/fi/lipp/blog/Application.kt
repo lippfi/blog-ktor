@@ -88,12 +88,12 @@ fun KoinApplication.loadMyKoins(environment: ApplicationEnvironment): KoinApplic
         single<ApplicationProperties> { ApplicationPropertiesImpl(environment) }
         single<MailService> { MailServiceImpl(get()) }
         single<StorageService> { StorageServiceImpl(get()) }
-        single<DiaryService> { DiaryServiceImpl(get()) }
         single<PasswordEncoder> { PasswordEncoderImpl() }
-        single<UserService> { UserServiceImpl(get(), get(), get(), get(), get<NotificationService>(), get()) }
-        single<AccessGroupService> { AccessGroupServiceImpl() }
         single<NotificationService> { NotificationServiceImpl() }
         single<CommentWebSocketService> { CommentWebSocketServiceImpl(get()) }
+        single<AccessGroupService> { AccessGroupServiceImpl() }
+        single<UserService> { UserServiceImpl(get(), get(), get(), get(), get<NotificationService>(), get()) }
+        single<DiaryService> { DiaryServiceImpl(get(), get()) }
 
         // Database seeders
         single { ReactionDatabaseSeeder(get(), get()) }

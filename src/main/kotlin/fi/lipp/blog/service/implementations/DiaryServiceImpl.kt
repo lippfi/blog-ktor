@@ -7,16 +7,21 @@ import fi.lipp.blog.domain.DiaryStyleEntity
 import fi.lipp.blog.domain.DiaryStyleJunctionEntity
 import fi.lipp.blog.domain.FileEntity
 import fi.lipp.blog.domain.UserEntity
+import fi.lipp.blog.model.UserProfilePage
 import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.repository.Diaries
 import fi.lipp.blog.repository.DiaryStyleJunctions
 import fi.lipp.blog.service.DiaryService
 import fi.lipp.blog.service.StorageService
+import fi.lipp.blog.service.UserService
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.UUID
 
-class DiaryServiceImpl(private val storageService: StorageService) : DiaryService {
+class DiaryServiceImpl(
+    private val storageService: StorageService,
+    private val userService: UserService
+) : DiaryService {
     override fun updateDiaryInfo(userId: UUID, diaryLogin: String, info: UserDto.DiaryInfo) {
         transaction {
             val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
@@ -379,6 +384,47 @@ class DiaryServiceImpl(private val storageService: StorageService) : DiaryServic
             diaryEntity.apply {
                 defaultReactGroup = reactGroup.id
             }
+        }
+    }
+
+    override fun updateProfileContent(userId: UUID, diaryLogin: String, profileContent: String) {
+        transaction {
+            val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
+            if (diaryEntity.owner.value != userId) throw WrongUserException()
+
+            diaryEntity.apply {
+                this.profileContent = profileContent
+            }
+        }
+    }
+
+    override fun getUserProfilePage(diaryLogin: String): UserProfilePage {
+        return transaction {
+            val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
+            val userId = diaryEntity.owner.value
+            val userEntity = UserEntity.findById(userId) ?: throw UserNotFoundException()
+
+            // Get the user's friends
+            val friends = userService.getFriends(userId)
+
+            // Get the diary's song
+            val song: String? = null
+
+            val styles = diaryEntity.styleJunctions
+                .filter { it.enabled }
+                .sortedBy { it.ordinal }
+                .map { junction ->
+                    storageService.getFileURL(junction.style.styleFile.toBlogFile())
+                }
+
+            UserProfilePage(
+                login = diaryEntity.login,
+                nickname = userEntity.nickname,
+                content = diaryEntity.profileContent ?: "",
+                song = song,
+                styles = styles,
+                friends = friends
+            )
         }
     }
 }
