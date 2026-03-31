@@ -486,13 +486,13 @@ class PostServiceImpl(
         }
     }
 
-    // TODO allow post owner to delete comments
     override fun deleteComment(userId: UUID, commentId: UUID) {
         return transaction {
             val commentEntity = CommentEntity.findById(commentId) ?: throw CommentNotFoundException()
-            if (commentEntity.getEffectiveAuthor()?.id?.value != userId) throw WrongUserException()
-
             val postId = commentEntity.postId.value
+            val postEntity = commentEntity.post
+
+            if (!commentEntity.isOwnedBy(userId) && !postEntity.isOwnedBy(userId)) throw WrongUserException()
 
             // Notify WebSocket clients about the deleted comment before deleting it
             commentWebSocketService.notifyCommentDeleted(commentId, postId)
