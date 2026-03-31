@@ -79,7 +79,7 @@ class NotificationServiceImpl : NotificationService {
             val subscribedUsers = PostSubscriptionEntity.find { PostSubscriptions.post eq postId }.map { it.user.id.value }.toMutableSet()
             subscribedUsers.remove(authorId)
 
-            val parentCommentUser = CommentEntity.findById(commentId)?.parentComment?.value
+            val parentCommentUser = CommentEntity.findById(commentId)?.parentComment?.authorId
                 ?.takeIf { isNotificationEnabled(it) { entity -> entity.notifyAboutReplies } }
             if (parentCommentUser != null) {
                 subscribedUsers.remove(parentCommentUser)

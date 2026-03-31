@@ -13,18 +13,23 @@ class PostEntity(id: EntityID<UUID>) : UUIDEntity(id) {
 
     var uri by Posts.uri
 
-    val diaryId by Posts.diary
-    val authorId: UUID?
-        get() = when (authorType) {
-            PostAuthorType.LOCAL -> localAuthor!!.value
-            PostAuthorType.EXTERNAL -> externalAuthor?.let {
-                ExternalUserEntity.findById(it)?.user?.value
-            }
-        }
+    var diary by DiaryEntity referencedOn Posts.diary
+    var authorType by Posts.authorType
+    var localAuthor by UserEntity optionalReferencedOn Posts.localAuthor
+    var externalAuthor by ExternalUserEntity optionalReferencedOn Posts.externalAuthor
 
-    val authorType by Posts.authorType
-    val localAuthor by Posts.localAuthor
-    val externalAuthor by Posts.externalAuthor
+    val diaryId: EntityID<UUID>
+        get() = diary.id
+
+    fun getEffectiveAuthor(): UserEntity? {
+        return when (authorType) {
+            PostAuthorType.LOCAL -> localAuthor
+            PostAuthorType.EXTERNAL -> externalAuthor?.user
+        }
+    }
+
+    val authorId: UUID?
+        get() = getEffectiveAuthor()?.id?.value
 
     // TODO better way to store file and one-time avatars
     var avatar by Posts.avatar
@@ -34,7 +39,7 @@ class PostEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var isHidden by Posts.isHidden
 
     var isEncrypted by Posts.isEncrypted
-    val isPreface by Posts.isPreface
+    var isPreface by Posts.isPreface
 
     var isArchived by Posts.isArchived
 
@@ -46,4 +51,9 @@ class PostEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var reactionGroupId by Posts.reactionGroup
     var commentReactionGroupId by Posts.commentReactionGroup
     var reactionSubsetId by Posts.reactionSubset
+}
+
+sealed interface PostAuthorRef {
+    data class Local(val user: UserEntity) : PostAuthorRef
+    data class External(val externalUser: ExternalUserEntity) : PostAuthorRef
 }

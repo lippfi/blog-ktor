@@ -9,7 +9,6 @@ import java.util.UUID
 class ExternalUserEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     companion object : UUIDEntityClass<ExternalUserEntity>(ExternalUsers)
 
-    val user by ExternalUsers.user
-    val nickname by ExternalUsers.nickname
-    val platformName by ExternalUsers.platformName
+    var user by UserEntity optionalReferencedOn ExternalUsers.user
+    var nickname by ExternalUsers.nickname
 }

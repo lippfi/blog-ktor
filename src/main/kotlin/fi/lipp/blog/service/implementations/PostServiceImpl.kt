@@ -35,7 +35,7 @@ class PostServiceImpl(
     override fun getPostForEdit(userId: UUID, postId: UUID): PostDto.Update {
         return transaction {
             val postEntity = PostEntity.findById(postId) ?: throw PostNotFoundException()
-            if (postEntity.authorId != userId) throw WrongUserException()
+            if (!postEntity.isOwnedBy(userId)) throw WrongUserException()
             return@transaction toPostUpdateData(postEntity)
         }
     }
@@ -301,7 +301,7 @@ class PostServiceImpl(
     override fun updatePost(userId: UUID, post: PostDto.Update): PostDto.View {
         return transaction {
             val postEntity = post.id.let { PostEntity.findById(it) } ?: throw PostNotFoundException()
-            if (postEntity.authorId != userId) throw WrongUserException()
+            if (!postEntity.isOwnedBy(userId)) throw WrongUserException()
 
             val newUri = if ((post.uri.isNotEmpty() && post.uri != postEntity.uri) || (post.title != postEntity.title)) {
                 checkOrCreateUri(postEntity.diaryId.value, post.title, post.uri)
@@ -391,7 +391,7 @@ class PostServiceImpl(
     override fun deletePost(userId: UUID, postId: UUID) {
         return transaction {
             val postEntity = PostEntity.findById(postId) ?: return@transaction
-            if (postEntity.authorId != userId) throw WrongUserException()
+            if (!postEntity.isOwnedBy(userId)) throw WrongUserException()
             deletePost(postEntity)
         }
     }
@@ -399,7 +399,7 @@ class PostServiceImpl(
     override fun hidePost(userId: UUID, postId: UUID) {
         return transaction {
             val postEntity = PostEntity.findById(postId) ?: throw PostNotFoundException()
-            if (postEntity.authorId != userId) throw WrongUserException()
+            if (!postEntity.isOwnedBy(userId)) throw WrongUserException()
             postEntity.isHidden = true
         }
     }
@@ -407,7 +407,7 @@ class PostServiceImpl(
     override fun showPost(userId: UUID, postId: UUID) {
         return transaction {
             val postEntity = PostEntity.findById(postId) ?: throw PostNotFoundException()
-            if (postEntity.authorId != userId) throw WrongUserException()
+            if (!postEntity.isOwnedBy(userId)) throw WrongUserException()
             postEntity.isHidden = false
         }
     }
@@ -417,20 +417,11 @@ class PostServiceImpl(
         return transaction {
             val commentEntity = CommentEntity.findById(commentId) ?: throw CommentNotFoundException()
             val postEntity = PostEntity.findById(commentEntity.postId) ?: throw PostNotFoundException()
-            val diaryEntity = DiaryEntity.findById(postEntity.diaryId.value) ?: throw InternalServerError()
-            val diaryOwnerId = diaryEntity.owner.value
+            val diaryOwnerId = postEntity.diary.owner.value
             val userId = (viewer as? Viewer.Registered)?.userId
 
-            val isAuthorOfPost = (userId == postEntity.authorId)
-            val isCommentOwner =
-                when (commentEntity.authorType) {
-                    CommentAuthorType.LOCAL -> userId == commentEntity.localAuthor?.value
-                    CommentAuthorType.EXTERNAL -> {
-                        val ext = commentEntity.externalAuthor?.let { ExternalUserEntity.findById(it) }
-                        userId != null && ext?.user?.value == userId
-                    }
-                    CommentAuthorType.ANONYMOUS -> false
-                }
+            val isAuthorOfPost = userId != null && postEntity.isOwnedBy(userId)
+            val isCommentOwner = userId != null && commentEntity.isOwnedBy(userId)
 
             if (!isAuthorOfPost && !isCommentOwner &&
                 !accessGroupService.inGroup(viewer, postEntity.readGroupId.value, diaryOwnerId)) {
@@ -445,10 +436,9 @@ class PostServiceImpl(
     override fun addComment(userId: UUID, comment: CommentDto.Create): CommentDto.View {
         val (commentEntity, comment) = transaction {
             val postEntity = PostEntity.findById(comment.postId) ?: throw PostNotFoundException()
-            val diaryEntity = DiaryEntity.findById(postEntity.diaryId.value) ?: throw InternalServerError()
-            val diaryOwnerId = diaryEntity.owner.value
+            val diaryOwnerId = postEntity.diary.owner.value
             val viewer = Viewer.Registered(userId)
-            if (userId != postEntity.authorId && (!accessGroupService.inGroup(viewer, postEntity.readGroupId.value, diaryOwnerId) || !accessGroupService.inGroup(viewer, postEntity.commentGroupId.value, diaryOwnerId))) {
+            if (!postEntity.isOwnedBy(userId) && (!accessGroupService.inGroup(viewer, postEntity.readGroupId.value, diaryOwnerId) || !accessGroupService.inGroup(viewer, postEntity.commentGroupId.value, diaryOwnerId))) {
                 throw WrongUserException()
             }
             if (comment.parentCommentId != null) {
@@ -492,7 +482,7 @@ class PostServiceImpl(
     override fun updateComment(userId: UUID, comment: CommentDto.Update): CommentDto.View {
         return transaction {
             val commentEntity = CommentEntity.findById(comment.id) ?: throw CommentNotFoundException()
-            if (userId != commentEntity.authorId) throw WrongUserException()
+            if (commentEntity.getEffectiveAuthor()?.id?.value != userId) throw WrongUserException()
             commentEntity.apply {
                 avatar = comment.avatar
                 text = comment.text
@@ -508,7 +498,7 @@ class PostServiceImpl(
     override fun deleteComment(userId: UUID, commentId: UUID) {
         return transaction {
             val commentEntity = CommentEntity.findById(commentId) ?: throw CommentNotFoundException()
-            if (userId != commentEntity.authorId) throw WrongUserException()
+            if (commentEntity.getEffectiveAuthor()?.id?.value != userId) throw WrongUserException()
 
             val postId = commentEntity.postId.value
 
@@ -672,7 +662,7 @@ class PostServiceImpl(
             readGroupId = postEntity.readGroupId.value,
             commentGroupId = postEntity.commentGroupId.value,
             reactionGroupId = postEntity.reactionGroupId.value,
-            commentReactionGroupId = postEntity.reactionGroupId.value, // Using post's reaction group as default for comments
+            commentReactionGroupId = postEntity.commentReactionGroupId.value,
 
             tags = postEntity.tags.map { it.name }.toSet(),
             classes = postEntity.classes,
@@ -742,6 +732,9 @@ class PostServiceImpl(
     val commentExternalLinkedUserDiary = Diaries.alias("comment_external_linked_user_diary")
     val commentAnonymousAuthor = AnonymousUsers.alias("comment_anonymous_author")
 
+    val replyExtLinkUser = Users.alias("reply_ext_link_user")
+    val replyExtLinkDiary = Diaries.alias("reply_ext_link_diary")
+
     private fun Transaction.toPostView(
         row: ResultRow,
         commentsCount: Int,
@@ -799,7 +792,7 @@ class PostServiceImpl(
             readGroupId = row[Posts.readGroup].value,
             commentGroupId = row[Posts.commentGroup].value,
             reactionGroupId = row[Posts.reactionGroup].value,
-            commentReactionGroupId = row[Posts.reactionGroup].value,
+            commentReactionGroupId = row[Posts.commentReactionGroup].value,
             isReactable = accessGroupChecks.canReact,
             reactions = reactions,
         )
@@ -885,8 +878,8 @@ class PostServiceImpl(
             is Viewer.Registered -> {
                 val uid = viewer.userId
 
-                val isAuthor = (Posts.authorType eq PostAuthorType.LOCAL and (Posts.localAuthor eq uid)) or
-                        (Posts.authorType eq PostAuthorType.EXTERNAL and (externalPostAuthor[ExternalUsers.user] eq uid))
+                val isAuthor = ((Posts.authorType eq PostAuthorType.LOCAL) and (Posts.localAuthor eq uid)) or
+                        ((Posts.authorType eq PostAuthorType.EXTERNAL) and (externalPostAuthor[ExternalUsers.user] eq uid))
 
                 val customAccessSubquery = CustomGroupUsers
                     .slice(CustomGroupUsers.accessGroup)
@@ -924,19 +917,15 @@ class PostServiceImpl(
                 if (text != null) {
                     cond = cond and (Posts.text.regexp(stringParam(text), false) or Posts.title.regexp(stringParam(text), false))
                 }
+
                 if (authorLogin != null) {
-                    // автор = владелец дневника с login = authorLogin
-                    val authorDiaryId = DiaryEntity.find { Diaries.login eq authorLogin }.firstOrNull()?.id
-                    cond = if (authorDiaryId != null) {
-                        cond and (localAuthorDiary[Diaries.id] eq authorDiaryId)
-                    } else {
-                        cond and Op.FALSE
-                    }
+                    cond = cond and (localAuthorDiary[Diaries.login] eq authorLogin)
                 }
+
                 if (diaryLogin != null) {
-                    val diaryId = DiaryEntity.find { Diaries.login eq diaryLogin }.firstOrNull()?.id
-                    cond = if (diaryId != null) cond and (Posts.diary eq diaryId) else cond and Op.FALSE
+                    cond = cond and (postDiary[Diaries.login] eq diaryLogin)
                 }
+
                 if (from != null) cond = cond and (Posts.creationTime greaterEq from.atTime(0, 0))
                 if (to != null) cond = cond and (Posts.creationTime lessEq to.atTime(23, 59, 59))
                 if (isHidden != null) cond = cond and (Posts.isHidden eq isHidden)
@@ -1367,10 +1356,10 @@ class PostServiceImpl(
             .leftJoin(Users, { Comments.localAuthor }, { Users.id })
             .leftJoin(Diaries, { Users.id }, { Diaries.owner })
             .leftJoin(ExternalUsers, { Comments.externalAuthor }, { ExternalUsers.id })
-            .leftJoin(Users.alias("reply_ext_link_user"), { ExternalUsers.user }, { Users.alias("reply_ext_link_user")[Users.id] })
-            .leftJoin(Diaries.alias("reply_ext_link_diary"),
-                { Users.alias("reply_ext_link_user")[Users.id] },
-                { Diaries.alias("reply_ext_link_diary")[Diaries.owner] }
+            .leftJoin(replyExtLinkUser, { ExternalUsers.user }, { Users.alias("reply_ext_link_user")[Users.id] })
+            .leftJoin(replyExtLinkDiary,
+                { replyExtLinkUser[Users.id] },
+                { replyExtLinkDiary[Diaries.owner] }
             )
             .leftJoin(AnonymousUsers, { Comments.anonymousAuthor }, { AnonymousUsers.id })
             .slice(
@@ -1401,9 +1390,8 @@ class PostServiceImpl(
         }
     }
 
-    // Публичный фасад: из PostEntity в View одним вызовом, без N+1
-    fun toPostView(viewer: Viewer, postEntity: PostEntity): PostDto.View = transaction {
-        toPostViewById(viewer, postEntity.id.value)
+    fun Transaction.toPostView(viewer: Viewer, postEntity: PostEntity): PostDto.View {
+        return toPostViewById(viewer, postEntity.id.value)
     }
 
     // Внутренний конвейер для одного поста (один SELECT по базовому JOIN + пакетные догрузки)
@@ -1430,5 +1418,13 @@ class PostServiceImpl(
             tags = tagsByPost[postId] ?: emptySet(),
             accessGroupChecks = accessChecks.getValue(postId)
         )
+    }
+
+    private fun PostEntity.isOwnedBy(userId: UUID): Boolean {
+        return getEffectiveAuthor()?.id?.value == userId
+    }
+
+    private fun CommentEntity.isOwnedBy(userId: UUID): Boolean {
+        return getEffectiveAuthor()?.id?.value == userId
     }
 }

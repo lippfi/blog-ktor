@@ -28,6 +28,8 @@ sealed interface CommentDto {
 
         @Serializable(with = UUIDSerializer::class)
         val reactionGroupId: UUID,
+
+        val isPublished: Boolean = true,
     )
 
     @Serializable

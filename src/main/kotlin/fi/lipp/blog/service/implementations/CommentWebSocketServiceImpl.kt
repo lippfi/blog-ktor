@@ -76,7 +76,8 @@ class CommentWebSocketServiceImpl(
     }
 
     private suspend fun notifySubscribers(commentEntity: CommentEntity, messageFactory: (CommentDto.View) -> CommentWebSocketMessage) {
-        val postSessions = sessions[commentEntity.postId.value] ?: return
+        val postId = transaction { commentEntity.postId.value }
+        val postSessions = sessions[postId] ?: return
 
         postSessions.forEach { sessionInfo ->
             val message = transaction {

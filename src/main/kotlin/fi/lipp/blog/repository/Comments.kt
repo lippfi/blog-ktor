@@ -19,6 +19,7 @@ object Comments : UUIDTable() {
 
     val parentComment = reference("parent_comment", Comments).nullable()
     val reactionGroup = reference("reaction_group", AccessGroups, onDelete = ReferenceOption.CASCADE)
+    val isPublished = bool("is_published").clientDefault { true }
 }
 
 enum class CommentAuthorType {
