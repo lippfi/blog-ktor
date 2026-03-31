@@ -12,4 +12,5 @@ interface StorageService {
 
     fun getFile(file: BlogFile): File
     fun getFileURL(file: BlogFile): String
+    fun getFileURLs(files: Collection<BlogFile>): Map<UUID, String>
 }

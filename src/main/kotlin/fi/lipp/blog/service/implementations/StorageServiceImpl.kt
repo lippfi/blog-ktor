@@ -213,4 +213,23 @@ class StorageServiceImpl(private val properties: ApplicationProperties): Storage
         }
         return "${properties.filesBaseUrl()}/$storageKey"
     }
+
+    override fun getFileURLs(files: Collection<BlogFile>): Map<UUID, String> {
+        if (files.isEmpty()) return emptyMap()
+
+        val fileIds = files.map { it.id }.distinct()
+        val storageKeysById = transaction {
+            Files
+                .slice(Files.id, Files.storageKey)
+                .select { Files.id inList fileIds }
+                .associate { row ->
+                    row[Files.id].value to row[Files.storageKey]
+                }
+        }
+
+        return fileIds.associateWith { fileId ->
+            val storageKey = storageKeysById[fileId] ?: throw InternalServerError()
+            "${properties.filesBaseUrl()}/$storageKey"
+        }
+    }
 }
