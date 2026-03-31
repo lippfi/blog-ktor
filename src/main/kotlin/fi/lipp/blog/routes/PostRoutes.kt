@@ -125,7 +125,7 @@ fun Route.postRoutes(postService: PostService, commentWebSocketService: CommentW
                 call.respond(posts)
             }
 
-            get {
+            get("/latest") {
                 val pageable = Pageable(
                     page = call.request.queryParameters["page"]?.toInt() ?: 0,
                     size = call.request.queryParameters["size"]?.toInt() ?: 10,
