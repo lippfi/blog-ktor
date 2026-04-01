@@ -33,13 +33,6 @@ class PostServiceImpl(
     private val commentViewLoader = CommentViewLoader(accessGroupService, reactionLoader)
     private val postViewLoader = PostViewLoader(accessGroupService, postQueryHelper, reactionLoader, commentViewLoader)
 
-    private fun ResultRow.postAuthorUserId(): UUID? {
-        return when (this[Posts.authorType]) {
-            PostAuthorType.LOCAL -> this[Posts.localAuthor]?.value
-            PostAuthorType.EXTERNAL -> this[postQueryHelper.externalPostAuthor[ExternalUsers.user]]?.value
-        }
-    }
-
     override fun getPostForEdit(userId: UUID, postId: UUID): PostDto.Update {
         return transaction {
             val postEntity = PostEntity.findById(postId) ?: throw PostNotFoundException()
@@ -56,7 +49,7 @@ class PostServiceImpl(
                     (Posts.isArchived eq false)
             } ?: return@transaction null
 
-            val authorUserId = row.postAuthorUserId()
+            val authorUserId = with(postQueryHelper) { row.postAuthorUserId() }
             if (authorUserId != null && isIgnoreRelationship(viewer, authorUserId)) return@transaction null
 
             postViewLoader.toPostView(this, viewer, row)
@@ -73,7 +66,7 @@ class PostServiceImpl(
                     (Posts.isArchived eq false)
             } ?: throw PostNotFoundException()
 
-            val authorUserId = row.postAuthorUserId()
+            val authorUserId = with(postQueryHelper) { row.postAuthorUserId() }
             if (authorUserId != null && isIgnoreRelationship(viewer, authorUserId)) throw PostNotFoundException()
 
             if (userId != null) {

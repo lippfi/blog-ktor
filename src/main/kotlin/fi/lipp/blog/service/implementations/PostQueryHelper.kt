@@ -64,6 +64,13 @@ internal class PostQueryHelper {
         localAuthorDiary[Diaries.login],
     )
 
+    fun ResultRow.postAuthorUserId(): UUID? {
+        return when (this[Posts.authorType]) {
+            PostAuthorType.LOCAL -> this[localPostAuthor[Users.id]].value
+            PostAuthorType.EXTERNAL -> this[externalPostAuthor[ExternalUsers.user]]?.value
+        }
+    }
+
     fun getBasicPostJoin(): Join {
         return Posts
             .innerJoin(postDiary, { Posts.diary }, { postDiary[Diaries.id] })

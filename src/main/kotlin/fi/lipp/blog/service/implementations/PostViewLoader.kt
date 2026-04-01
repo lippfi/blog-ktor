@@ -34,7 +34,7 @@ internal class PostViewLoader(
     fun canReadPost(viewer: Viewer, row: ResultRow, diaryOwnerId: UUID): Boolean {
         return accessGroupService.inGroup(viewer, row[Posts.readGroup].value, diaryOwnerId) ||
                 ((viewer as? Viewer.Registered)?.userId?.let { uid ->
-                    row.postAuthorUserId() == uid
+                    with(postQueryHelper) { row.postAuthorUserId() } == uid
                 } ?: false)
     }
 
@@ -147,12 +147,6 @@ internal class PostViewLoader(
         )
     }
 
-    private fun ResultRow.postAuthorUserId(): UUID? {
-        return when (this[Posts.authorType]) {
-            PostAuthorType.LOCAL -> this[postQueryHelper.localPostAuthor[Users.id]].value
-            PostAuthorType.EXTERNAL -> this[postQueryHelper.externalPostAuthor[ExternalUsers.user]]?.value
-        }
-    }
 
     private fun loadTagsForPosts(postIds: Set<UUID>): Map<UUID, Set<String>> {
         if (postIds.isEmpty()) return emptyMap()
@@ -178,7 +172,7 @@ internal class PostViewLoader(
 
         results.forEach { (postId, row) ->
             val diaryOwnerId = row[postQueryHelper.postDiary[Diaries.owner]].value
-            val authorUserId = row.postAuthorUserId()
+            val authorUserId = with(postQueryHelper) { row.postAuthorUserId() }
             postIdToAuthorUserId[postId] = authorUserId
 
             if (userId != authorUserId) {
