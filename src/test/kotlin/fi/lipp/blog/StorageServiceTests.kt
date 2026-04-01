@@ -36,7 +36,7 @@ class StorageServiceTests : UnitTestBase() {
             val confirmationCode = pendingRegistration.id.value.toString()
 
             // Confirm registration for the user
-            userService.confirmRegistration(confirmationCode)
+            userService.confirmRegistration(confirmationCode, "test-device", "127.0.0.1", false)
 
             registeredUser = findUserByLogin(testUser.login)!!
         }

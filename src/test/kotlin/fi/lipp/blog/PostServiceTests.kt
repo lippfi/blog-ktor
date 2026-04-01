@@ -13,11 +13,10 @@ import fi.lipp.blog.service.MailService
 import fi.lipp.blog.service.CommentWebSocketService
 import fi.lipp.blog.service.NotificationService
 import fi.lipp.blog.service.PostService
-import fi.lipp.blog.service.ReactionService
 import fi.lipp.blog.service.Viewer
 import fi.lipp.blog.service.implementations.PostServiceImpl
-import fi.lipp.blog.service.implementations.ReactionServiceImpl
 import fi.lipp.blog.service.implementations.StorageServiceImpl
+import fi.lipp.blog.service.implementations.SessionServiceImpl
 import fi.lipp.blog.service.implementations.UserServiceImpl
 import fi.lipp.blog.stubs.ApplicationPropertiesStub
 import fi.lipp.blog.stubs.PasswordEncoderStub
@@ -54,7 +53,8 @@ class PostServiceTests : UnitTestBase() {
         private val notificationService = mock<NotificationService>()
         private val commentWebSocketService = mock<CommentWebSocketService>()
         private val storageService = StorageServiceImpl(properties)
-        private val userService = UserServiceImpl(encoder, mailService, storageService, groupService, notificationService, properties)
+        private val sessionServiceLocal = SessionServiceImpl()
+        private val userService = UserServiceImpl(encoder, mailService, storageService, groupService, notificationService, properties, sessionServiceLocal)
         private lateinit var postService: PostService
 
         private val testUser = UserDto.Registration(

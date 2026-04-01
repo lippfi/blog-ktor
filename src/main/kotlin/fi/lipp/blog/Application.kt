@@ -92,7 +92,9 @@ fun KoinApplication.loadMyKoins(environment: ApplicationEnvironment): KoinApplic
         single<NotificationService> { NotificationServiceImpl() }
         single<CommentWebSocketService> { CommentWebSocketServiceImpl(get()) }
         single<AccessGroupService> { AccessGroupServiceImpl() }
-        single<UserService> { UserServiceImpl(get(), get(), get(), get(), get<NotificationService>(), get()) }
+        single<SessionService> { SessionServiceImpl() }
+        single<GeoLocationService> { GeoLocationServiceImpl(environment.config.property("geoip.database").getString()) }
+        single<UserService> { UserServiceImpl(get(), get(), get(), get(), get<NotificationService>(), get(), get()) }
         single<DiaryService> { DiaryServiceImpl(get(), get()) }
 
         // Database seeders

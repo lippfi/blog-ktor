@@ -26,17 +26,20 @@ interface UserService {
     /**
      * Second step of registration - confirms email and creates a user
      * @param confirmationCode the confirmation code sent to the user's email
-     * @return JWT token for the newly created user
+     * @param deviceName the name/user-agent of the device
+     * @param location the IP address or location of the device
+     * @param isMobile whether the device is a mobile device
+     * @return token pair (access + refresh) for the newly created user
      * @throws ConfirmationCodeInvalidOrExpiredException if confirmation code is invalid or expired
      */
     @Throws(ConfirmationCodeInvalidOrExpiredException::class)
-    fun confirmRegistration(confirmationCode: String): String
+    fun confirmRegistration(confirmationCode: String, deviceName: String, location: String, isMobile: Boolean): TokenPair
 
     /**
-     * @return JWT token
+     * @return token pair (access + refresh)
      */
     @Throws(UserNotFoundException::class, WrongPasswordException::class)
-    fun signIn(user: UserDto.Login): String
+    fun signIn(user: UserDto.Login, deviceName: String, location: String, isMobile: Boolean): TokenPair
 
 
     fun getUserInfo(login: String): UserDto.ProfileInfo

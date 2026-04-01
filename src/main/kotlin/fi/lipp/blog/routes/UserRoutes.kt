@@ -4,7 +4,10 @@ import fi.lipp.blog.data.FriendRequestDto
 import fi.lipp.blog.data.NotificationSettings
 import fi.lipp.blog.data.UserDto
 import fi.lipp.blog.data.toFileUploadDatas
+import fi.lipp.blog.plugins.sessionId
 import fi.lipp.blog.plugins.userId
+import io.ktor.server.plugins.*
+import fi.lipp.blog.service.GeoLocationService
 import fi.lipp.blog.service.ReactionService
 import fi.lipp.blog.service.UserService
 import io.ktor.http.*
@@ -16,7 +19,7 @@ import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import java.util.*
 
-fun Route.userRoutes(userService: UserService, reactionService: ReactionService) {
+fun Route.userRoutes(userService: UserService, reactionService: ReactionService, geoLocationService: GeoLocationService) {
     route("/user") {
         get("/search") {
             val text = call.request.queryParameters["text"] ?: ""
@@ -39,14 +42,22 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService)
 
         post("/confirm-registration") {
             val confirmationCode = call.request.queryParameters["code"] ?: ""
-            val token = userService.confirmRegistration(confirmationCode)
-            call.respondText(token)
+            val deviceName = call.request.headers["User-Agent"] ?: "unknown"
+            val ip = call.request.origin.remoteHost
+            val location = geoLocationService.resolveLocation(ip)
+            val isMobile = isMobileUserAgent(deviceName)
+            val tokenPair = userService.confirmRegistration(confirmationCode, deviceName, location, isMobile)
+            call.respond(tokenPair)
         }
 
         post("/sign-in") {
             val user = call.receive<UserDto.Login>()
-            val token = userService.signIn(user)
-            call.respondText(token)
+            val deviceName = call.request.headers["User-Agent"] ?: "unknown"
+            val ip = call.request.origin.remoteHost
+            val location = geoLocationService.resolveLocation(ip)
+            val isMobile = isMobileUserAgent(deviceName)
+            val tokenPair = userService.signIn(user, deviceName, location, isMobile)
+            call.respond(tokenPair)
         }
 
         get("/is-login-busy") {
@@ -241,3 +252,9 @@ private data class UpdateUserRequest(
     val user: UserDto.Registration,
     val oldPassword: String
 )
+
+private val MOBILE_USER_AGENT_REGEX = Regex("Mobile|Android|iPhone|iPad|iPod|webOS|BlackBerry|Opera Mini|IEMobile", RegexOption.IGNORE_CASE)
+
+private fun isMobileUserAgent(userAgent: String): Boolean {
+    return MOBILE_USER_AGENT_REGEX.containsMatchIn(userAgent)
+}

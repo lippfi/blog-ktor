@@ -1,0 +1,116 @@
+package fi.lipp.blog.service.implementations
+
+import fi.lipp.blog.data.DeviceSessionDto
+import fi.lipp.blog.data.TokenPair
+import fi.lipp.blog.domain.UserSessionEntity
+import fi.lipp.blog.model.exceptions.SessionNotFoundException
+import fi.lipp.blog.model.exceptions.WrongUserException
+import fi.lipp.blog.plugins.createAccessToken
+import fi.lipp.blog.repository.UserSessions
+import fi.lipp.blog.service.SessionService
+import kotlinx.datetime.toKotlinLocalDateTime
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.transactions.transaction
+import java.time.LocalDateTime
+import java.util.UUID
+
+private const val REFRESH_TOKEN_LIFETIME_DAYS = 30L
+
+class SessionServiceImpl : SessionService {
+
+    override fun createSession(userId: UUID, deviceName: String, location: String, isMobile: Boolean): TokenPair {
+        val refreshToken = UUID.randomUUID().toString()
+        val session = transaction {
+            UserSessionEntity.new {
+                this.user = org.jetbrains.exposed.dao.id.EntityID(userId, fi.lipp.blog.repository.Users)
+                this.refreshToken = refreshToken
+                this.deviceName = deviceName
+                this.location = location
+                this.isMobile = isMobile
+            }
+        }
+        val accessToken = createAccessToken(userId, session.id.value)
+        return TokenPair(accessToken = accessToken, refreshToken = refreshToken)
+    }
+
+    override fun refreshSession(refreshToken: String): TokenPair {
+        return transaction {
+            val session = UserSessionEntity.find {
+                (UserSessions.refreshToken eq refreshToken) and (UserSessions.isRevoked eq false)
+            }.firstOrNull() ?: throw SessionNotFoundException()
+
+            val now = LocalDateTime.now()
+            val nowKotlin = now.toKotlinLocalDateTime()
+
+            // Check if refresh token has expired
+            if (session.refreshTokenExpiresAt < nowKotlin) {
+                session.isRevoked = true
+                throw SessionNotFoundException()
+            }
+
+            // Rotate refresh token
+            val newRefreshToken = UUID.randomUUID().toString()
+            session.refreshToken = newRefreshToken
+            session.refreshTokenExpiresAt = now.plusDays(REFRESH_TOKEN_LIFETIME_DAYS).toKotlinLocalDateTime()
+            session.lastSeen = nowKotlin
+
+            val accessToken = createAccessToken(session.user.value, session.id.value)
+            TokenPair(accessToken = accessToken, refreshToken = newRefreshToken)
+        }
+    }
+
+    override fun revokeSession(userId: UUID, sessionId: UUID) {
+        transaction {
+            val session = UserSessionEntity.findById(sessionId) ?: throw SessionNotFoundException()
+            if (session.user.value != userId) throw WrongUserException()
+            session.isRevoked = true
+        }
+    }
+
+    override fun revokeOtherSessions(userId: UUID, currentSessionId: UUID) {
+        transaction {
+            UserSessionEntity.find {
+                (UserSessions.user eq userId) and (UserSessions.isRevoked eq false)
+            }.forEach { session ->
+                if (session.id.value != currentSessionId) {
+                    session.isRevoked = true
+                }
+            }
+        }
+    }
+
+    override fun revokeAllSessions(userId: UUID) {
+        transaction {
+            UserSessionEntity.find {
+                (UserSessions.user eq userId) and (UserSessions.isRevoked eq false)
+            }.forEach { session ->
+                session.isRevoked = true
+            }
+        }
+    }
+
+    override fun getActiveSessions(userId: UUID, currentSessionId: UUID): List<DeviceSessionDto> {
+        return transaction {
+            UserSessionEntity.find {
+                (UserSessions.user eq userId) and (UserSessions.isRevoked eq false)
+            }.map { session ->
+                DeviceSessionDto(
+                    id = session.id.value,
+                    deviceName = session.deviceName,
+                    location = session.location,
+                    firstSeen = session.firstSeen,
+                    lastSeen = session.lastSeen,
+                    isMobile = session.isMobile,
+                    isCurrent = session.id.value == currentSessionId,
+                )
+            }
+        }
+    }
+
+    override fun isSessionValid(sessionId: UUID): Boolean {
+        return transaction {
+            val session = UserSessionEntity.findById(sessionId)
+            session != null && !session.isRevoked
+        }
+    }
+}

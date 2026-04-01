@@ -21,7 +21,9 @@ import fi.lipp.blog.service.implementations.ReactionDatabaseSeeder
 import fi.lipp.blog.service.implementations.DatabaseInitializer
 import fi.lipp.blog.service.implementations.NotificationServiceImpl
 import fi.lipp.blog.service.implementations.PostServiceImpl
+import fi.lipp.blog.service.implementations.SessionServiceImpl
 import fi.lipp.blog.stubs.ApplicationPropertiesStub
+import fi.lipp.blog.stubs.GeoLocationServiceStub
 import fi.lipp.blog.stubs.PasswordEncoderStub
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
@@ -116,6 +118,7 @@ abstract class UnitTestBase {
                     HiddenFromFeed,
                     IgnoreList,
                     PostSubscriptions,
+                    UserSessions,
                 )
             }
             startKoin {
@@ -128,7 +131,9 @@ abstract class UnitTestBase {
                     single<AccessGroupService> { AccessGroupServiceImpl() }
                     single<NotificationService> { NotificationServiceImpl() }
                     single<CommentWebSocketService> { mock() }
-                    single<UserService> { UserServiceImpl(get(), get(), get(), get(), get(), get()) }
+                    single<SessionService> { SessionServiceImpl() }
+                    single<GeoLocationService> { GeoLocationServiceStub() }
+                    single<UserService> { UserServiceImpl(get(), get(), get(), get(), get(), get(), get()) }
 
                     // Database seeders
                     single { ReactionDatabaseSeeder(get(), get()) }
@@ -201,6 +206,9 @@ abstract class UnitTestBase {
 
         @JvmStatic
         protected val commentWebSocketService get() = org.koin.core.context.GlobalContext.get().get<CommentWebSocketService>()
+
+        @JvmStatic
+        protected val sessionService get() = org.koin.core.context.GlobalContext.get().get<SessionService>()
 
         @JvmStatic
         protected val testUser = UserDto.Registration(
@@ -285,6 +293,7 @@ abstract class UnitTestBase {
             exec("DELETE FROM ${UserAvatars.tableName}")
             exec("DELETE FROM ${HiddenFromFeed.tableName}")
             exec("DELETE FROM ${IgnoreList.tableName}")
+            exec("DELETE FROM ${UserSessions.tableName}")
             exec("DELETE FROM ${Files.tableName}")
             exec("DELETE FROM ${Diaries.tableName}")
             exec("DELETE FROM ${Users.tableName}")
@@ -329,7 +338,7 @@ abstract class UnitTestBase {
         val confirmationCode1 = pendingRegistration1.id.value.toString()
 
         // Confirm registration for first user
-        userService.confirmRegistration(confirmationCode1)
+        userService.confirmRegistration(confirmationCode1, "test-device", "127.0.0.1", false)
         val user1 = findUserByLogin(testUser.login)!!
 
         val nextInviteCode = userService.generateInviteCode(user1.id)
@@ -346,7 +355,7 @@ abstract class UnitTestBase {
         val confirmationCode2 = pendingRegistration2.id.value.toString()
 
         // Confirm registration for second user
-        userService.confirmRegistration(confirmationCode2)
+        userService.confirmRegistration(confirmationCode2, "test-device", "127.0.0.1", false)
         val user2 = findUserByLogin(testUser2.login)!!
 
         return user1.id to user2.id
@@ -372,7 +381,7 @@ abstract class UnitTestBase {
         val confirmationCode1 = pendingRegistration1.id.value.toString()
 
         // Confirm registration for first user
-        userService.confirmRegistration(confirmationCode1)
+        userService.confirmRegistration(confirmationCode1, "test-device", "127.0.0.1", false)
         var userEntity = findUserByLogin(testUser.login)!!
         users.add(userEntity.id to testUser.login)
 
@@ -391,7 +400,7 @@ abstract class UnitTestBase {
             val confirmationCode = pendingRegistration.id.value.toString()
 
             // Confirm registration for random user
-            userService.confirmRegistration(confirmationCode)
+            userService.confirmRegistration(confirmationCode, "test-device", "127.0.0.1", false)
             userEntity = findUserByLogin(randomUser.login)!!
             users.add(userEntity.id to randomUser.login)
             --i

@@ -43,8 +43,6 @@ dependencies {
     implementation("org.postgresql:postgresql:$postgres_version")
     implementation("io.ktor:ktor-server-host-common-jvm")
     implementation("io.ktor:ktor-server-status-pages-jvm")
-    implementation("io.ktor:ktor-client-core-jvm")
-    implementation("io.ktor:ktor-client-apache-jvm")
     implementation("io.ktor:ktor-server-netty-jvm")
     implementation("io.ktor:ktor-server-cors")
     implementation("io.ktor:ktor-server-websockets")
@@ -58,4 +56,5 @@ dependencies {
     testImplementation("io.mockk:mockk:1.13.10")
 
     implementation("at.favre.lib:bcrypt:0.10.2")
+    implementation("com.maxmind.geoip2:geoip2:4.2.0")
 }

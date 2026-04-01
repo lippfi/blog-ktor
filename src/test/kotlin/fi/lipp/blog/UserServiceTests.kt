@@ -163,7 +163,7 @@ class UserServiceTests : UnitTestBase() {
             val confirmationCode = pendingRegistration.id.value.toString()
 
             // Confirm registration
-            val token = userService.confirmRegistration(confirmationCode)
+            val tokenPair = userService.confirmRegistration(confirmationCode, "test-device", "127.0.0.1", false)
 
             // Verify user is created
             val foundUser = findUserByLogin(testUser.login)
@@ -184,9 +184,10 @@ class UserServiceTests : UnitTestBase() {
 
             assertNull(pendingRegistrationAfterConfirmation)
 
-            // Verify token is returned
-            assertNotNull(token)
-            assertTrue(token.isNotEmpty())
+            // Verify token pair is returned
+            assertNotNull(tokenPair)
+            assertTrue(tokenPair.accessToken.isNotEmpty())
+            assertTrue(tokenPair.refreshToken.isNotEmpty())
 
             rollback()
         }
@@ -196,7 +197,7 @@ class UserServiceTests : UnitTestBase() {
     fun `confirm registration with invalid code throws exception`() {
         transaction {
             assertThrows(ConfirmationCodeInvalidOrExpiredException::class.java) {
-                userService.confirmRegistration("invalid-code")
+                userService.confirmRegistration("invalid-code", "test-device", "127.0.0.1", false)
             }
 
             rollback()
@@ -242,7 +243,7 @@ class UserServiceTests : UnitTestBase() {
             val confirmationCode = pendingRegistration.id.value.toString()
 
             // Confirm registration
-            userService.confirmRegistration(confirmationCode)
+            userService.confirmRegistration(confirmationCode, "test-device", "127.0.0.1", false)
 
             // Verify user is created
             val foundUser = findUserByLogin(testUser.login)
@@ -280,7 +281,7 @@ class UserServiceTests : UnitTestBase() {
             val confirmationCode = pendingRegistration.id.value.toString()
 
             // Confirm registration
-            userService.confirmRegistration(confirmationCode)
+            userService.confirmRegistration(confirmationCode, "test-device", "127.0.0.1", false)
 
             // Verify user is created
             val foundUser = findUserByLogin(testUser.login)
@@ -320,7 +321,7 @@ class UserServiceTests : UnitTestBase() {
             val confirmationCode = pendingRegistration.id.value.toString()
 
             // Confirm registration
-            userService.confirmRegistration(confirmationCode)
+            userService.confirmRegistration(confirmationCode, "test-device", "127.0.0.1", false)
 
             foundUser = findUserByLogin(testUser.login)
             assertNotNull(foundUser)
@@ -356,9 +357,9 @@ class UserServiceTests : UnitTestBase() {
             val confirmationCode = pendingRegistration.id.value.toString()
 
             // Confirm registration
-            userService.confirmRegistration(confirmationCode)
+            userService.confirmRegistration(confirmationCode, "test-device", "127.0.0.1", false)
 
-            userService.signIn(UserDto.Login(testUser.login, testUser.password))
+            userService.signIn(UserDto.Login(testUser.login, testUser.password), "test-device", "127.0.0.1", false)
             rollback()
         }
     }
@@ -382,10 +383,10 @@ class UserServiceTests : UnitTestBase() {
             val confirmationCode = pendingRegistration.id.value.toString()
 
             // Confirm registration
-            userService.confirmRegistration(confirmationCode)
+            userService.confirmRegistration(confirmationCode, "test-device", "127.0.0.1", false)
 
             assertThrows(WrongPasswordException::class.java) {
-                userService.signIn(UserDto.Login(testUser.login, "wrong" + testUser.password))
+                userService.signIn(UserDto.Login(testUser.login, "wrong" + testUser.password), "test-device", "127.0.0.1", false)
             }
             rollback()
         }
@@ -410,10 +411,10 @@ class UserServiceTests : UnitTestBase() {
             val confirmationCode = pendingRegistration.id.value.toString()
 
             // Confirm registration
-            userService.confirmRegistration(confirmationCode)
+            userService.confirmRegistration(confirmationCode, "test-device", "127.0.0.1", false)
 
             assertThrows(UserNotFoundException::class.java) {
-                userService.signIn(UserDto.Login("unknown" + testUser.login, testUser.password))
+                userService.signIn(UserDto.Login("unknown" + testUser.login, testUser.password), "test-device", "127.0.0.1", false)
             }
             rollback()
         }
@@ -438,7 +439,7 @@ class UserServiceTests : UnitTestBase() {
             val confirmationCode = pendingRegistration.id.value.toString()
 
             // Confirm registration
-            userService.confirmRegistration(confirmationCode)
+            userService.confirmRegistration(confirmationCode, "test-device", "127.0.0.1", false)
 
             val userEntity = findUserByLogin(testUser.login)!!
             val registrationTime = userEntity.registrationTime
@@ -475,7 +476,7 @@ class UserServiceTests : UnitTestBase() {
             val confirmationCode = pendingRegistration.id.value.toString()
 
             // Confirm registration
-            userService.confirmRegistration(confirmationCode)
+            userService.confirmRegistration(confirmationCode, "test-device", "127.0.0.1", false)
 
             // Request email update
             val userEntity = findUserByLogin(testUser.login)!!
@@ -526,7 +527,7 @@ class UserServiceTests : UnitTestBase() {
             val confirmationCode = pendingRegistration.id.value.toString()
 
             // Confirm registration
-            userService.confirmRegistration(confirmationCode)
+            userService.confirmRegistration(confirmationCode, "test-device", "127.0.0.1", false)
 
             // Request email update
             val userEntity = findUserByLogin(testUser.login)!!
@@ -894,7 +895,7 @@ class UserServiceTests : UnitTestBase() {
             val confirmationCode = pendingRegistration.id.value.toString()
 
             // Confirm registration
-            userService.confirmRegistration(confirmationCode)
+            userService.confirmRegistration(confirmationCode, "test-device", "127.0.0.1", false)
 
             val userEntity = findUserByLogin(testUser.login)!!
             val registrationTime = userEntity.registrationTime
@@ -931,7 +932,7 @@ class UserServiceTests : UnitTestBase() {
             val confirmationCode = pendingRegistration.id.value.toString()
 
             // Confirm registration
-            userService.confirmRegistration(confirmationCode)
+            userService.confirmRegistration(confirmationCode, "test-device", "127.0.0.1", false)
 
             val userEntity = findUserByLogin(testUser.login)!!
             val registrationTime = userEntity.registrationTime
@@ -968,7 +969,7 @@ class UserServiceTests : UnitTestBase() {
             val confirmationCode = pendingRegistration.id.value.toString()
 
             // Confirm registration
-            userService.confirmRegistration(confirmationCode)
+            userService.confirmRegistration(confirmationCode, "test-device", "127.0.0.1", false)
 
             val userEntity = findUserByLogin(testUser.login)!!
             val registrationTime = userEntity.registrationTime
@@ -1037,7 +1038,7 @@ class UserServiceTests : UnitTestBase() {
             val confirmationCode = pendingRegistration.id.value.toString()
 
             // Confirm registration
-            userService.confirmRegistration(confirmationCode)
+            userService.confirmRegistration(confirmationCode, "test-device", "127.0.0.1", false)
 
             val foundUser = findUserByLogin(testUser.login)!!
             userService.sendPasswordResetEmail(foundUser.email)
@@ -1418,7 +1419,7 @@ class UserServiceTests : UnitTestBase() {
             val confirmationCode = pendingRegistration.id.value.toString()
 
             // Confirm registration
-            userService.confirmRegistration(confirmationCode)
+            userService.confirmRegistration(confirmationCode, "test-device", "127.0.0.1", false)
 
             val userId1 = findUserByLogin(testUser.login)!!.id
 
@@ -1644,7 +1645,7 @@ class UserServiceTests : UnitTestBase() {
             val confirmationCode = pendingRegistration.id.value.toString()
 
             // Confirm registration
-            userService.confirmRegistration(confirmationCode)
+            userService.confirmRegistration(confirmationCode, "test-device", "127.0.0.1", false)
 
             val userId1 = findUserByLogin(testUser.login)!!.id
 

@@ -3,7 +3,7 @@ package fi.lipp.blog.service.implementations
 import fi.lipp.blog.data.*
 import fi.lipp.blog.domain.*
 import fi.lipp.blog.model.exceptions.*
-import fi.lipp.blog.plugins.createJwtToken
+import fi.lipp.blog.data.TokenPair
 import fi.lipp.blog.repository.*
 import fi.lipp.blog.util.MessageLocalizer
 import java.util.UUID
@@ -25,7 +25,8 @@ class UserServiceImpl(
     private val storageService: StorageService,
     private val accessGroupService: AccessGroupService,
     private val notificationService: NotificationService,
-    private val properties: ApplicationProperties
+    private val properties: ApplicationProperties,
+    private val sessionService: SessionService,
 ) : UserService {
     override fun generateInviteCode(userId: UUID): String {
         val inviteCode = transaction {
@@ -108,7 +109,7 @@ class UserServiceImpl(
     }
 
     @Throws(ConfirmationCodeInvalidOrExpiredException::class)
-    override fun confirmRegistration(confirmationCode: String): String {
+    override fun confirmRegistration(confirmationCode: String, deviceName: String, location: String, isMobile: Boolean): TokenPair {
         val pendingRegistration = transaction {
             val uuid = try {
                 UUID.fromString(confirmationCode)
@@ -171,16 +172,15 @@ class UserServiceImpl(
             userId.value
         }
 
-        // Return JWT token for the new user
-        return createJwtToken(userId)
+        return sessionService.createSession(userId, deviceName, location, isMobile)
     }
 
-    override fun signIn(user: UserDto.Login): String {
+    override fun signIn(user: UserDto.Login, deviceName: String, location: String, isMobile: Boolean): TokenPair {
         val userEntity = getUserByLogin(user.login) ?: throw UserNotFoundException()
         if (!encoder.matches(user.password, userEntity.password)) {
             throw WrongPasswordException()
         }
-        return createJwtToken(userEntity.id.value)
+        return sessionService.createSession(userEntity.id.value, deviceName, location, isMobile)
     }
 
     override fun updateAdditionalInfo(userId: UUID, info: UserDto.AdditionalInfo) {

@@ -4,6 +4,7 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import fi.lipp.blog.data.*
 import fi.lipp.blog.data.FriendRequestDto
+import fi.lipp.blog.plugins.SESSION_ID
 import fi.lipp.blog.plugins.USER_ID
 import fi.lipp.blog.plugins.configureRouting
 import fi.lipp.blog.plugins.configureSecurity
@@ -49,21 +50,28 @@ class UserRoutesTests {
             contextual(UUIDSerializer)
         }
     }
+    private val testSessionId = UUID.randomUUID()
     private val testToken = JWT.create()
         .withAudience(jwtAudience)
         .withIssuer(jwtIssuer)
         .withClaim(USER_ID, testUserId.toString())
+        .withClaim(SESSION_ID, testSessionId.toString())
         .sign(Algorithm.HMAC256(jwtSecret))
+
+    private lateinit var sessionService: SessionService
 
     @Before
     fun setUp() {
         userService = mock(UserService::class.java)
         reactionService = mock(ReactionService::class.java)
+        sessionService = mock(SessionService::class.java)
+        `when`(sessionService.isSessionValid(testSessionId)).thenReturn(true)
 
         startKoin {
             modules(module {
                 single { userService }
                 single { reactionService }
+                single { sessionService }
                 // Mock other required services
                 single { mock(NotificationService::class.java) }
                 single { mock(DialogService::class.java) }
@@ -72,6 +80,7 @@ class UserRoutesTests {
                 single { mock(StorageService::class.java) }
                 single { mock(AccessGroupService::class.java) }
                 single { mock(CommentWebSocketService::class.java) }
+                single<GeoLocationService> { fi.lipp.blog.stubs.GeoLocationServiceStub() }
             })
         }
     }

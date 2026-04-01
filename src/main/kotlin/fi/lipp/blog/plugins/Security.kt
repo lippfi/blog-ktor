@@ -2,6 +2,7 @@ package fi.lipp.blog.plugins
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
+import fi.lipp.blog.service.SessionService
 import fi.lipp.blog.service.Viewer
 import io.ktor.http.*
 import io.ktor.http.auth.HttpAuthHeader
@@ -13,10 +14,11 @@ import io.ktor.server.response.*
 import io.ktor.util.pipeline.*
 import org.koin.java.KoinJavaComponent.inject
 import java.util.*
-import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.minutes
 
 const val USER_ID = "user-id"
-private val TOKEN_LIFETIME = 365.days.inWholeMilliseconds
+const val SESSION_ID = "session-id"
+private val ACCESS_TOKEN_LIFETIME = 15.minutes.inWholeMilliseconds
 
 fun Application.configureSecurity() {
     val jwtAudience = environment.config.property("jwt.audience").getString()
@@ -51,11 +53,23 @@ fun Application.configureSecurity() {
             }
 
             validate { credential ->
-                if (credential.payload.getClaim(USER_ID).asString() != "") {
-                    JWTPrincipal(credential.payload)
-                } else {
-                    null
+                val userId = credential.payload.getClaim(USER_ID).asString()
+                val sessionId = credential.payload.getClaim(SESSION_ID).asString()
+                if (userId.isNullOrEmpty() || sessionId.isNullOrEmpty()) {
+                    return@validate null
                 }
+
+                val sessionService by inject<SessionService>(SessionService::class.java)
+                val sessionUUID = try {
+                    UUID.fromString(sessionId)
+                } catch (_: Exception) {
+                    return@validate null
+                }
+                if (!sessionService.isSessionValid(sessionUUID)) {
+                    return@validate null
+                }
+
+                JWTPrincipal(credential.payload)
             }
             
             challenge { _, _ ->
@@ -67,28 +81,42 @@ fun Application.configureSecurity() {
 
 private val environment by inject<ApplicationEnvironment>(ApplicationEnvironment::class.java)
 
-fun createJwtToken(userId: UUID): String {
+fun createAccessToken(userId: UUID, sessionId: UUID): String {
     val jwtAudience = environment.config.property("jwt.audience").getString()
     val jwtIssuer = environment.config.property("jwt.issuer").getString()
     val jwtSecret = environment.config.property("jwt.secret").getString()
 
     val now = System.currentTimeMillis()
-    val expiration = Date(now + TOKEN_LIFETIME)
+    val expiration = Date(now + ACCESS_TOKEN_LIFETIME)
 
     return JWT.create()
         .withAudience(jwtAudience)
         .withIssuer(jwtIssuer)
         .withClaim(USER_ID, userId.toString())
+        .withClaim(SESSION_ID, sessionId.toString())
+        .withIssuedAt(Date(now))
         .withExpiresAt(expiration)
         .sign(Algorithm.HMAC256(jwtSecret))
 }
 
 inline val ApplicationCall.userId: UUID get() {
-    val string = this.principal<JWTPrincipal>()!!.payload.getClaim(USER_ID).asString()
+    val principal = this.principal<JWTPrincipal>()
+        ?: throw fi.lipp.blog.model.exceptions.UnauthorizedException()
+    val string = principal.payload.getClaim(USER_ID).asString()
+        ?: throw fi.lipp.blog.model.exceptions.UnauthorizedException()
+    return UUID.fromString(string)
+}
+
+inline val ApplicationCall.sessionId: UUID get() {
+    val principal = this.principal<JWTPrincipal>()
+        ?: throw fi.lipp.blog.model.exceptions.UnauthorizedException()
+    val string = principal.payload.getClaim(SESSION_ID).asString()
+        ?: throw fi.lipp.blog.model.exceptions.UnauthorizedException()
     return UUID.fromString(string)
 }
 
 inline val PipelineContext<*, ApplicationCall>.userId: UUID get() = call.userId
+inline val PipelineContext<*, ApplicationCall>.sessionId: UUID get() = call.sessionId
 
 inline val ApplicationCall.viewer: Viewer
     get() {
@@ -99,6 +127,11 @@ inline val ApplicationCall.viewer: Viewer
         return Viewer.Anonymous(ip, browserFingerprint)
     }
     val userId = principal.payload.getClaim(USER_ID).asString()
+    if (userId.isNullOrEmpty()) {
+        val ip = this.request.origin.remoteHost
+        val browserFingerprint = this.request.headers["User-Agent"] ?: "unknown"
+        return Viewer.Anonymous(ip, browserFingerprint)
+    }
     return Viewer.Registered(UUID.fromString(userId))
 }
 

@@ -42,19 +42,26 @@ class PostRoutesTests {
             contextual(UUIDSerializer)
         }
     }
+    private val testSessionId = UUID.randomUUID()
     private val testToken = JWT.create()
         .withAudience(jwtAudience)
         .withIssuer(jwtIssuer)
         .withClaim(USER_ID, testUserId.toString())
+        .withClaim(SESSION_ID, testSessionId.toString())
         .sign(Algorithm.HMAC256(jwtSecret))
+
+    private lateinit var sessionService: SessionService
 
     @Before
     fun setUp() {
         postService = mock()
+        sessionService = mock()
+        whenever(sessionService.isSessionValid(testSessionId)).thenReturn(true)
 
         startKoin {
             modules(module {
                 single { postService }
+                single { sessionService }
                 single { mock<UserService>() }
                 single { mock<ReactionService>() }
                 single { mock<NotificationService>() }
@@ -63,6 +70,7 @@ class PostRoutesTests {
                 single { mock<StorageService>() }
                 single { mock<AccessGroupService>() }
                 single { mock<CommentWebSocketService>() }
+                single<GeoLocationService> { fi.lipp.blog.stubs.GeoLocationServiceStub() }
             })
         }
     }

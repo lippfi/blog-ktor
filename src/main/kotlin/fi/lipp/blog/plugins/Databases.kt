@@ -61,6 +61,7 @@ fun Application.configureDatabases() {
             PostSubscriptions,
             HiddenFromFeed,
             IgnoreList,
+            UserSessions,
         )
     }
 

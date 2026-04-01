@@ -24,7 +24,8 @@ class ApplicationTest {
                 "jwt.secret" to "test-secret",
                 "jwt.issuer" to "test-issuer",
                 "jwt.audience" to "test-audience",
-                "jwt.realm" to "test-realm"
+                "jwt.realm" to "test-realm",
+                "geoip.database" to ""
             )
         }
         application {
