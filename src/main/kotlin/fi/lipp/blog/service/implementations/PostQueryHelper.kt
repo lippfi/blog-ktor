@@ -166,10 +166,18 @@ internal class PostQueryHelper {
             andWhere {
                 var cond: Op<Boolean> = Posts.isArchived eq false
 
-                if (text != null) {
+                if (!text.isNullOrBlank()) {
+                    val escaped = text
+                        .replace("\\", "\\\\")
+                        .replace("%", "\\%")
+                        .replace("_", "\\_")
+                        .lowercase()
+
+                    val pattern = "%$escaped%"
+
                     cond = cond and (
-                            Posts.text.regexp(stringParam(text), false) or
-                                    Posts.title.regexp(stringParam(text), false)
+                            (Posts.text.lowerCase() like LikePattern(pattern, '\\')) or
+                                    (Posts.title.lowerCase() like LikePattern(pattern, '\\'))
                             )
                 }
 

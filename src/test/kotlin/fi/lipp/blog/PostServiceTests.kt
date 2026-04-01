@@ -1857,6 +1857,34 @@ class PostServiceTests : UnitTestBase() {
         }
     }
 
+    @Test
+    fun `test search by text treats special regex characters as literals`() {
+        transaction {
+            val (user1, _) = signUsersUp()
+
+            val post1 = createPostPostData(title = "post1", text = "hello world")
+            postService.addPost(user1, post1)
+            Thread.sleep(10)
+            val post2 = createPostPostData(title = "post2", text = "price is 9.99 dollars")
+            postService.addPost(user1, post2)
+            Thread.sleep(10)
+            val post3 = createPostPostData(title = "post3", text = "use .* for regex")
+            postService.addPost(user1, post3)
+
+            // ".*" should NOT match everything (as regex would), only the post containing literal ".*"
+            val page = getPosts(userId = user1, pattern = ".*", pageable = Pageable(1, 10, SortOrder.DESC))
+            assertEquals(1, page.content.size)
+            assertEquals("post3", page.content.first().title)
+
+            // "9.99" should match literally, not "9X99" where X is any char
+            val page2 = getPosts(userId = user1, pattern = "9.99", pageable = Pageable(1, 10, SortOrder.DESC))
+            assertEquals(1, page2.content.size)
+            assertEquals("post2", page2.content.first().title)
+
+            rollback()
+        }
+    }
+
     // todo access groups
     // todo commenting
     // todo generating url when busy
