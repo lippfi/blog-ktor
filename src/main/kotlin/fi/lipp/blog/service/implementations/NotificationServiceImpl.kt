@@ -422,6 +422,7 @@ class NotificationServiceImpl : NotificationService {
                 (Notifications.relatedRequest eq requestId)
             }) {
                 it[isRead] = true
+                it[relatedRequest] = null
             }
         }
     }

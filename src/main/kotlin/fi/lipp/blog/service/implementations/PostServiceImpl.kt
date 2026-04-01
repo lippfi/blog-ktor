@@ -309,6 +309,24 @@ class PostServiceImpl(
         }
     }
 
+    override fun getSubscribedPosts(userId: UUID, pageable: Pageable): Page<PostDto.View> {
+        return transaction {
+            val subscribedPostIds = PostSubscriptions
+                .slice(PostSubscriptions.post)
+                .select { PostSubscriptions.user eq userId }
+                .map { it[PostSubscriptions.post].value }
+                .toSet()
+
+            if (subscribedPostIds.isEmpty()) {
+                return@transaction Page(emptyList(), pageable.page, 0)
+            }
+
+            val params = PostQueryHelper.PostSearchParams(viewer = Viewer.Registered(userId), isFeed = false)
+            val subscriptionCondition = Posts.id inList subscribedPostIds.toList()
+            getPosts(params, listOf(subscriptionCondition), pageable, Posts.creationTime to pageable.direction)
+        }
+    }
+
     override fun getFriendsPosts(userId: UUID, pageable: Pageable): Page<PostDto.View> {
         return transaction {
             val friends = Friends

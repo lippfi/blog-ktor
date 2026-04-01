@@ -59,6 +59,8 @@ interface PostService {
     fun updateComment(userId: UUID, comment: CommentDto.Update): CommentDto.View
     fun deleteComment(userId: UUID, commentId: UUID)
 
+    fun getSubscribedPosts(userId: UUID, pageable: Pageable): Page<PostDto.View>
+
     /**
      * Get posts from users that the specified user is following
      * @param userId ID of the user whose followed posts to retrieve

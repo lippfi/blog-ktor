@@ -19,6 +19,7 @@ import fi.lipp.blog.service.implementations.UserServiceImpl
 import fi.lipp.blog.service.implementations.ReactionServiceImpl
 import fi.lipp.blog.service.implementations.ReactionDatabaseSeeder
 import fi.lipp.blog.service.implementations.DatabaseInitializer
+import fi.lipp.blog.service.implementations.NotificationServiceImpl
 import fi.lipp.blog.service.implementations.PostServiceImpl
 import fi.lipp.blog.stubs.ApplicationPropertiesStub
 import fi.lipp.blog.stubs.PasswordEncoderStub
@@ -114,6 +115,7 @@ abstract class UnitTestBase {
                     NotificationSettings,
                     HiddenFromFeed,
                     IgnoreList,
+                    PostSubscriptions,
                 )
             }
             startKoin {
@@ -124,7 +126,7 @@ abstract class UnitTestBase {
                     single<MailService> { mock() }
                     single<StorageService> { StorageServiceImpl(get()) }
                     single<AccessGroupService> { AccessGroupServiceImpl() }
-                    single<NotificationService> { mock() }
+                    single<NotificationService> { NotificationServiceImpl() }
                     single<CommentWebSocketService> { mock() }
                     single<UserService> { UserServiceImpl(get(), get(), get(), get(), get(), get()) }
 
@@ -256,14 +258,27 @@ abstract class UnitTestBase {
     fun cleanDatabase() {
         transaction {
             // Delete all data except access groups in the correct order to handle dependencies
+            exec("DELETE FROM ${NotificationSettings.tableName}")
+            exec("DELETE FROM ${Notifications.tableName}")
+            exec("DELETE FROM ${PostSubscriptions.tableName}")
+            exec("DELETE FROM ${AnonymousCommentReactions.tableName}")
+            exec("DELETE FROM ${CommentReactions.tableName}")
             exec("DELETE FROM ${AnonymousPostReactions.tableName}")
             exec("DELETE FROM ${PostReactions.tableName}")
             exec("DELETE FROM ${Reactions.tableName}")
             exec("DELETE FROM ${ReactionPacks.tableName}")
             exec("DELETE FROM ${CommentDependencies.tableName}")
+            exec("DELETE FROM ${PostDependencies.tableName}")
             exec("DELETE FROM ${Comments.tableName}")
             exec("DELETE FROM ${PostTags.tableName}")
             exec("DELETE FROM ${Posts.tableName}")
+            exec("DELETE FROM ${HiddenDialogs.tableName}")
+            exec("DELETE FROM ${Messages.tableName}")
+            exec("DELETE FROM ${Dialogs.tableName}")
+            exec("DELETE FROM ${FriendLabels.tableName}")
+            exec("DELETE FROM ${Friends.tableName}")
+            exec("DELETE FROM ${FriendRequests.tableName}")
+            exec("DELETE FROM ${UserFollows.tableName}")
             exec("DELETE FROM ${PasswordResets.tableName}")
             exec("DELETE FROM ${InviteCodes.tableName}")
             exec("DELETE FROM ${CustomGroupUsers.tableName}")

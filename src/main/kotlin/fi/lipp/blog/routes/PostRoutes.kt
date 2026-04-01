@@ -189,6 +189,16 @@ fun Route.postRoutes(postService: PostService, commentWebSocketService: CommentW
                 call.respond(posts)
             }
 
+            get("/subscribed") {
+                val pageable = Pageable(
+                    page = call.request.queryParameters["page"]?.toInt() ?: 0,
+                    size = call.request.queryParameters["size"]?.toInt() ?: 10,
+                    direction = SortOrder.DESC,
+                )
+                val posts = postService.getSubscribedPosts(userId, pageable)
+                call.respond(posts)
+            }
+
             get {
                 val postIdParameter = call.request.queryParameters["id"]
                 if (postIdParameter == null) {
