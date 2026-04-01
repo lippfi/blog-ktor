@@ -45,6 +45,11 @@ interface NotificationService {
     fun notifyAboutRepost(userId: UUID, repostId: UUID)
 
     /**
+     * Notify about a repost of a comment
+     */
+    fun notifyAboutCommentRepost(userId: UUID, repostId: UUID)
+
+    /**
      * Notify about a reaction on a comment
      */
     fun notifyAboutCommentReaction(commentId: UUID)

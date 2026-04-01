@@ -14,4 +14,5 @@ enum class NotificationType {
     PRIVATE_MESSAGE,
     FRIEND_REQUEST,
     REPOST,
+    COMMENT_REPOST,
 }

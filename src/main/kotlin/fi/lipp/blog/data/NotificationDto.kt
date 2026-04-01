@@ -82,4 +82,13 @@ sealed interface NotificationDto {
         val postUri: String,
         override val type: NotificationType = NotificationType.REPOST,
     ) : NotificationDto
+
+    @Serializable
+    data class CommentRepost(
+        @Serializable(with = UUIDSerializer::class)
+        override val id: UUID,
+        val diaryLogin: String,
+        val postUri: String,
+        override val type: NotificationType = NotificationType.COMMENT_REPOST,
+    ) : NotificationDto
 }

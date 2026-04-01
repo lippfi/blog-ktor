@@ -108,6 +108,7 @@ abstract class UnitTestBase {
                     HiddenDialogs,
                     UserFollows,
                     CommentDependencies,
+                    PostDependencies,
                     CommentReactions,
                     AnonymousCommentReactions,
                     NotificationSettings,

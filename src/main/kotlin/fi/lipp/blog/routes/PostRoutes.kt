@@ -252,6 +252,20 @@ fun Route.postRoutes(postService: PostService, commentWebSocketService: CommentW
                 val createdPost = postService.addPost(userId, post)
                 call.respond(createdPost)
             }
+
+            post("/repost") {
+                val post = call.receive<PostDto.Create>()
+                val repostedPostId = UUID.fromString(call.request.queryParameters["id"])
+                val createdPost = postService.repost(userId, post, repostedPostId)
+                call.respond(createdPost)
+            }
+
+            post("/repost-comment") {
+                val post = call.receive<PostDto.Create>()
+                val repostedCommentId = UUID.fromString(call.request.queryParameters["id"])
+                val createdPost = postService.repostComment(userId, post, repostedCommentId)
+                call.respond(createdPost)
+            }
         }
     }
 }

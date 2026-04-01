@@ -54,6 +54,7 @@ fun Application.configureDatabases() {
             HiddenDialogs,
             UserFollows,
             CommentDependencies,
+            PostDependencies,
             CommentReactions,
             AnonymousCommentReactions,
             NotificationSettings,

@@ -169,10 +169,62 @@ class PostServiceImpl(
 
     override fun addPost(userId: UUID, post: PostDto.Create): PostDto.View {
         return transaction {
-            if (post.isPreface) {
+            val createdPost = if (post.isPreface) {
                 addPreface(userId, post)
             } else {
                 addPostToDb(userId, post)
+            }
+
+            addPostDependencies(createdPost.id, setOf(userId))
+            createdPost
+        }
+    }
+
+    override fun repost(userId: UUID, post: PostDto.Create, repostedPost: UUID): PostDto.View {
+        return transaction {
+            val newPost = addPostToDb(userId, post)
+            val originalPost = PostEntity.findById(repostedPost) ?: throw PostNotFoundException()
+
+            val dependencyUserIds = getPostDependencies(repostedPost)
+            addPostDependencies(newPost.id, dependencyUserIds)
+
+            notificationService.notifyAboutRepost(originalPost.authorId!!, newPost.id)
+            newPost
+        }
+    }
+
+    override fun repostComment(userId: UUID, post: PostDto.Create, repostedComment: UUID): PostDto.View {
+        return transaction {
+            val newPost = addPostToDb(userId, post)
+            val originalComment = CommentEntity.findById(repostedComment) ?: throw CommentNotFoundException()
+
+            val dependencyUserIds = getCommentDependencies(repostedComment)
+            addPostDependencies(newPost.id, dependencyUserIds)
+
+            notificationService.notifyAboutCommentRepost(originalComment.authorId!!, newPost.id)
+            newPost
+        }
+    }
+
+    private fun getPostDependencies(postId: UUID): Set<UUID> {
+        return PostDependencyEntity
+            .find { PostDependencies.post eq postId }
+            .map { it.user.id.value }
+            .toSet()
+    }
+
+    private fun getCommentDependencies(commentId: UUID): Set<UUID> {
+        return CommentDependencyEntity
+            .find { CommentDependencies.comment eq commentId }
+            .map { it.user.id.value }
+            .toSet()
+    }
+
+    private fun addPostDependencies(postId: UUID, userIds: Set<UUID>) {
+        if (userIds.isNotEmpty()) {
+            PostDependencies.batchInsert(userIds) { userId ->
+                this[PostDependencies.post] = postId
+                this[PostDependencies.user] = userId
             }
         }
     }

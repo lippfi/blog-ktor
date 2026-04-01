@@ -46,6 +46,9 @@ interface PostService {
     ): Page<PostDto.View>
 
     fun addPost(userId: UUID, post: PostDto.Create): PostDto.View
+    fun repost(userId: UUID, post: PostDto.Create, repostedPost: UUID): PostDto.View
+    fun repostComment(userId: UUID, post: PostDto.Create, repostedComment: UUID): PostDto.View
+
     fun updatePost(userId: UUID, post: PostDto.Update): PostDto.View
     fun deletePost(userId: UUID, postId: UUID)
     fun hidePost(userId: UUID, postId: UUID)

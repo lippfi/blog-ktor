@@ -1885,6 +1885,91 @@ class PostServiceTests : UnitTestBase() {
         }
     }
 
+    @Test
+    fun `test repost`() {
+        transaction {
+            val pageable = Pageable(1, 10, SortOrder.DESC)
+            val (user1, user2) = signUsersUp()
+
+            // User1 creates a post
+            val originalPost = createPostPostData(title = "Original Post")
+            val originalPostView = postService.addPost(user1, originalPost)
+
+            // User2 reposts the post
+            val repost = createPostPostData(title = "Reposted Post")
+            val repostView = postService.repost(user2, repost, originalPostView.id)
+
+            // Verify the repost was created
+            val page = getPosts(userId = user2, pageable = pageable)
+            assertEquals(1, page.currentPage)
+            assertEquals(1, page.totalPages)
+            println("[DEBUG_LOG] Page content size: ${page.content.size}")
+            assertTrue(page.content.isNotEmpty())
+            val addedRepost = page.content.first()
+            assertTrue(addedRepost.uri.contains("reposted-post") || addedRepost.uri.contains("repostedpost"))
+            assertEquals(repost.title, addedRepost.title)
+            assertEquals(repost.text, addedRepost.text)
+            assertEquals(testUser2.login, addedRepost.authorLogin)
+            assertEquals(testUser2.nickname, addedRepost.authorNickname)
+            assertNow(addedRepost.creationTime)
+
+            // Verify that dependencies were added
+            val dependencies = PostDependencies
+                .select { PostDependencies.post eq repostView.id }
+                .map { it[PostDependencies.user].value }
+                .toSet()
+            assertTrue(dependencies.contains(user1))
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `test repost comment`() {
+        transaction {
+            val pageable = Pageable(1, 10, SortOrder.DESC)
+            val (user1, user2) = signUsersUp()
+
+            // User1 creates a post
+            val originalPost = createPostPostData(title = "Original Post")
+            val originalPostView = postService.addPost(user1, originalPost)
+
+            // User2 comments on the post
+            val comment = CommentDto.Create(
+                postId = originalPostView.id,
+                avatar = "comment avatar",
+                text = "comment text",
+                parentCommentId = null
+            )
+            val commentView = postService.addComment(user2, comment)
+
+            // User1 reposts the comment
+            val repost = createPostPostData(title = "Reposted Comment")
+            val repostView = postService.repostComment(user1, repost, commentView.id)
+
+            // Verify the repost was created
+            val page = getPosts(userId = user1, pageable = pageable)
+            assertEquals(2, page.content.size) // Original post + repost
+            val addedRepost = page.content.first() // Most recent post
+            assertTrue(addedRepost.uri.contains("reposted-comment") || addedRepost.uri.contains("repostedcomment"))
+            assertEquals(repost.title, addedRepost.title)
+            assertEquals(repost.text, addedRepost.text)
+            assertEquals(testUser.login, addedRepost.authorLogin)
+            assertEquals(testUser.nickname, addedRepost.authorNickname)
+            assertNow(addedRepost.creationTime)
+
+            // Verify that dependencies were added
+            val dependencies = PostDependencies
+                .select { PostDependencies.post eq repostView.id }
+                .map { it[PostDependencies.user].value }
+                .toSet()
+            assertTrue(dependencies.contains(user2))
+
+            rollback()
+        }
+    }
+
+
     // todo access groups
     // todo commenting
     // todo generating url when busy

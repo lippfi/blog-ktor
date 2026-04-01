@@ -139,6 +139,28 @@ internal class PostQueryHelper {
             ((Posts.authorType eq PostAuthorType.EXTERNAL) and (externalPostAuthor[ExternalUsers.user] inSubQuery usersWhoIgnoredMeSubquery))
     }
 
+    private fun postsWithIgnoredDependencies(viewerUserId: UUID): Set<UUID> {
+        // Get users that the current user has ignored
+        val ignoredUsersSubquery = IgnoreList
+            .slice(IgnoreList.ignoredUser)
+            .select { IgnoreList.user eq viewerUserId }
+
+        // Get users who have ignored the current user
+        val usersWhoIgnoredMeSubquery = IgnoreList
+            .slice(IgnoreList.user)
+            .select { IgnoreList.ignoredUser eq viewerUserId }
+
+        // Find posts that depend on ignored users or users who have ignored the current user
+        return PostDependencies
+            .slice(PostDependencies.post)
+            .select {
+                (PostDependencies.user inSubQuery ignoredUsersSubquery) or
+                        (PostDependencies.user inSubQuery usersWhoIgnoredMeSubquery)
+            }
+            .map { it[PostDependencies.post].value }
+            .toSet()
+    }
+
     private fun hiddenFromFeedAuthorCondition(viewerUserId: UUID): Op<Boolean> {
         val hiddenUsersSubquery = HiddenFromFeed
             .slice(HiddenFromFeed.hiddenUser)
@@ -149,7 +171,12 @@ internal class PostQueryHelper {
     }
 
     private fun visibleToViewerCondition(viewerUserId: UUID): Op<Boolean> {
-        return not(ignoredAuthorCondition(viewerUserId)) and not(authorIgnoredMeCondition(viewerUserId))
+        val postsWithIgnoredDeps = postsWithIgnoredDependencies(viewerUserId)
+        return if (postsWithIgnoredDeps.isNotEmpty()) {
+            SqlExpressionBuilder.run { Posts.id notInList postsWithIgnoredDeps.toList() }
+        } else {
+            Op.TRUE
+        }
     }
 
     fun Query.andFilters(
