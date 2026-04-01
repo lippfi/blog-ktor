@@ -41,6 +41,7 @@ interface PostService {
         to: LocalDate?,
         isHidden: Boolean?,
         pageable: Pageable,
+        isFeed: Boolean,
         vararg order: Pair<Expression<*>, SortOrder> = arrayOf(Posts.creationTime to pageable.direction),
     ): Page<PostDto.View>
 
@@ -69,7 +70,7 @@ interface PostService {
      * @param pageable pagination parameters
      * @return Page of posts ordered by creation date
      */
-    fun getPosts(viewer: Viewer, pageable: Pageable): Page<PostDto.View>
+    fun getLatestPosts(viewer: Viewer, pageable: Pageable): Page<PostDto.View>
 
     /**
      * Get posts sorted by the time of their latest comment

@@ -498,7 +498,7 @@ class UserServiceImpl(
     }
     private fun getDiaryAndUserByLogin(login: String): Pair<DiaryEntity, UserEntity>? {
         return transaction {
-            val diaryEntity = DiaryEntity.find { Diaries.login eq login }.firstOrNull()
+            val diaryEntity = DiaryEntity.find { (Diaries.login eq login) and (Diaries.type eq DiaryType.PERSONAL) }.firstOrNull()
             val userEntity = diaryEntity?.owner?.value?.let { UserEntity.findById(it) }
             if (userEntity != null) Pair(diaryEntity, userEntity) else null
         }
@@ -1130,6 +1130,65 @@ class UserServiceImpl(
     override fun getUserLanguage(userId: UUID): Language? {
         return transaction {
             UserEntity.findById(userId)?.language
+        }
+    }
+
+    override fun doNotShowInFeed(userId: UUID, userLogin: String) {
+        return transaction {
+            val targetUser = getUserByLogin(userLogin) ?: throw UserNotFoundException()
+            val targetUserId = targetUser.id.value
+
+            val existingHidden = HiddenFromFeedEntity.find {
+                (HiddenFromFeed.user eq userId) and (HiddenFromFeed.hiddenUser eq targetUserId)
+            }.firstOrNull()
+
+            if (existingHidden != null) return@transaction
+
+            HiddenFromFeedEntity.new {
+                user = UserEntity[userId]
+                hiddenUser = targetUser
+            }
+        }
+    }
+
+    override fun showInFeed(userId: UUID, userLogin: String) {
+        return transaction {
+            val targetUser = getUserByLogin(userLogin) ?: throw UserNotFoundException()
+            val targetUserId = targetUser.id.value
+
+            HiddenFromFeedEntity.find {
+                (HiddenFromFeed.user eq userId) and (HiddenFromFeed.hiddenUser eq targetUserId)
+            }.firstOrNull()?.delete()
+        }
+    }
+
+    override fun doNotShowInFeedList(userId: UUID): List<UserDto.View> {
+        return transaction {
+            val hiddenUsers = HiddenFromFeedEntity.find {
+                HiddenFromFeed.user eq userId
+            }.map { it.hiddenUser.id.value }
+
+            if (hiddenUsers.isEmpty()) return@transaction emptyList()
+
+            (Users innerJoin Diaries)
+                .slice(Users.nickname, Diaries.login, Users.primaryAvatar, Users.signature)
+                .select {
+                    (Users.id inList hiddenUsers) and
+                    (Diaries.owner eq Users.id) and
+                    (Diaries.type eq DiaryType.PERSONAL)
+                }
+                .map { row ->
+                    val primaryAvatarId = row[Users.primaryAvatar]?.value
+                    val primaryAvatarUrl = primaryAvatarId?.let { avatarId ->
+                        FileEntity.findById(avatarId)?.toBlogFile()?.let { storageService.getFileURL(it) }
+                    }
+                    UserDto.View(
+                        login = row[Diaries.login],
+                        nickname = row[Users.nickname],
+                        avatarUri = primaryAvatarUrl,
+                        signature = row[Users.signature]
+                    )
+                }
         }
     }
 }

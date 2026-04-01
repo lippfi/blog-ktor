@@ -1420,10 +1420,111 @@ class PostServiceTests : UnitTestBase() {
 
             // Get posts
             val pageable = Pageable(1, 10, SortOrder.DESC)
-            val page = postService.getPosts(Viewer.Registered(user1), pageable)
+            val page = postService.getLatestPosts(Viewer.Registered(user1), pageable)
 
             // Should only have 1 post, not 2
             assertEquals(1, page.content.size)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `test posts from hidden users don't appear in feed`() {
+        transaction {
+            val (user1, user2) = signUsersUp()
+
+            // User2 creates a post
+            val post = createPostPostData(title = "Hidden User Post")
+            postService.addPost(user2, post)
+
+            // Verify the post appears in feed initially
+            val pageable = Pageable(1, 10, SortOrder.DESC)
+            var feedPosts = postService.getLatestPosts(Viewer.Registered(user1), pageable)
+            assertEquals(1, feedPosts.content.size)
+            assertEquals("Hidden User Post", feedPosts.content.first().title)
+
+            userService.doNotShowInFeed(user1, testUser2.login)
+
+            commit()
+
+            feedPosts = postService.getLatestPosts(Viewer.Registered(user1), pageable)
+
+            assertEquals(0, feedPosts.content.size)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `test posts from hidden users still appear when not in feed mode`() {
+        transaction {
+            val (user1, user2) = signUsersUp()
+
+            val post = createPostPostData(title = "Hidden User Post")
+            val addedPost = postService.addPost(user2, post)
+            println("[DEBUG_LOG] Added post: ${addedPost.id}, title: ${addedPost.title}")
+
+            userService.doNotShowInFeed(user1, testUser2.login)
+
+            commit()
+
+            val pageable = Pageable(1, 10, SortOrder.DESC)
+            val feedPosts = postService.getLatestPosts(Viewer.Registered(user1), pageable)
+            assertEquals(0, feedPosts.content.size)
+
+            val searchPosts = postService.getPosts(
+                Viewer.Registered(user1),
+                authorLogin = testUser2.login,
+                diaryLogin = null,
+                text = null,
+                tags = null,
+                from = null,
+                to = null,
+                isHidden = null,
+                pageable = pageable,
+                isFeed = false
+            )
+
+            assertEquals(1, searchPosts.content.size)
+            assertEquals("Hidden User Post", searchPosts.content.first().title)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `test posts reappear after user is unhidden from feed`() {
+        transaction {
+            val (user1, user2) = signUsersUp()
+
+            // Debug: Print user IDs
+            println("[DEBUG_LOG] User1 ID: $user1")
+            println("[DEBUG_LOG] User2 ID: $user2")
+
+            // User2 creates a post
+            val post = createPostPostData(title = "Hidden User Post")
+            val addedPost = postService.addPost(user2, post)
+            println("[DEBUG_LOG] Added post: ${addedPost.id}, title: ${addedPost.title}")
+
+            // User1 hides User2 from feed
+            userService.doNotShowInFeed(user1, testUser2.login)
+
+            commit()
+
+            // Verify the post doesn't appear in feed
+            val pageable = Pageable(1, 10, SortOrder.DESC)
+            var feedPosts = postService.getLatestPosts(Viewer.Registered(user1), pageable)
+            assertEquals(0, feedPosts.content.size)
+
+            userService.showInFeed(user1, testUser2.login)
+
+            commit()
+
+            feedPosts = postService.getLatestPosts(Viewer.Registered(user1), pageable)
+
+            assertEquals(1, feedPosts.content.size)
+            assertEquals("Hidden User Post", feedPosts.content.first().title)
 
             rollback()
         }
@@ -1471,7 +1572,7 @@ class PostServiceTests : UnitTestBase() {
 
 
     private fun getPosts(viewer: Viewer, author: String? = null, diary: String? = null, pattern: String? = null, tags: Pair<TagPolicy, Set<String>>? = null, pageable: Pageable): Page<PostDto.View> {
-        return postService.getPosts(viewer, author, diary, pattern, tags, null, null, null, pageable)
+        return postService.getPosts(viewer, author, diary, pattern, tags, null, null, null, pageable, isFeed = false)
     }
 
     private fun getPosts(userId: UUID, author: String? = null, diary: String? = null, pattern: String? = null, tags: Pair<TagPolicy, Set<String>>? = null, pageable: Pageable): Page<PostDto.View> {

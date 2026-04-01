@@ -217,4 +217,8 @@ interface UserService {
 
     fun search(text: String): List<UserDto.View>
     fun getByLogins(logins: List<String>): List<UserDto.View>
+
+    fun doNotShowInFeed(userId: UUID, userLogin: String)
+    fun showInFeed(userId: UUID, userLogin: String)
+    fun doNotShowInFeedList(userId: UUID): List<UserDto.View>
 }

@@ -142,6 +142,7 @@ class PostServiceImpl(
         to: LocalDate?,
         isHidden: Boolean?,
         pageable: Pageable,
+        isFeed: Boolean,
         vararg order: Pair<Expression<*>, SortOrder>
     ): Page<PostDto.View> {
         val params = PostQueryHelper.PostSearchParams(
@@ -152,7 +153,8 @@ class PostServiceImpl(
             tags = tags,
             from = from,
             to = to,
-            isHidden = isHidden
+            isHidden = isHidden,
+            isFeed = isFeed
         )
         return transaction {
             getPosts(params, emptyList(), pageable, *order)
@@ -182,16 +184,16 @@ class PostServiceImpl(
         }
     }
 
-    override fun getPosts(viewer: Viewer, pageable: Pageable): Page<PostDto.View> {
+    override fun getLatestPosts(viewer: Viewer, pageable: Pageable): Page<PostDto.View> {
         return transaction {
-            val params = PostQueryHelper.PostSearchParams(viewer = viewer)
+            val params = PostQueryHelper.PostSearchParams(viewer = viewer, isFeed = true)
             getPosts(params, emptyList(), pageable,Posts.creationTime to SortOrder.DESC)
         }
     }
 
     override fun getDiscussedPosts(viewer: Viewer, pageable: Pageable): Page<PostDto.View> {
         return transaction {
-            val params = PostQueryHelper.PostSearchParams(viewer = viewer)
+            val params = PostQueryHelper.PostSearchParams(viewer = viewer, isFeed = true)
             getPosts(params, emptyList(), pageable,Posts.lastCommentTime to SortOrder.DESC_NULLS_LAST, Posts.creationTime to SortOrder.DESC)
         }
     }
@@ -245,7 +247,7 @@ class PostServiceImpl(
                 return@transaction Page(emptyList(), pageable.page, 0)
             }
 
-            val params = PostQueryHelper.PostSearchParams(viewer = Viewer.Registered(userId))
+            val params = PostQueryHelper.PostSearchParams(viewer = Viewer.Registered(userId), isFeed = true)
             val authorCondition = postQueryHelper.authorMatchesUsers(followed.toList())
             getPosts(params, listOf(authorCondition), pageable, Posts.creationTime to pageable.direction)
         }
@@ -264,7 +266,7 @@ class PostServiceImpl(
                 return@transaction Page(emptyList(), pageable.page, 0)
             }
 
-            val params = PostQueryHelper.PostSearchParams(viewer = Viewer.Registered(userId))
+            val params = PostQueryHelper.PostSearchParams(viewer = Viewer.Registered(userId), isFeed = false)
             val authorCondition = postQueryHelper.authorMatchesUsers(friends.toList())
             getPosts(params, listOf(authorCondition), pageable, Posts.creationTime to pageable.direction)
         }

@@ -58,6 +58,7 @@ fun Application.configureDatabases() {
             AnonymousCommentReactions,
             NotificationSettings,
             PostSubscriptions,
+            HiddenFromFeed,
         )
     }
 

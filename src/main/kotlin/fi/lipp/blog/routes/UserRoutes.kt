@@ -198,6 +198,23 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService)
                 userService.updateSignature(userId, signature)
                 call.respondText("Signature updated successfully")
             }
+
+            post("/do-not-show-in-feed") {
+                val userLogin = call.parameters["login"] ?: throw IllegalArgumentException("Missing login parameter")
+                userService.doNotShowInFeed(userId, userLogin)
+                call.respondText("User hidden from feed successfully")
+            }
+
+            post("/show-in-feed") {
+                val userLogin = call.parameters["login"] ?: throw IllegalArgumentException("Missing login parameter")
+                userService.showInFeed(userId, userLogin)
+                call.respondText("User shown in feed successfully")
+            }
+
+            get("/do-not-show-in-feed-list") {
+                val hiddenUsers = userService.doNotShowInFeedList(userId)
+                call.respond(hiddenUsers)
+            }
         }
     }
 }

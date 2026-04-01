@@ -30,6 +30,7 @@ internal class PostQueryHelper {
         val from: LocalDate? = null,
         val to: LocalDate? = null,
         val isHidden: Boolean? = null,
+        val isFeed: Boolean = false,
     )
 
     data class PostRowsPage(
@@ -113,7 +114,9 @@ internal class PostQueryHelper {
         diaryLogin: String?,
         from: LocalDate?,
         to: LocalDate?,
-        isHidden: Boolean?
+        isHidden: Boolean?,
+        isFeed: Boolean,
+        viewer: Viewer,
     ): Query {
         return this.apply {
             andWhere {
@@ -144,6 +147,14 @@ internal class PostQueryHelper {
 
                 if (isHidden != null) {
                     cond = cond and (Posts.isHidden eq isHidden)
+                }
+
+                if (isFeed && viewer is Viewer.Registered) {
+                    val hiddenUsersSubquery = HiddenFromFeed
+                        .slice(HiddenFromFeed.hiddenUser)
+                        .select { HiddenFromFeed.user eq viewer.userId }
+
+                    cond = cond and (Posts.localAuthor notInSubQuery hiddenUsersSubquery)
                 }
 
                 cond
@@ -188,6 +199,8 @@ internal class PostQueryHelper {
                 from = params.from,
                 to = params.to,
                 isHidden = params.isHidden,
+                isFeed = params.isFeed,
+                viewer = params.viewer,
             )
             .andTagFilter(params.tags)
     }

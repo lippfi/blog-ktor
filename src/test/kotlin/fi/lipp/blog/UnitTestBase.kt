@@ -111,6 +111,7 @@ abstract class UnitTestBase {
                     CommentReactions,
                     AnonymousCommentReactions,
                     NotificationSettings,
+                    HiddenFromFeed,
                 )
             }
             startKoin {
@@ -257,6 +258,7 @@ abstract class UnitTestBase {
             exec("DELETE FROM ${PostReactions.tableName}")
             exec("DELETE FROM ${Reactions.tableName}")
             exec("DELETE FROM ${ReactionPacks.tableName}")
+            exec("DELETE FROM ${CommentDependencies.tableName}")
             exec("DELETE FROM ${Comments.tableName}")
             exec("DELETE FROM ${PostTags.tableName}")
             exec("DELETE FROM ${Posts.tableName}")
@@ -264,6 +266,7 @@ abstract class UnitTestBase {
             exec("DELETE FROM ${InviteCodes.tableName}")
             exec("DELETE FROM ${CustomGroupUsers.tableName}")
             exec("DELETE FROM ${UserAvatars.tableName}")
+            exec("DELETE FROM ${HiddenFromFeed.tableName}")
             exec("DELETE FROM ${Files.tableName}")
             exec("DELETE FROM ${Diaries.tableName}")
             exec("DELETE FROM ${Users.tableName}")
