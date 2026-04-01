@@ -215,6 +215,23 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService)
                 val hiddenUsers = userService.doNotShowInFeedList(userId)
                 call.respond(hiddenUsers)
             }
+
+            post("/ignore-user") {
+                val userLogin = call.parameters["login"] ?: throw IllegalArgumentException("Missing login parameter")
+                userService.ignoreUser(userId, userLogin)
+                call.respondText("User added to ignore list successfully")
+            }
+
+            post("/unignore-user") {
+                val userLogin = call.parameters["login"] ?: throw IllegalArgumentException("Missing login parameter")
+                userService.unignoreUser(userId, userLogin)
+                call.respondText("User removed from ignore list successfully")
+            }
+
+            get("/ignored-users") {
+                val ignoredUsers = userService.getIgnoredUsers(userId)
+                call.respond(ignoredUsers)
+            }
         }
     }
 }

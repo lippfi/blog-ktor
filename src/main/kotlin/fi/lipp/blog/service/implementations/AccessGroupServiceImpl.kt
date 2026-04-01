@@ -11,6 +11,7 @@ import fi.lipp.blog.repository.AccessGroups
 import fi.lipp.blog.repository.CustomGroupUsers
 import fi.lipp.blog.repository.Diaries
 import fi.lipp.blog.repository.Friends
+import fi.lipp.blog.repository.IgnoreList
 import fi.lipp.blog.repository.Posts
 import fi.lipp.blog.service.AccessGroupService
 import fi.lipp.blog.service.Viewer
@@ -163,31 +164,43 @@ class AccessGroupServiceImpl : AccessGroupService {
     }
 
     override fun inGroup(viewer: Viewer, groupId: UUID, groupOwner: UUID): Boolean {
+        if (viewer is Viewer.Anonymous) {
+            return groupId == everyoneGroupUUID
+        }
+
+        val userId = (viewer as Viewer.Registered).userId
+
+        val isIgnoreRelationship = transaction {
+            val userIgnoredOwner = IgnoreList.select {
+                (IgnoreList.user eq userId) and (IgnoreList.ignoredUser eq groupOwner)
+            }.count() > 0
+
+            val ownerIgnoredUser = IgnoreList.select {
+                (IgnoreList.user eq groupOwner) and (IgnoreList.ignoredUser eq userId)
+            }.count() > 0
+
+            userIgnoredOwner || ownerIgnoredUser
+        }
+
+        if (isIgnoreRelationship) {
+            return false
+        }
+
         return when (groupId) {
             everyoneGroupUUID -> true
-            registeredGroupUUID -> viewer is Viewer.Registered
-            privateGroupUUID -> (viewer as? Viewer.Registered)?.userId == groupOwner
+            registeredGroupUUID -> true
+            privateGroupUUID -> false
             friendsGroupUUID -> {
-                if (viewer is Viewer.Anonymous) {
-                    false
-                } else {
-                    val memberId = (viewer as Viewer.Registered).userId
-                    transaction {
-                        Friends.select {
-                            ((Friends.user1 eq groupOwner) and (Friends.user2 eq memberId)) or
-                            ((Friends.user1 eq memberId) and (Friends.user2 eq groupOwner))
-                        }
-                    }.count() > 0
-                }
+                transaction {
+                    Friends.select {
+                        ((Friends.user1 eq groupOwner) and (Friends.user2 eq userId)) or
+                        ((Friends.user1 eq userId) and (Friends.user2 eq groupOwner))
+                    }
+                }.count() > 0
             }
             else -> {
-                if (viewer is Viewer.Anonymous) {
-                    false
-                } else {
-                    val memberId = (viewer as Viewer.Registered).userId
-                    transaction {
-                        CustomGroupUsers.select { (CustomGroupUsers.member eq memberId) and (CustomGroupUsers.accessGroup eq groupId) }.count() > 0
-                    }
+                transaction {
+                    CustomGroupUsers.select { (CustomGroupUsers.member eq userId) and (CustomGroupUsers.accessGroup eq groupId) }.count() > 0
                 }
             }
         }

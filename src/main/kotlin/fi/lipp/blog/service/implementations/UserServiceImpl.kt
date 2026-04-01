@@ -1191,4 +1191,63 @@ class UserServiceImpl(
                 }
         }
     }
+
+    override fun ignoreUser(userId: UUID, userLogin: String) {
+        return transaction {
+            val targetUser = getUserByLogin(userLogin) ?: throw UserNotFoundException()
+            val targetUserId = targetUser.id.value
+
+            val existingIgnored = IgnoreListEntity.find {
+                (IgnoreList.user eq userId) and (IgnoreList.ignoredUser eq targetUserId)
+            }.firstOrNull()
+
+            if (existingIgnored != null) return@transaction
+
+            IgnoreListEntity.new {
+                user = UserEntity[userId]
+                ignoredUser = targetUser
+            }
+        }
+    }
+
+    override fun unignoreUser(userId: UUID, userLogin: String) {
+        return transaction {
+            val targetUser = getUserByLogin(userLogin) ?: return@transaction
+            val targetUserId = targetUser.id.value
+
+            IgnoreListEntity.find {
+                (IgnoreList.user eq userId) and (IgnoreList.ignoredUser eq targetUserId)
+            }.firstOrNull()?.delete()
+        }
+    }
+
+    override fun getIgnoredUsers(userId: UUID): List<UserDto.View> {
+        return transaction {
+            val ignoredUsers = IgnoreListEntity.find {
+                IgnoreList.user eq userId
+            }.map { it.ignoredUser.id.value }
+
+            if (ignoredUsers.isEmpty()) return@transaction emptyList()
+
+            (Users innerJoin Diaries)
+                .slice(Users.nickname, Diaries.login, Users.primaryAvatar, Users.signature)
+                .select {
+                    (Users.id inList ignoredUsers) and
+                    (Diaries.owner eq Users.id) and
+                    (Diaries.type eq DiaryType.PERSONAL)
+                }
+                .map { row ->
+                    val primaryAvatarId = row[Users.primaryAvatar]?.value
+                    val primaryAvatarUrl = primaryAvatarId?.let { avatarId ->
+                        FileEntity.findById(avatarId)?.toBlogFile()?.let { storageService.getFileURL(it) }
+                    }
+                    UserDto.View(
+                        login = row[Diaries.login],
+                        nickname = row[Users.nickname],
+                        avatarUri = primaryAvatarUrl,
+                        signature = row[Users.signature]
+                    )
+                }
+        }
+    }
 }

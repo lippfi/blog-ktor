@@ -32,7 +32,7 @@ fun CommentEntity.toComment(
         text = text,
         creationTime = creationTime,
         isReactable = canReact,
-        reactions = reactionService.getCommentReactions(id.value),
+        reactions = reactionService.getCommentReactions(viewer, id.value),
         reactionGroupId = commentReactionGroupId,
         inReplyTo = inReplyTo,
         isPublished = isPublished

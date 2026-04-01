@@ -10,6 +10,7 @@ import fi.lipp.blog.service.*
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInSubQuery
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.FileNotFoundException
 import java.util.*
@@ -384,7 +385,7 @@ class ReactionServiceImpl(
                         }
 
                         // Send WebSocket notification about reaction added
-                        val reactionInfo = getCommentReactions(commentId).find { it.id == reactionId.value }
+                        val reactionInfo = getCommentReactions(viewer, commentId).find { it.id == reactionId.value }
                         if (reactionInfo != null) {
                             commentWebSocketService.notifyReactionAdded(commentId, reactionInfo, postEntity.id.value)
                         }
@@ -404,7 +405,7 @@ class ReactionServiceImpl(
                         }
 
                         // Send WebSocket notification about reaction added
-                        val reactionInfo = getCommentReactions(commentId).find { it.id == reactionId.value }
+                        val reactionInfo = getCommentReactions(viewer, commentId).find { it.id == reactionId.value }
                         if (reactionInfo != null) {
                             commentWebSocketService.notifyReactionAdded(commentId, reactionInfo, postEntity.id.value)
                         }
@@ -428,7 +429,7 @@ class ReactionServiceImpl(
             val reactionId = ReactionEntity.find { Reactions.name eq reactionName }.firstOrNull()?.id ?: throw ReactionNotFoundException()
 
             // Get reaction info before deleting it
-            val reactionInfo = getCommentReactions(commentId).find { it.id == reactionId.value }
+            val reactionInfo = getCommentReactions(viewer, commentId).find { it.id == reactionId.value }
 
             when (viewer) {
                 is Viewer.Registered -> {
@@ -461,51 +462,85 @@ class ReactionServiceImpl(
         }
     }
 
-    override fun getCommentReactions(commentId: UUID): List<ReactionDto.ReactionInfo> {
+    override fun getCommentReactions(viewer: Viewer, commentId: UUID): List<ReactionDto.ReactionInfo> {
         return transaction {
-            // Get reactions with their files
-            val reactionData = (CommentReactions innerJoin Reactions innerJoin Files)
-                .slice(Reactions.id, Reactions.name, Files.id)
-                .select { CommentReactions.comment eq commentId }
-                .map { row ->
-                    Triple(
-                        row[Reactions.id].value,
-                        row[Reactions.name],
-                        row[Files.id].value
-                    )
-                }.distinct()
+            val userId = (viewer as? Viewer.Registered)?.userId
 
-            // Get user logins and nicknames for each reaction
-            val reactionUsers = mutableMapOf<UUID, MutableList<ReactionDto.UserInfo>>()
-            reactionData.forEach { (reactionId, _, _) ->
-                val userInfos = (CommentReactions innerJoin Users innerJoin Diaries)
-                    .slice(Diaries.login, Users.nickname)
-                    .select { (CommentReactions.comment eq commentId) and (CommentReactions.reaction eq reactionId) }
-                    .map { ReactionDto.UserInfo(login = it[Diaries.login], nickname = it[Users.nickname]) }
-                    .distinct()
-                reactionUsers[reactionId] = userInfos.toMutableList()
+            val ignoreConditions = if (userId != null) {
+                val ignoredUsersSubquery = IgnoreList
+                    .slice(IgnoreList.ignoredUser)
+                    .select { IgnoreList.user eq userId }
+
+                val usersWhoIgnoredMeSubquery = IgnoreList
+                    .slice(IgnoreList.user)
+                    .select { IgnoreList.ignoredUser eq userId }
+
+                listOf(
+                    CommentReactions.user notInSubQuery ignoredUsersSubquery,
+                    CommentReactions.user notInSubQuery usersWhoIgnoredMeSubquery
+                )
+            } else {
+                emptyList()
             }
 
-            // Get anonymous reactions count
-            val anonymousCounts = mutableMapOf<UUID, Int>()
-            reactionData.forEach { (reactionId, _, _) ->
-                val count = AnonymousCommentReactions
-                    .select { (AnonymousCommentReactions.comment eq commentId) and (AnonymousCommentReactions.reaction eq reactionId) }
-                    .count()
-                anonymousCounts[reactionId] = count.toInt()
+            val baseConditions: List<Op<Boolean>> = listOf(CommentReactions.comment eq commentId)
+            val allConditions = baseConditions + ignoreConditions
+
+            // Get reactions with their files and users in one query
+            val reactionData = (CommentReactions innerJoin Reactions innerJoin Files innerJoin Users innerJoin Diaries)
+                .slice(
+                    CommentReactions.reaction,
+                    Reactions.name,
+                    Files.id,
+                    Diaries.login,
+                    Users.nickname
+                )
+                .select { allConditions.reduce { acc, condition -> acc and condition } }
+                .toList()
+
+            if (reactionData.isEmpty()) return@transaction emptyList()
+
+            val fileIds = reactionData.map { it[Files.id].value }.toSet()
+            val fileUrlMap = fileIds.associateWith { fileId ->
+                storageService.getFileURL(FileEntity.findById(fileId)!!.toBlogFile())
             }
 
-            // Create ReactionInfo objects
-            reactionData.map { (reactionId, name, fileId) ->
-                val userLogins = reactionUsers[reactionId] ?: emptyList()
+            val userReactionMap = reactionData.groupBy(
+                keySelector = { it[CommentReactions.reaction].value },
+                valueTransform = { ReactionDto.UserInfo(it[Diaries.login], it[Users.nickname]) }
+            )
+
+            val reactionTypes = reactionData.map { row ->
+                Triple(
+                    row[CommentReactions.reaction].value,
+                    row[Reactions.name],
+                    row[Files.id].value
+                )
+            }.distinct()
+
+            val reactionIds = reactionTypes.map { it.first }.toSet()
+
+            val anonymousCounts = AnonymousCommentReactions
+                .slice(AnonymousCommentReactions.reaction, AnonymousCommentReactions.reaction.count())
+                .select {
+                    (AnonymousCommentReactions.comment eq commentId) and
+                            (AnonymousCommentReactions.reaction inList reactionIds)
+                }
+                .groupBy(AnonymousCommentReactions.reaction)
+                .associate { row ->
+                    row[AnonymousCommentReactions.reaction].value to row[AnonymousCommentReactions.reaction.count()].toInt()
+                }
+
+            reactionTypes.map { (reactionId, name, fileId) ->
+                val users = userReactionMap[reactionId] ?: emptyList()
                 val anonymousCount = anonymousCounts[reactionId] ?: 0
 
                 ReactionDto.ReactionInfo(
                     id = reactionId,
                     name = name,
-                    iconUri = storageService.getFileURL(FileEntity.findById(fileId)!!.toBlogFile()),
-                    count = userLogins.size + anonymousCount,
-                    users = userLogins,
+                    iconUri = fileUrlMap[fileId] ?: "",
+                    count = users.size + anonymousCount,
+                    users = users,
                     anonymousCount = anonymousCount
                 )
             }

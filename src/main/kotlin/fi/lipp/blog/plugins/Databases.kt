@@ -59,6 +59,7 @@ fun Application.configureDatabases() {
             NotificationSettings,
             PostSubscriptions,
             HiddenFromFeed,
+            IgnoreList,
         )
     }
 

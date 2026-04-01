@@ -221,4 +221,21 @@ interface UserService {
     fun doNotShowInFeed(userId: UUID, userLogin: String)
     fun showInFeed(userId: UUID, userLogin: String)
     fun doNotShowInFeedList(userId: UUID): List<UserDto.View>
+
+    /**
+     * Add a user to the ignore list
+     * @throws UserNotFoundException if target user doesn't exist
+     */
+    @Throws(UserNotFoundException::class)
+    fun ignoreUser(userId: UUID, userLogin: String)
+
+    /**
+     * Remove a user from the ignore list
+     */
+    fun unignoreUser(userId: UUID, userLogin: String)
+
+    /**
+     * Get list of users that the specified user is ignoring
+     */
+    fun getIgnoredUsers(userId: UUID): List<UserDto.View>
 }

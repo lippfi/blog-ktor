@@ -1,6 +1,8 @@
 package fi.lipp.blog.service.implementations
 
 import fi.lipp.blog.data.AccessGroupType
+import fi.lipp.blog.model.exceptions.PostNotFoundException
+import fi.lipp.blog.repository.ExternalUsers
 import fi.lipp.blog.model.Pageable
 import fi.lipp.blog.model.TagPolicy
 import fi.lipp.blog.repository.*
@@ -11,6 +13,7 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inSubQuery
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInSubQuery
 import java.util.UUID
 import kotlin.math.ceil
 
@@ -19,6 +22,7 @@ internal class PostQueryHelper {
     val localPostAuthor = Users.alias("local_post_author")
     val externalPostAuthor = ExternalUsers.alias("external_post_author")
     val externalUserLinkedUser = Users.alias("external_user_linked_user")
+    val externalLinkedAuthorDiary = Diaries.alias("external_linked_author_diary")
     val localAuthorDiary = Diaries.alias("author_diary")
 
     data class PostSearchParams(
@@ -56,6 +60,7 @@ internal class PostQueryHelper {
         externalUserLinkedUser[Users.nickname],
         externalUserLinkedUser[Users.signature],
 
+        externalLinkedAuthorDiary[Diaries.login],
         localAuthorDiary[Diaries.login],
     )
 
@@ -65,6 +70,7 @@ internal class PostQueryHelper {
             .leftJoin(localPostAuthor, { Posts.localAuthor }, { localPostAuthor[Users.id] })
             .leftJoin(externalPostAuthor, { Posts.externalAuthor }, { externalPostAuthor[ExternalUsers.id] })
             .leftJoin(externalUserLinkedUser, { externalPostAuthor[ExternalUsers.user] }, { externalUserLinkedUser[Users.id] })
+            .leftJoin(externalLinkedAuthorDiary, { externalUserLinkedUser[Users.id] }, { externalLinkedAuthorDiary[Diaries.owner] })
             .innerJoin(AccessGroups, { Posts.readGroup }, { AccessGroups.id })
             .leftJoin(localAuthorDiary, { localPostAuthor[Users.id] }, { localAuthorDiary[Diaries.owner] })
     }
@@ -108,6 +114,37 @@ internal class PostQueryHelper {
         }
     }
 
+    private fun ignoredAuthorCondition(viewerUserId: UUID): Op<Boolean> {
+        val ignoredUsersSubquery = IgnoreList
+            .slice(IgnoreList.ignoredUser)
+            .select { IgnoreList.user eq viewerUserId }
+
+        return ((Posts.authorType eq PostAuthorType.LOCAL) and (Posts.localAuthor inSubQuery ignoredUsersSubquery)) or
+            ((Posts.authorType eq PostAuthorType.EXTERNAL) and (externalPostAuthor[ExternalUsers.user] inSubQuery ignoredUsersSubquery))
+    }
+
+    private fun authorIgnoredMeCondition(viewerUserId: UUID): Op<Boolean> {
+        val usersWhoIgnoredMeSubquery = IgnoreList
+            .slice(IgnoreList.user)
+            .select { IgnoreList.ignoredUser eq viewerUserId }
+
+        return ((Posts.authorType eq PostAuthorType.LOCAL) and (Posts.localAuthor inSubQuery usersWhoIgnoredMeSubquery)) or
+            ((Posts.authorType eq PostAuthorType.EXTERNAL) and (externalPostAuthor[ExternalUsers.user] inSubQuery usersWhoIgnoredMeSubquery))
+    }
+
+    private fun hiddenFromFeedAuthorCondition(viewerUserId: UUID): Op<Boolean> {
+        val hiddenUsersSubquery = HiddenFromFeed
+            .slice(HiddenFromFeed.hiddenUser)
+            .select { HiddenFromFeed.user eq viewerUserId }
+
+        return ((Posts.authorType eq PostAuthorType.LOCAL) and (Posts.localAuthor inSubQuery hiddenUsersSubquery)) or
+            ((Posts.authorType eq PostAuthorType.EXTERNAL) and (externalPostAuthor[ExternalUsers.user] inSubQuery hiddenUsersSubquery))
+    }
+
+    private fun visibleToViewerCondition(viewerUserId: UUID): Op<Boolean> {
+        return not(ignoredAuthorCondition(viewerUserId)) and not(authorIgnoredMeCondition(viewerUserId))
+    }
+
     fun Query.andFilters(
         text: String?,
         authorLogin: String?,
@@ -130,7 +167,10 @@ internal class PostQueryHelper {
                 }
 
                 if (authorLogin != null) {
-                    cond = cond and (localAuthorDiary[Diaries.login] eq authorLogin)
+                    cond = cond and (
+                        (localAuthorDiary[Diaries.login] eq authorLogin) or
+                        (externalLinkedAuthorDiary[Diaries.login] eq authorLogin)
+                    )
                 }
 
                 if (diaryLogin != null) {
@@ -150,11 +190,11 @@ internal class PostQueryHelper {
                 }
 
                 if (isFeed && viewer is Viewer.Registered) {
-                    val hiddenUsersSubquery = HiddenFromFeed
-                        .slice(HiddenFromFeed.hiddenUser)
-                        .select { HiddenFromFeed.user eq viewer.userId }
+                    cond = cond and not(hiddenFromFeedAuthorCondition(viewer.userId))
+                }
 
-                    cond = cond and (Posts.localAuthor notInSubQuery hiddenUsersSubquery)
+                if (viewer is Viewer.Registered) {
+                    cond = cond and visibleToViewerCondition(viewer.userId)
                 }
 
                 cond
@@ -232,5 +272,37 @@ internal class PostQueryHelper {
             .select { where(SqlExpressionBuilder) }
             .limit(1)
             .firstOrNull()
+    }
+
+    fun loadVisibleSinglePostRow(
+        viewer: Viewer,
+        where: SqlExpressionBuilder.() -> Op<Boolean>
+    ): ResultRow? {
+        val query = getBasicPostJoin()
+            .slice(postBaseSlice)
+            .select {
+                buildReadAccessCondition(viewer) and where(SqlExpressionBuilder)
+            }
+            .andFilters(
+                text = null,
+                authorLogin = null,
+                diaryLogin = null,
+                from = null,
+                to = null,
+                isHidden = null,
+                isFeed = false,
+                viewer = viewer,
+            )
+
+        return query
+            .limit(1)
+            .firstOrNull()
+    }
+
+    fun loadVisibleSinglePostRowOrThrow(
+        viewer: Viewer,
+        where: SqlExpressionBuilder.() -> Op<Boolean>
+    ): ResultRow {
+        return loadVisibleSinglePostRow(viewer, where) ?: throw PostNotFoundException()
     }
 }

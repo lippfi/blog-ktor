@@ -5,6 +5,7 @@ import fi.lipp.blog.repository.*
 import fi.lipp.blog.service.AccessGroupService
 import fi.lipp.blog.service.Viewer
 import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inSubQuery
 import java.util.UUID
 
 internal class CommentViewLoader(
@@ -22,11 +23,68 @@ internal class CommentViewLoader(
     private val postDiaryForComment = Diaries.alias("comment_post_diary")
 
     private data class ReplyMeta(val login: String?, val nickname: String)
+    data class CommentVisibilityData(
+        val excludedCommentIds: Set<UUID>,
+    )
 
-    fun loadCommentsForPosts(transaction: Transaction, viewer: Viewer, postIds: Set<UUID>): Map<UUID, List<CommentDto.View>> {
+    fun loadVisibleCommentCountsForPosts(
+        transaction: Transaction,
+        viewer: Viewer,
+        postIds: Set<UUID>
+    ): Map<UUID, Int> {
+        return loadVisibleCommentCountsForPosts(
+            transaction = transaction,
+            viewer = viewer,
+            postIds = postIds,
+            visibilityData = loadVisibilityData(viewer, postIds)
+        )
+    }
+
+    fun loadVisibleCommentCountsForPosts(
+        transaction: Transaction,
+        viewer: Viewer,
+        postIds: Set<UUID>,
+        visibilityData: CommentVisibilityData,
+    ): Map<UUID, Int> {
         if (postIds.isEmpty()) return emptyMap()
 
-        val rows = Comments
+        return Comments
+            .slice(Comments.post, Comments.id.count())
+            .select {
+                var cond: Op<Boolean> = Comments.post inList postIds.toList()
+                if (visibilityData.excludedCommentIds.isNotEmpty()) {
+                    cond = cond and (Comments.id notInList visibilityData.excludedCommentIds)
+                }
+                cond
+            }
+            .groupBy(Comments.post)
+            .associate { row ->
+                row[Comments.post].value to row[Comments.id.count()].toInt()
+            }
+    }
+
+    fun loadCommentsForPosts(transaction: Transaction, viewer: Viewer, postIds: Set<UUID>): Map<UUID, List<CommentDto.View>> {
+        return loadCommentsForPosts(
+            transaction = transaction,
+            viewer = viewer,
+            postIds = postIds,
+            visibilityData = loadVisibilityData(viewer, postIds)
+        )
+    }
+
+    fun loadCommentsForPosts(
+        transaction: Transaction,
+        viewer: Viewer,
+        postIds: Set<UUID>,
+        visibilityData: CommentVisibilityData,
+    ): Map<UUID, List<CommentDto.View>> {
+        if (postIds.isEmpty()) return emptyMap()
+
+        val excludedCommentIds = visibilityData.excludedCommentIds
+
+        val hiddenParentIds = excludedCommentIds.toSet()
+
+        val baseQuery = Comments
             .leftJoin(commentLocalAuthor, { Comments.localAuthor }, { commentLocalAuthor[Users.id] })
             .leftJoin(commentLocalAuthorDiary, { commentLocalAuthor[Users.id] }, { commentLocalAuthorDiary[Diaries.owner] })
             .leftJoin(commentExternalAuthor, { Comments.externalAuthor }, { commentExternalAuthor[ExternalUsers.id] })
@@ -45,9 +103,16 @@ internal class CommentViewLoader(
                 commentExternalLinkedUser[Users.id], commentExternalLinkedUser[Users.nickname], commentExternalLinkedUserDiary[Diaries.login],
                 commentAnonymousAuthor[AnonymousUsers.id], commentAnonymousAuthor[AnonymousUsers.nickname]
             )
-            .select { Comments.post inList postIds.toList() }
+            .select {
+                var cond: Op<Boolean> = Comments.post inList postIds.toList()
+                if (excludedCommentIds.isNotEmpty()) {
+                    cond = cond and (Comments.id notInList excludedCommentIds)
+                }
+                cond
+            }
             .orderBy(Comments.creationTime to SortOrder.ASC)
-            .toList()
+
+        val rows = baseQuery.toList()
 
         val viewerUserId = (viewer as? Viewer.Registered)?.userId
         val canReactByPair = rows
@@ -62,7 +127,7 @@ internal class CommentViewLoader(
         val parentIds = rows.mapNotNull { it[Comments.parentComment]?.value }.toSet()
         val replyMeta = loadReplyMeta(parentIds)
         val commentIds = rows.map { it[Comments.id].value }.toSet()
-        val reactionsByComment = reactionLoader.loadCommentReactions(transaction, commentIds)
+        val reactionsByComment = reactionLoader.loadCommentReactions(transaction, commentIds, viewer)
 
         val byPost = linkedMapOf<UUID, MutableList<CommentDto.View>>()
         rows.forEach { row ->
@@ -100,7 +165,11 @@ internal class CommentViewLoader(
 
             val canReact = isSelf || (canReactByPair[commentReactionGroupId to diaryOwnerId] ?: false)
             val inReply = row[Comments.parentComment]?.value?.let { parentId ->
-                replyMeta[parentId]?.let { CommentDto.ReplyView(parentId, it.login, it.nickname) }
+                if (parentId in hiddenParentIds) {
+                    null
+                } else {
+                    replyMeta[parentId]?.let { CommentDto.ReplyView(parentId, it.login, it.nickname) }
+                }
             }
 
             val view = CommentDto.View(
@@ -121,6 +190,41 @@ internal class CommentViewLoader(
         }
 
         return byPost
+    }
+
+    fun loadVisibilityData(
+        viewer: Viewer,
+        postIds: Set<UUID>,
+    ): CommentVisibilityData {
+        if (postIds.isEmpty()) {
+            return CommentVisibilityData(excludedCommentIds = emptySet())
+        }
+
+        val userId = (viewer as? Viewer.Registered)?.userId
+            ?: return CommentVisibilityData(excludedCommentIds = emptySet())
+
+        val ignoredUsersSubquery = IgnoreList
+            .slice(IgnoreList.ignoredUser)
+            .select { IgnoreList.user eq userId }
+
+        val usersWhoIgnoredMeSubquery = IgnoreList
+            .slice(IgnoreList.user)
+            .select { IgnoreList.ignoredUser eq userId }
+
+        val excludedCommentIds = CommentDependencies
+            .join(Comments, JoinType.INNER, Comments.id, CommentDependencies.comment)
+            .slice(CommentDependencies.comment)
+            .select {
+                (Comments.post inList postIds.toList()) and
+                    ((CommentDependencies.user inSubQuery ignoredUsersSubquery) or
+                        (CommentDependencies.user inSubQuery usersWhoIgnoredMeSubquery))
+            }
+            .map { it[CommentDependencies.comment].value }
+            .toSet()
+
+        return CommentVisibilityData(
+            excludedCommentIds = excludedCommentIds,
+        )
     }
 
     private fun loadReplyMeta(parentIds: Set<UUID>): Map<UUID, ReplyMeta> {

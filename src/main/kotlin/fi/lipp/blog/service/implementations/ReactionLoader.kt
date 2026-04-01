@@ -4,7 +4,10 @@ import fi.lipp.blog.data.*
 import fi.lipp.blog.model.exceptions.InternalServerError
 import fi.lipp.blog.repository.*
 import fi.lipp.blog.service.StorageService
+import fi.lipp.blog.service.Viewer
 import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInSubQuery
 import java.util.UUID
 
 internal class ReactionLoader(private val storageService: StorageService) {
@@ -13,8 +16,14 @@ internal class ReactionLoader(private val storageService: StorageService) {
 
     private data class RegisteredReactionRow(val targetId: UUID, val reactionId: UUID, val user: ReactionDto.UserInfo)
 
-    fun loadPostReactions(transaction: Transaction, postIds: Set<UUID>): Map<UUID, List<ReactionDto.ReactionInfo>> {
+    fun loadPostReactions(transaction: Transaction, viewer: Viewer, postIds: Set<UUID>): Map<UUID, List<ReactionDto.ReactionInfo>> {
         if (postIds.isEmpty()) return emptyMap()
+
+        val userId = (viewer as? Viewer.Registered)?.userId
+        val ignoreConditions = buildIgnoreConditions(userId) { PostReactions.user }
+
+        val baseConditions: List<Op<Boolean>> = listOf(PostReactions.post inList postIds.toList())
+        val allConditions = baseConditions + ignoreConditions
 
         val regRows =
             PostReactions
@@ -22,7 +31,7 @@ internal class ReactionLoader(private val storageService: StorageService) {
                 .innerJoin(Users, { PostReactions.user }, { Users.id })
                 .innerJoin(Diaries, { Users.id }, { Diaries.owner })
                 .slice(PostReactions.post, Reactions.id, Diaries.login, Users.nickname)
-                .select { PostReactions.post inList postIds.toList() }
+                .select { allConditions.reduce { acc, condition -> acc and condition } }
                 .map {
                     RegisteredReactionRow(
                         targetId = it[PostReactions.post].value,
@@ -56,8 +65,14 @@ internal class ReactionLoader(private val storageService: StorageService) {
         return mergeReactions(postIds, regRows, anonymousCounts, reactionMeta)
     }
 
-    fun loadCommentReactions(transaction: Transaction, commentIds: Set<UUID>): Map<UUID, List<ReactionDto.ReactionInfo>> {
+    fun loadCommentReactions(transaction: Transaction, commentIds: Set<UUID>, viewer: Viewer? = null): Map<UUID, List<ReactionDto.ReactionInfo>> {
         if (commentIds.isEmpty()) return emptyMap()
+
+        val userId = (viewer as? Viewer.Registered)?.userId
+        val ignoreConditions = buildIgnoreConditions(userId) { CommentReactions.user }
+
+        val baseConditions: List<Op<Boolean>> = listOf(CommentReactions.comment inList commentIds.toList())
+        val allConditions = baseConditions + ignoreConditions
 
         val regRows =
             CommentReactions
@@ -70,7 +85,7 @@ internal class ReactionLoader(private val storageService: StorageService) {
                     Diaries.login,
                     Users.nickname
                 )
-                .select { CommentReactions.comment inList commentIds.toList() }
+                .select { allConditions.reduce { acc, condition -> acc and condition } }
                 .map {
                     RegisteredReactionRow(
                         targetId = it[CommentReactions.comment].value,
@@ -147,6 +162,23 @@ internal class ReactionLoader(private val storageService: StorageService) {
                 iconUri = iconUrls[row.iconFile.id] ?: throw InternalServerError()
             )
         }
+    }
+
+    private fun buildIgnoreConditions(userId: UUID?, userColumn: () -> Column<org.jetbrains.exposed.dao.id.EntityID<UUID>>): List<Op<Boolean>> {
+        if (userId == null) return emptyList()
+
+        val ignoredUsersSubquery = IgnoreList
+            .slice(IgnoreList.ignoredUser)
+            .select { IgnoreList.user eq userId }
+
+        val usersWhoIgnoredMeSubquery = IgnoreList
+            .slice(IgnoreList.user)
+            .select { IgnoreList.ignoredUser eq userId }
+
+        return listOf(
+            userColumn() notInSubQuery ignoredUsersSubquery,
+            userColumn() notInSubQuery usersWhoIgnoredMeSubquery
+        )
     }
 
     private fun mergeReactions(

@@ -3,12 +3,12 @@ package fi.lipp.blog.service.implementations
 import fi.lipp.blog.data.PostDto
 import fi.lipp.blog.data.ReactionDto
 import fi.lipp.blog.domain.PostEntity
+import fi.lipp.blog.model.exceptions.PostNotFoundException
 import fi.lipp.blog.repository.*
 import fi.lipp.blog.service.AccessGroupService
 import fi.lipp.blog.service.Viewer
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.Transaction
-import org.jetbrains.exposed.sql.count
 import org.jetbrains.exposed.sql.select
 import java.util.UUID
 
@@ -16,6 +16,7 @@ internal class PostViewLoader(
     private val accessGroupService: AccessGroupService,
     private val postQueryHelper: PostQueryHelper,
     private val reactionLoader: ReactionLoader,
+    private val commentViewLoader: CommentViewLoader,
 ) {
 
     data class AccessChecks(
@@ -43,11 +44,14 @@ internal class PostViewLoader(
         rowsByPostId: Map<UUID, ResultRow>
     ): PostViewDependencies {
         val postIds = rowsByPostId.keys
+        val commentVisibilityData = commentViewLoader.loadVisibilityData(viewer, postIds)
         return PostViewDependencies(
             accessChecks = getBulkAccessGroupChecks(viewer, rowsByPostId),
             tagsByPost = loadTagsForPosts(postIds),
-            commentCountsByPost = loadCommentCountsForPosts(postIds),
-            reactionsByPost =  reactionLoader.loadPostReactions(transaction, postIds)
+            commentCountsByPost = commentViewLoader.loadVisibleCommentCountsForPosts(
+                transaction, viewer, postIds, commentVisibilityData
+            ),
+            reactionsByPost =  reactionLoader.loadPostReactions(transaction, viewer, postIds)
         )
     }
 
@@ -81,9 +85,9 @@ internal class PostViewLoader(
         viewer: Viewer,
         postId: UUID
     ): PostDto.View {
-        val row = postQueryHelper.loadSinglePostRow {
+        val row = postQueryHelper.loadVisibleSinglePostRowOrThrow(viewer) {
             Posts.id eq postId
-        } ?: error("Post not found: $postId")
+        }
 
         return toPostView(transaction, viewer, row)
     }
@@ -108,7 +112,7 @@ internal class PostViewLoader(
             if (linkedUserId != null) {
                 authorNickname = row[postQueryHelper.externalUserLinkedUser[Users.nickname]]
                 authorSignature = row[postQueryHelper.externalUserLinkedUser[Users.signature]]
-                authorLogin = row[postQueryHelper.localAuthorDiary[Diaries.login]]
+                authorLogin = row[postQueryHelper.externalLinkedAuthorDiary[Diaries.login]]
             } else {
                 authorNickname = row[postQueryHelper.externalPostAuthor[ExternalUsers.nickname]]
                 authorSignature = null
@@ -163,17 +167,6 @@ internal class PostViewLoader(
             }
     }
 
-    private fun loadCommentCountsForPosts(postIds: Set<UUID>): Map<UUID, Int> {
-        if (postIds.isEmpty()) return emptyMap()
-
-        return Comments
-            .slice(Comments.post, Comments.id.count())
-            .select { Comments.post inList postIds.toList() }
-            .groupBy(Comments.post)
-            .associate {
-                it[Comments.post].value to it[Comments.id.count()].toInt()
-            }
-    }
 
     private fun getBulkAccessGroupChecks(
         viewer: Viewer,

@@ -31,7 +31,14 @@ class PostServiceImpl(
     private val postQueryHelper = PostQueryHelper()
     private val reactionLoader = ReactionLoader(storageService)
     private val commentViewLoader = CommentViewLoader(accessGroupService, reactionLoader)
-    private val postViewLoader = PostViewLoader(accessGroupService, postQueryHelper, reactionLoader)
+    private val postViewLoader = PostViewLoader(accessGroupService, postQueryHelper, reactionLoader, commentViewLoader)
+
+    private fun ResultRow.postAuthorUserId(): UUID? {
+        return when (this[Posts.authorType]) {
+            PostAuthorType.LOCAL -> this[Posts.localAuthor]?.value
+            PostAuthorType.EXTERNAL -> this[postQueryHelper.externalPostAuthor[ExternalUsers.user]]?.value
+        }
+    }
 
     override fun getPostForEdit(userId: UUID, postId: UUID): PostDto.Update {
         return transaction {
@@ -43,14 +50,14 @@ class PostServiceImpl(
 
     override fun getPreface(viewer: Viewer, diaryLogin: String): PostDto.View? {
         return transaction {
-            val row = postQueryHelper.loadSinglePostRow {
+            val row = postQueryHelper.loadVisibleSinglePostRow(viewer) {
                 (postQueryHelper.postDiary[Diaries.login] eq diaryLogin) and
                     (Posts.isPreface eq true) and
                     (Posts.isArchived eq false)
             } ?: return@transaction null
 
-            val diaryOwnerId = row[postQueryHelper.postDiary[Diaries.owner]].value
-            if (!postViewLoader.canReadPost(viewer, row, diaryOwnerId)) return@transaction null
+            val authorUserId = row.postAuthorUserId()
+            if (authorUserId != null && isIgnoreRelationship(viewer, authorUserId)) return@transaction null
 
             postViewLoader.toPostView(this, viewer, row)
         }
@@ -60,20 +67,26 @@ class PostServiceImpl(
         val userId = (viewer as? Viewer.Registered)?.userId
 
         val postAndComments = transaction {
-            val row = postQueryHelper.loadSinglePostRow {
-                    postQueryHelper.buildReadAccessCondition(viewer) and
-                        (postQueryHelper.postDiary[Diaries.login] eq diaryLogin) and
-                        (Posts.uri eq uri) and
-                        (Posts.isArchived eq false)
+            val row = postQueryHelper.loadVisibleSinglePostRow(viewer) {
+                (postQueryHelper.postDiary[Diaries.login] eq diaryLogin) and
+                    (Posts.uri eq uri) and
+                    (Posts.isArchived eq false)
             } ?: throw PostNotFoundException()
+
+            val authorUserId = row.postAuthorUserId()
+            if (authorUserId != null && isIgnoreRelationship(viewer, authorUserId)) throw PostNotFoundException()
 
             if (userId != null) {
                 notificationService.readAllPostNotifications(userId, row[Posts.id].value)
             }
 
             val postId = row[Posts.id].value
+            val commentVisibilityData = commentViewLoader.loadVisibilityData(viewer, setOf(postId))
             val postView = postViewLoader.toPostView(this, viewer, row)
-            val comments = commentViewLoader.loadCommentsForPosts(this, viewer, setOf(postId))[postId] ?: emptyList()
+            val comments = commentViewLoader.loadCommentsForPosts(
+                this, viewer, setOf(postId), commentVisibilityData
+            )[postId] ?: emptyList()
+
             postView to comments
         }
 
@@ -656,6 +669,17 @@ class PostServiceImpl(
         )
     }
 
+
+    private fun isIgnoreRelationship(viewer: Viewer, otherUserId: UUID): Boolean {
+        val userId = (viewer as? Viewer.Registered)?.userId ?: return false
+        val userIgnoredOther = IgnoreList.select {
+            (IgnoreList.user eq userId) and (IgnoreList.ignoredUser eq otherUserId)
+        }.count() > 0
+        val otherIgnoredUser = IgnoreList.select {
+            (IgnoreList.user eq otherUserId) and (IgnoreList.ignoredUser eq userId)
+        }.count() > 0
+        return userIgnoredOther || otherIgnoredUser
+    }
 
     // TODO do not duplicate this method
     @Suppress("UnusedReceiverParameter")

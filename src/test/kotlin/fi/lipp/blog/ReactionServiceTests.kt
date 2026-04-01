@@ -4,11 +4,13 @@ import fi.lipp.blog.data.BlogFile
 import fi.lipp.blog.data.FileUploadData
 import fi.lipp.blog.data.PostDto
 import fi.lipp.blog.data.UserDto
+import fi.lipp.blog.model.Pageable
 import fi.lipp.blog.model.exceptions.WrongUserException
 import fi.lipp.blog.service.NotificationService
 import fi.lipp.blog.service.PostService
 import fi.lipp.blog.service.ReactionService
 import fi.lipp.blog.service.Viewer
+import org.jetbrains.exposed.sql.SortOrder
 import fi.lipp.blog.service.implementations.PostServiceImpl
 import fi.lipp.blog.service.implementations.ReactionDatabaseSeeder
 import fi.lipp.blog.service.implementations.ReactionServiceImpl
@@ -519,5 +521,204 @@ class ReactionServiceTests : UnitTestBase() {
         // Verify limit works (this is more of a code check since we can't easily create 120+ reactions in a test)
         // The implementation should limit to 120 results
         assertTrue(searchResults.size <= 120, "Results should be limited to 120")
+    }
+
+    @Test
+    fun `test reactions from ignored users are not shown on single post`() {
+        transaction {
+            // Use existing users: testUser as post owner, testUser2 as reactor
+            val postOwner = testUser
+            val reactor = testUser2
+
+            // Create a reaction
+            val reaction = reactionService.createReaction(
+                postOwner.id,
+                "like",
+                "custom",
+                FileUploadData(
+                    fullName = "reaction.png",
+                    inputStream = avatarFile1.inputStream()
+                )
+            )
+
+            // Create a post
+            val post = createTestPost(postOwner.id)
+
+            // Add reaction from reactor
+            reactionService.addReaction(Viewer.Registered(reactor.id), postOwner.login, post.uri, reaction.name)
+
+            // Verify the reaction is visible initially
+            var updatedPost = postService.getPost(Viewer.Registered(postOwner.id), postOwner.login, post.uri).post
+            println("[DEBUG_LOG] Initial reactions: ${updatedPost.reactions}")
+
+            // Check if there are any reactions
+            if (updatedPost.reactions.isNotEmpty()) {
+                val reactionInfo = updatedPost.reactions[0]
+                println("[DEBUG_LOG] Reaction users: ${reactionInfo.users.map { it.login }}")
+
+                // Check if the reactor's reaction is visible
+                if (reactionInfo.users.isNotEmpty()) {
+                    assertTrue(reactionInfo.users.any { it.login == reactor.login }, "Should include reactor's reaction")
+                } else {
+                    fail("No users found in the reaction")
+                }
+            } else {
+                fail("No reactions found on the post")
+            }
+
+            // Post owner ignores reactor
+            userService.ignoreUser(postOwner.id, reactor.login)
+
+            commit()
+
+            // Verify that reactor's reaction is not visible
+            updatedPost = postService.getPost(Viewer.Registered(postOwner.id), postOwner.login, post.uri).post
+            println("[DEBUG_LOG] After ignore - reactions: ${updatedPost.reactions}")
+
+            // Either there should be no reactions at all, or the reaction should have no users
+            if (updatedPost.reactions.isNotEmpty()) {
+                val filteredReactionInfo = updatedPost.reactions[0]
+                println("[DEBUG_LOG] After ignore - reaction users: ${filteredReactionInfo.users.map { it.login }}")
+
+                // The reaction should have no users, or at least not the ignored user
+                if (filteredReactionInfo.users.isNotEmpty()) {
+                    assertFalse(filteredReactionInfo.users.any { it.login == reactor.login }, 
+                        "Should not include reactor's reaction after ignore, but found users: ${filteredReactionInfo.users.map { it.login }}")
+                }
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `test reactions from ignored users are not shown on multiple posts`() {
+        transaction {
+            // Use existing users: testUser as post owner, testUser2 as reactor
+            val postOwner = testUser
+            val reactor = testUser2
+
+            // Create a reaction
+            val reaction = reactionService.createReaction(
+                postOwner.id,
+                "like",
+                "custom",
+                FileUploadData(
+                    fullName = "reaction.png",
+                    inputStream = avatarFile1.inputStream()
+                )
+            )
+
+            // Create multiple posts
+            val post1 = createTestPost(postOwner.id, "test-post-1")
+            val post2 = createTestPost(postOwner.id, "test-post-2")
+
+            // Add reactions from reactor to both posts
+            reactionService.addReaction(Viewer.Registered(reactor.id), postOwner.login, post1.uri, reaction.name)
+            reactionService.addReaction(Viewer.Registered(reactor.id), postOwner.login, post2.uri, reaction.name)
+
+            // Verify reactions are visible initially on both posts
+            var posts = postService.getDiaryPosts(
+                viewer = Viewer.Registered(postOwner.id),
+                diaryLogin = postOwner.login,
+                text = null,
+                tags = null,
+                from = null,
+                to = null,
+                pageable = Pageable(1, 10, SortOrder.DESC)
+            ).posts.content
+
+            // Find the posts we created
+            val foundPost1 = posts.find { it.uri == "test-post-1" }
+            val foundPost2 = posts.find { it.uri == "test-post-2" }
+
+            assertNotNull(foundPost1)
+            assertNotNull(foundPost2)
+
+            // Verify reactions on post1
+            println("[DEBUG_LOG] Initial reactions on post1: ${foundPost1!!.reactions}")
+
+            // Check if there are any reactions on post1
+            if (foundPost1.reactions.isNotEmpty()) {
+                val reactionInfo1 = foundPost1.reactions[0]
+                println("[DEBUG_LOG] Initial reaction users on post1: ${reactionInfo1.users.map { it.login }}")
+
+                // Check if the reactor's reaction is visible on post1
+                if (reactionInfo1.users.isNotEmpty()) {
+                    assertTrue(reactionInfo1.users.any { it.login == reactor.login }, "Should include reactor's reaction on post1")
+                } else {
+                    fail("No users found in the reaction on post1")
+                }
+            } else {
+                fail("No reactions found on post1")
+            }
+
+            // Verify reactions on post2
+            println("[DEBUG_LOG] Initial reactions on post2: ${foundPost2!!.reactions}")
+
+            // Check if there are any reactions on post2
+            if (foundPost2.reactions.isNotEmpty()) {
+                val reactionInfo2 = foundPost2.reactions[0]
+                println("[DEBUG_LOG] Initial reaction users on post2: ${reactionInfo2.users.map { it.login }}")
+
+                // Check if the reactor's reaction is visible on post2
+                if (reactionInfo2.users.isNotEmpty()) {
+                    assertTrue(reactionInfo2.users.any { it.login == reactor.login }, "Should include reactor's reaction on post2")
+                } else {
+                    fail("No users found in the reaction on post2")
+                }
+            } else {
+                fail("No reactions found on post2")
+            }
+
+            // Post owner ignores reactor
+            userService.ignoreUser(postOwner.id, reactor.login)
+
+            commit()
+
+            // Get posts again
+            posts = postService.getDiaryPosts(
+                viewer = Viewer.Registered(postOwner.id),
+                diaryLogin = postOwner.login,
+                text = null,
+                tags = null,
+                from = null,
+                to = null,
+                pageable = Pageable(1, 10, SortOrder.DESC)
+            ).posts.content
+
+            // Find the posts we created
+            val updatedPost1 = posts.find { it.uri == "test-post-1" }
+            val updatedPost2 = posts.find { it.uri == "test-post-2" }
+
+            assertNotNull(updatedPost1)
+            assertNotNull(updatedPost2)
+
+            // Verify reactions on post1 - reactor's reaction should be filtered out
+            println("[DEBUG_LOG] After ignore - reactions on post1: ${updatedPost1!!.reactions}")
+            if (updatedPost1.reactions.isNotEmpty()) {
+                val filteredReactionInfo1 = updatedPost1.reactions[0]
+                println("[DEBUG_LOG] After ignore - reaction users on post1: ${filteredReactionInfo1.users.map { it.login }}")
+                assertEquals(0, filteredReactionInfo1.users.size, "Should have 0 users who reacted on post1 after ignore")
+                assertFalse(filteredReactionInfo1.users.any { it.login == reactor.login }, "Should not include reactor's reaction on post1 after ignore")
+            } else {
+                // If there are no reactions at all, that's also acceptable
+                assertTrue(updatedPost1.reactions.isEmpty(), "Should have no reactions on post1 after ignore")
+            }
+
+            // Verify reactions on post2 - reactor's reaction should be filtered out
+            println("[DEBUG_LOG] After ignore - reactions on post2: ${updatedPost2!!.reactions}")
+            if (updatedPost2.reactions.isNotEmpty()) {
+                val filteredReactionInfo2 = updatedPost2.reactions[0]
+                println("[DEBUG_LOG] After ignore - reaction users on post2: ${filteredReactionInfo2.users.map { it.login }}")
+                assertEquals(0, filteredReactionInfo2.users.size, "Should have 0 users who reacted on post2 after ignore")
+                assertFalse(filteredReactionInfo2.users.any { it.login == reactor.login }, "Should not include reactor's reaction on post2 after ignore")
+            } else {
+                // If there are no reactions at all, that's also acceptable
+                assertTrue(updatedPost2.reactions.isEmpty(), "Should have no reactions on post2 after ignore")
+            }
+
+            rollback()
+        }
     }
 }

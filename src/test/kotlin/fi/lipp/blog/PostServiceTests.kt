@@ -1565,6 +1565,298 @@ class PostServiceTests : UnitTestBase() {
         }
     }
 
+    @Test
+    fun `test posts from ignored users don't appear in any results`() {
+        transaction {
+            val (user1, user2) = signUsersUp()
+
+            // User2 creates a post
+            val post = createPostPostData(title = "Ignored User Post")
+            postService.addPost(user2, post)
+
+            // Verify the post appears in results initially
+            val pageable = Pageable(1, 10, SortOrder.DESC)
+
+            // Check in feed
+            var feedPosts = postService.getLatestPosts(Viewer.Registered(user1), pageable)
+            assertEquals(1, feedPosts.content.size)
+            assertEquals("Ignored User Post", feedPosts.content.first().title)
+
+            // Check in direct search
+            var searchPosts = postService.getPosts(
+                Viewer.Registered(user1),
+                authorLogin = testUser2.login,
+                diaryLogin = null,
+                text = null,
+                tags = null,
+                from = null,
+                to = null,
+                isHidden = null,
+                pageable = pageable,
+                isFeed = false
+            )
+            assertEquals(1, searchPosts.content.size)
+
+            // User1 ignores User2
+            userService.ignoreUser(user1, testUser2.login)
+
+            commit()
+
+            // Verify the post doesn't appear in feed
+            feedPosts = postService.getLatestPosts(Viewer.Registered(user1), pageable)
+            assertEquals(0, feedPosts.content.size)
+
+            // Verify the post doesn't appear in direct search either
+            searchPosts = postService.getPosts(
+                Viewer.Registered(user1),
+                authorLogin = testUser2.login,
+                diaryLogin = null,
+                text = null,
+                tags = null,
+                from = null,
+                to = null,
+                isHidden = null,
+                pageable = pageable,
+                isFeed = false
+            )
+            assertEquals(0, searchPosts.content.size)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `test posts reappear after user is unignored`() {
+        transaction {
+            val (user1, user2) = signUsersUp()
+
+            // User2 creates a post
+            val post = createPostPostData(title = "Ignored User Post")
+            postService.addPost(user2, post)
+
+            // User1 ignores User2
+            userService.ignoreUser(user1, testUser2.login)
+
+            commit()
+
+            // Verify the post doesn't appear in results
+            val pageable = Pageable(1, 10, SortOrder.DESC)
+            var searchPosts = postService.getPosts(
+                Viewer.Registered(user1),
+                authorLogin = testUser2.login,
+                diaryLogin = null,
+                text = null,
+                tags = null,
+                from = null,
+                to = null,
+                isHidden = null,
+                pageable = pageable,
+                isFeed = false
+            )
+            assertEquals(0, searchPosts.content.size)
+
+            // User1 unignores User2
+            userService.unignoreUser(user1, testUser2.login)
+
+            commit()
+
+            // Verify the post reappears in results
+            searchPosts = postService.getPosts(
+                Viewer.Registered(user1),
+                authorLogin = testUser2.login,
+                diaryLogin = null,
+                text = null,
+                tags = null,
+                from = null,
+                to = null,
+                isHidden = null,
+                pageable = pageable,
+                isFeed = false
+            )
+            assertEquals(1, searchPosts.content.size)
+            assertEquals("Ignored User Post", searchPosts.content.first().title)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `test posts are hidden when user is ignored by post author`() {
+        transaction {
+            val (user1, user2) = signUsersUp()
+
+            // User2 creates a post
+            val post = createPostPostData(title = "Bidirectional Ignore Test")
+            postService.addPost(user2, post)
+
+            // Verify the post appears in results initially
+            val pageable = Pageable(1, 10, SortOrder.DESC)
+            var searchPosts = postService.getPosts(
+                Viewer.Registered(user1),
+                authorLogin = testUser2.login,
+                diaryLogin = null,
+                text = null,
+                tags = null,
+                from = null,
+                to = null,
+                isHidden = null,
+                pageable = pageable,
+                isFeed = false
+            )
+            assertEquals(1, searchPosts.content.size)
+            assertEquals("Bidirectional Ignore Test", searchPosts.content.first().title)
+
+            // User2 ignores User1
+            userService.ignoreUser(user2, testUser.login)
+
+            commit()
+
+            // Verify the post doesn't appear in results for User1
+            searchPosts = postService.getPosts(
+                Viewer.Registered(user1),
+                authorLogin = testUser2.login,
+                diaryLogin = null,
+                text = null,
+                tags = null,
+                from = null,
+                to = null,
+                isHidden = null,
+                pageable = pageable,
+                isFeed = false
+            )
+            assertEquals(0, searchPosts.content.size)
+
+            // User2 unignores User1
+            userService.unignoreUser(user2, testUser.login)
+
+            commit()
+
+            // Verify the post reappears in results for User1
+            searchPosts = postService.getPosts(
+                Viewer.Registered(user1),
+                authorLogin = testUser2.login,
+                diaryLogin = null,
+                text = null,
+                tags = null,
+                from = null,
+                to = null,
+                isHidden = null,
+                pageable = pageable,
+                isFeed = false
+            )
+            assertEquals(1, searchPosts.content.size)
+            assertEquals("Bidirectional Ignore Test", searchPosts.content.first().title)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `test getPost throws PostNotFoundException when user has ignored post author`() {
+        transaction {
+            val (user1, user2) = signUsersUp()
+
+            // User2 creates a post
+            val post = createPostPostData(title = "Ignored Author Post")
+            postService.addPost(user2, post)
+
+            // Verify the post can be accessed initially
+            val postPage = postService.getPost(Viewer.Registered(user1), testUser2.login, "ignored-author-post")
+            assertNotNull(postPage)
+            assertEquals("Ignored Author Post", postPage.post.title)
+
+            // User1 ignores User2
+            userService.ignoreUser(user1, testUser2.login)
+
+            commit()
+
+            assertThrows(PostNotFoundException::class.java) {
+                postService.getPost(Viewer.Registered(user1), testUser2.login, "ignored-author-post")
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `test getPost throws PostNotFoundException when post author has ignored user`() {
+        transaction {
+            val (user1, user2) = signUsersUp()
+
+            // User2 creates a post
+            val post = createPostPostData(title = "Author Ignored User Post")
+            postService.addPost(user2, post)
+
+            // Verify the post can be accessed initially
+            val postPage = postService.getPost(Viewer.Registered(user1), testUser2.login, "author-ignored-user-post")
+            assertNotNull(postPage)
+            assertEquals("Author Ignored User Post", postPage.post.title)
+
+            // User2 ignores User1
+            userService.ignoreUser(user2, testUser.login)
+
+            commit()
+
+            assertThrows(PostNotFoundException::class.java) {
+                postService.getPost(Viewer.Registered(user1), testUser2.login, "author-ignored-user-post")
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `test getPreface returns null when user has ignored post author`() {
+        transaction {
+            val (user1, user2) = signUsersUp()
+
+            // User2 creates a preface
+            val preface = createPostPostData(title = "Ignored Author Preface", isPreface = true)
+            postService.addPost(user2, preface)
+
+            // Verify the preface can be accessed initially
+            val prefaceView = postService.getPreface(Viewer.Registered(user1), testUser2.login)
+            assertNotNull(prefaceView)
+            assertEquals("Ignored Author Preface", prefaceView.title)
+
+            // User1 ignores User2
+            userService.ignoreUser(user1, testUser2.login)
+
+            commit()
+
+            // Verify DiaryNotFoundException is thrown when trying to access the preface
+            assertNull(postService.getPreface(Viewer.Registered(user1), testUser2.login))
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `test getPreface returns null when post author has ignored user`() {
+        transaction {
+            val (user1, user2) = signUsersUp()
+
+            // User2 creates a preface
+            val preface = createPostPostData(title = "Author Ignored User Preface", isPreface = true)
+            postService.addPost(user2, preface)
+
+            // Verify the preface can be accessed initially
+            val prefaceView = postService.getPreface(Viewer.Registered(user1), testUser2.login)
+            assertNotNull(prefaceView)
+            assertEquals("Author Ignored User Preface", prefaceView.title)
+
+            // User2 ignores User1
+            userService.ignoreUser(user2, testUser.login)
+
+            commit()
+
+            assertNull(postService.getPreface(Viewer.Registered(user1), testUser2.login))
+
+
+            rollback()
+        }
+    }
+
     // todo access groups
     // todo commenting
     // todo generating url when busy
