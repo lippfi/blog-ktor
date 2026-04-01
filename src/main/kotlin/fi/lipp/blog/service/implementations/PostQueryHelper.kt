@@ -171,12 +171,16 @@ internal class PostQueryHelper {
     }
 
     private fun visibleToViewerCondition(viewerUserId: UUID): Op<Boolean> {
+        val authorNotIgnored = not(ignoredAuthorCondition(viewerUserId)) and not(authorIgnoredMeCondition(viewerUserId))
+
         val postsWithIgnoredDeps = postsWithIgnoredDependencies(viewerUserId)
-        return if (postsWithIgnoredDeps.isNotEmpty()) {
+        val depsNotIgnored = if (postsWithIgnoredDeps.isNotEmpty()) {
             SqlExpressionBuilder.run { Posts.id notInList postsWithIgnoredDeps.toList() }
         } else {
             Op.TRUE
         }
+
+        return authorNotIgnored and depsNotIgnored
     }
 
     fun Query.andFilters(
