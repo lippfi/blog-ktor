@@ -177,17 +177,15 @@ class PostServiceImpl(
         }
     }
 
-    private fun addPreface(userId: UUID, post: PostDto.Create): PostDto.View {
-        return transaction {
-            val diaryId = DiaryEntity.find { Diaries.owner eq userId }.single().id
-            val oldPreface = PostEntity.find { (Posts.diary eq diaryId) and (Posts.isPreface eq true) and (Posts.isArchived eq false) }.singleOrNull()
+    private fun Transaction.addPreface(userId: UUID, post: PostDto.Create): PostDto.View {
+        val diaryId = DiaryEntity.find { Diaries.owner eq userId }.single().id
+        val oldPreface = PostEntity.find { (Posts.diary eq diaryId) and (Posts.isPreface eq true) and (Posts.isArchived eq false) }.singleOrNull()
 
-            if (oldPreface != null) {
-                deletePost(oldPreface)
-            }
-
-            addPostToDb(userId, post)
+        if (oldPreface != null) {
+            deletePost(oldPreface)
         }
+
+        return addPostToDb(userId, post)
     }
 
     override fun getLatestPosts(viewer: Viewer, pageable: Pageable): Page<PostDto.View> {
@@ -517,63 +515,61 @@ class PostServiceImpl(
         }
     }
 
-    private fun addPostToDb(userId: UUID, post: PostDto.Create): PostDto.View {
-        return transaction {
-            val diaryId = DiaryEntity.find { Diaries.owner eq userId }.first().id.value
-            val postUri = checkOrCreateUri(diaryId, post.title, post.uri)
+    private fun Transaction.addPostToDb(userId: UUID, post: PostDto.Create): PostDto.View {
+        val diaryId = DiaryEntity.find { Diaries.owner eq userId }.first().id.value
+        val postUri = checkOrCreateUri(diaryId, post.title, post.uri)
 
-            val (readGroupEntity, commentGroupEntity, reactionGroupEntity) = getReadAndCommentGroups(
-                diaryId,
-                post.readGroupId,
-                post.commentGroupId,
-                post.reactionGroupId
-            )
+        val (readGroupEntity, commentGroupEntity, reactionGroupEntity) = getReadAndCommentGroups(
+            diaryId,
+            post.readGroupId,
+            post.commentGroupId,
+            post.reactionGroupId
+        )
 
-            val commentReactionGroupEntity = validateCommentReactionGroup(diaryId, post.commentReactionGroupId)
-            val reactionSubsetEntity = post.reactionSubset?.let { ReactionSubsetEntity.findById(it) }
-            if (reactionSubsetEntity != null) {
-                if (reactionSubsetEntity.diary.value != diaryId) throw WrongUserException()
-            }
-
-            val postId = Posts.insertAndGetId {
-                it[uri] = postUri
-
-                it[diary] = diaryId
-                it[authorType] = PostAuthorType.LOCAL
-                it[localAuthor] = userId
-
-                it[avatar] = post.avatar
-                it[title] = post.title
-                it[text] = post.text
-
-                it[isPreface] = post.isPreface
-                it[isEncrypted] = post.isEncrypted
-                it[isHidden] = post.isHidden
-
-                it[classes] = post.classes
-
-                it[isArchived] = false
-
-                it[readGroup] = readGroupEntity.id
-                it[commentGroup] = commentGroupEntity.id
-                it[reactionGroup] = reactionGroupEntity.id
-                it[commentReactionGroup] = commentReactionGroupEntity.id
-                it[reactionSubset] = reactionSubsetEntity?.id
-            }
-
-            for (tag in post.tags) {
-                val tagId = getOrCreateTag(diaryId, tag)
-                PostTags.insert {
-                    it[PostTags.tag] = tagId
-                    it[PostTags.post] = postId
-                }
-            }
-
-            notificationService.subscribeToComments(userId, postId.value)
-
-            val postEntity = PostEntity.findById(postId)!!
-            postViewLoader.toPostView(this, Viewer.Registered(userId), postEntity)
+        val commentReactionGroupEntity = validateCommentReactionGroup(diaryId, post.commentReactionGroupId)
+        val reactionSubsetEntity = post.reactionSubset?.let { ReactionSubsetEntity.findById(it) }
+        if (reactionSubsetEntity != null) {
+            if (reactionSubsetEntity.diary.value != diaryId) throw WrongUserException()
         }
+
+        val postId = Posts.insertAndGetId {
+            it[uri] = postUri
+
+            it[diary] = diaryId
+            it[authorType] = PostAuthorType.LOCAL
+            it[localAuthor] = userId
+
+            it[avatar] = post.avatar
+            it[title] = post.title
+            it[text] = post.text
+
+            it[isPreface] = post.isPreface
+            it[isEncrypted] = post.isEncrypted
+            it[isHidden] = post.isHidden
+
+            it[classes] = post.classes
+
+            it[isArchived] = false
+
+            it[readGroup] = readGroupEntity.id
+            it[commentGroup] = commentGroupEntity.id
+            it[reactionGroup] = reactionGroupEntity.id
+            it[commentReactionGroup] = commentReactionGroupEntity.id
+            it[reactionSubset] = reactionSubsetEntity?.id
+        }
+
+        for (tag in post.tags) {
+            val tagId = getOrCreateTag(diaryId, tag)
+            PostTags.insert {
+                it[PostTags.tag] = tagId
+                it[PostTags.post] = postId
+            }
+        }
+
+        notificationService.subscribeToComments(userId, postId.value)
+
+        val postEntity = PostEntity.findById(postId)!!
+        return postViewLoader.toPostView(this, Viewer.Registered(userId), postEntity)
     }
 
     private fun getOrCreateTag(diaryId: UUID, tag: String): EntityID<UUID> {
