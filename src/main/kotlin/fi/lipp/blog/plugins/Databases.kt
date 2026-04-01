@@ -53,6 +53,7 @@ fun Application.configureDatabases() {
             Messages,
             HiddenDialogs,
             UserFollows,
+            CommentDependencies,
             CommentReactions,
             AnonymousCommentReactions,
             NotificationSettings,

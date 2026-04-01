@@ -10,6 +10,7 @@ import fi.lipp.blog.model.exceptions.PostNotFoundException
 import fi.lipp.blog.model.exceptions.WrongUserException
 import fi.lipp.blog.repository.*
 import fi.lipp.blog.service.MailService
+import fi.lipp.blog.service.CommentWebSocketService
 import fi.lipp.blog.service.NotificationService
 import fi.lipp.blog.service.PostService
 import fi.lipp.blog.service.ReactionService
@@ -51,6 +52,7 @@ class PostServiceTests : UnitTestBase() {
         private val encoder = PasswordEncoderStub()
         private val mailService = mock<MailService>()
         private val notificationService = mock<NotificationService>()
+        private val commentWebSocketService = mock<CommentWebSocketService>()
         private val storageService = StorageServiceImpl(properties)
         private val userService = UserServiceImpl(encoder, mailService, storageService, groupService, notificationService, properties)
         private lateinit var postService: PostService
@@ -1139,6 +1141,67 @@ class PostServiceTests : UnitTestBase() {
             assertEquals(testUser2.login, comments[1].authorLogin)
             assertEquals(testUser2.nickname, comments[1].authorNickname)
             assertNow(comments[1].creationTime)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `test comment stores direct user dependencies`() {
+        transaction {
+            val (user1, user2) = signUsersUp()
+
+            val post = createPostPostData(title = "post-with-dependencies")
+            postService.addPost(user1, post)
+            val postId = postService.getPost(Viewer.Registered(user1), testUser.login, "post-with-dependencies").post.id
+
+            val comment = CommentDto.Create(postId = postId, avatar = "avatar", text = "depends on users")
+            val addedComment = postService.addComment(user2, comment)
+
+            val dependencyUserIds = CommentDependencies
+                .select { CommentDependencies.comment eq addedComment.id }
+                .map { it[CommentDependencies.user].value }
+                .toSet()
+
+            assertEquals(setOf(user1, user2), dependencyUserIds)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `test comment inherits parent dependencies`() {
+        transaction {
+            val users = signUsersUp(4)
+            val (user1Id, user1Login) = users[0]
+            val (user2Id, _) = users[1]
+            val (user3Id, _) = users[2]
+            val (user4Id, _) = users[3]
+
+            val post = createPostPostData(title = "nested-dependencies")
+            postService.addPost(user1Id, post)
+            val postId = postService.getPost(Viewer.Registered(user1Id), user1Login, "nested-dependencies").post.id
+
+            val parentComment = postService.addComment(
+                user2Id,
+                CommentDto.Create(postId = postId, avatar = "avatar2", text = "parent")
+            )
+            postService.addComment(
+                user3Id,
+                CommentDto.Create(postId = postId, avatar = "avatar3", text = "middle", parentCommentId = parentComment.id)
+            )
+            val middleComment = postService.getPost(Viewer.Registered(user1Id), user1Login, "nested-dependencies").comments.last()
+            val childComment = postService.addComment(
+                user4Id,
+                CommentDto.Create(postId = postId, avatar = "avatar4", text = "child", parentCommentId = middleComment.id)
+            )
+
+            val dependencyUserIds = CommentDependencies
+                .select { CommentDependencies.comment eq childComment.id }
+                .map { it[CommentDependencies.user].value }
+                .toSet()
+
+            assertEquals(setOf(user1Id, user2Id, user3Id, user4Id), dependencyUserIds)
 
             rollback()
         }

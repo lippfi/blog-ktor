@@ -427,6 +427,24 @@ class PostServiceImpl(
                 it[parentComment] = comment.parentCommentId
             }
 
+            val dependencyUserIds = buildSet {
+                add(userId)
+                postEntity.authorId?.let(::add)
+
+                if (comment.parentCommentId != null) {
+                    addAll(
+                        CommentDependencies
+                            .select { CommentDependencies.comment eq comment.parentCommentId }
+                            .map { it[CommentDependencies.user].value }
+                    )
+                }
+            }
+
+            CommentDependencies.batchInsert(dependencyUserIds) { dependencyUserId ->
+                this[CommentDependencies.comment] = commentId
+                this[CommentDependencies.user] = dependencyUserId
+            }
+
             Posts.update({ Posts.id eq postEntity.id }) {
                 it[lastCommentTime] = now
             }
