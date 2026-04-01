@@ -406,6 +406,16 @@ class PostServiceImpl(
                 throw CommentNotFoundException()
             }
 
+            val commentAuthorId = commentEntity.authorId
+            if (commentAuthorId != null && isIgnoreRelationship(viewer, commentAuthorId)) {
+                throw CommentNotFoundException()
+            }
+
+            val postAuthorId = postEntity.authorId
+            if (postAuthorId != null && isIgnoreRelationship(viewer, postAuthorId)) {
+                throw CommentNotFoundException()
+            }
+
             val updated = commentEntity.toComment(this, viewer, accessGroupService, reactionService)
             updated
         }

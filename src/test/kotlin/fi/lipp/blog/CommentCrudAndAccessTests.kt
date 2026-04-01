@@ -508,4 +508,92 @@ class CommentCrudAndAccessTests : UnitTestBase() {
             rollback()
         }
     }
+
+    // --- Ignore checks for getComment ---
+
+    @Test
+    fun `getComment throws CommentNotFoundException when viewer ignored comment author`() {
+        transaction {
+            val (user1, user2) = signUsersUp()
+            val post = createPost(user1)
+            val comment = postService.addComment(user2, CommentDto.Create(postId = post.id, avatar = "a", text = "Hi"))
+
+            userService.ignoreUser(user1, testUser2.login)
+
+            assertFailsWith<CommentNotFoundException> {
+                postService.getComment(Viewer.Registered(user1), comment.id)
+            }
+            rollback()
+        }
+    }
+
+    @Test
+    fun `getComment throws CommentNotFoundException when comment author ignored viewer`() {
+        transaction {
+            val (user1, user2) = signUsersUp()
+            val post = createPost(user1)
+            val comment = postService.addComment(user2, CommentDto.Create(postId = post.id, avatar = "a", text = "Hi"))
+
+            userService.ignoreUser(user2, testUser.login)
+
+            assertFailsWith<CommentNotFoundException> {
+                postService.getComment(Viewer.Registered(user1), comment.id)
+            }
+            rollback()
+        }
+    }
+
+    @Test
+    fun `getComment throws CommentNotFoundException when viewer ignored post author`() {
+        transaction {
+            val users = signUsersUp(3)
+            val (u1, _) = users[0]
+            val (u2, _) = users[1]
+            val (u3, l3) = users[2]
+            val post = createPost(u1)
+            val comment = postService.addComment(u2, CommentDto.Create(postId = post.id, avatar = "a", text = "Hi"))
+
+            userService.ignoreUser(u3, testUser.login)
+
+            assertFailsWith<CommentNotFoundException> {
+                postService.getComment(Viewer.Registered(u3), comment.id)
+            }
+            rollback()
+        }
+    }
+
+    @Test
+    fun `getComment throws CommentNotFoundException when post author ignored viewer`() {
+        transaction {
+            val users = signUsersUp(3)
+            val (u1, _) = users[0]
+            val (u2, _) = users[1]
+            val (u3, l3) = users[2]
+            val post = createPost(u1)
+            val comment = postService.addComment(u2, CommentDto.Create(postId = post.id, avatar = "a", text = "Hi"))
+
+            userService.ignoreUser(u1, l3)
+
+            assertFailsWith<CommentNotFoundException> {
+                postService.getComment(Viewer.Registered(u3), comment.id)
+            }
+            rollback()
+        }
+    }
+
+    @Test
+    fun `getComment succeeds when there is no ignore relationship`() {
+        transaction {
+            val users = signUsersUp(3)
+            val (u1, _) = users[0]
+            val (u2, _) = users[1]
+            val (u3, _) = users[2]
+            val post = createPost(u1)
+            val comment = postService.addComment(u2, CommentDto.Create(postId = post.id, avatar = "a", text = "Visible"))
+
+            val fetched = postService.getComment(Viewer.Registered(u3), comment.id)
+            assertEquals("Visible", fetched.text)
+            rollback()
+        }
+    }
 }
