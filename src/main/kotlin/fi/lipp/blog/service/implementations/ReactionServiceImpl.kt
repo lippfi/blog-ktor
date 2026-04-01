@@ -23,6 +23,8 @@ class ReactionServiceImpl(
     private val commentWebSocketService: CommentWebSocketService
 ) : ReactionService {
 
+    private val reactionLoader = ReactionLoader(storageService)
+
     /**
      * Helper method to get notification settings entity for a user.
      * Returns the entity or null if not found.
@@ -137,7 +139,7 @@ class ReactionServiceImpl(
                     (ReactionSubsetReactions.reaction eq reactionId)
                 }.any()
                 if (!isAllowed) {
-                    throw WrongUserException()
+                    throw WrongUserException() // todo throw better exception
                 }
             }
             when (viewer) {
@@ -464,86 +466,7 @@ class ReactionServiceImpl(
 
     override fun getCommentReactions(viewer: Viewer, commentId: UUID): List<ReactionDto.ReactionInfo> {
         return transaction {
-            val userId = (viewer as? Viewer.Registered)?.userId
-
-            val ignoreConditions = if (userId != null) {
-                val ignoredUsersSubquery = IgnoreList
-                    .slice(IgnoreList.ignoredUser)
-                    .select { IgnoreList.user eq userId }
-
-                val usersWhoIgnoredMeSubquery = IgnoreList
-                    .slice(IgnoreList.user)
-                    .select { IgnoreList.ignoredUser eq userId }
-
-                listOf(
-                    CommentReactions.user notInSubQuery ignoredUsersSubquery,
-                    CommentReactions.user notInSubQuery usersWhoIgnoredMeSubquery
-                )
-            } else {
-                emptyList()
-            }
-
-            val baseConditions: List<Op<Boolean>> = listOf(CommentReactions.comment eq commentId)
-            val allConditions = baseConditions + ignoreConditions
-
-            // Get reactions with their files and users in one query
-            val reactionData = (CommentReactions innerJoin Reactions innerJoin Files innerJoin Users innerJoin Diaries)
-                .slice(
-                    CommentReactions.reaction,
-                    Reactions.name,
-                    Files.id,
-                    Diaries.login,
-                    Users.nickname
-                )
-                .select { allConditions.reduce { acc, condition -> acc and condition } }
-                .toList()
-
-            if (reactionData.isEmpty()) return@transaction emptyList()
-
-            val fileIds = reactionData.map { it[Files.id].value }.toSet()
-            val fileUrlMap = fileIds.associateWith { fileId ->
-                storageService.getFileURL(FileEntity.findById(fileId)!!.toBlogFile())
-            }
-
-            val userReactionMap = reactionData.groupBy(
-                keySelector = { it[CommentReactions.reaction].value },
-                valueTransform = { ReactionDto.UserInfo(it[Diaries.login], it[Users.nickname]) }
-            )
-
-            val reactionTypes = reactionData.map { row ->
-                Triple(
-                    row[CommentReactions.reaction].value,
-                    row[Reactions.name],
-                    row[Files.id].value
-                )
-            }.distinct()
-
-            val reactionIds = reactionTypes.map { it.first }.toSet()
-
-            val anonymousCounts = AnonymousCommentReactions
-                .slice(AnonymousCommentReactions.reaction, AnonymousCommentReactions.reaction.count())
-                .select {
-                    (AnonymousCommentReactions.comment eq commentId) and
-                            (AnonymousCommentReactions.reaction inList reactionIds)
-                }
-                .groupBy(AnonymousCommentReactions.reaction)
-                .associate { row ->
-                    row[AnonymousCommentReactions.reaction].value to row[AnonymousCommentReactions.reaction.count()].toInt()
-                }
-
-            reactionTypes.map { (reactionId, name, fileId) ->
-                val users = userReactionMap[reactionId] ?: emptyList()
-                val anonymousCount = anonymousCounts[reactionId] ?: 0
-
-                ReactionDto.ReactionInfo(
-                    id = reactionId,
-                    name = name,
-                    iconUri = fileUrlMap[fileId] ?: "",
-                    count = users.size + anonymousCount,
-                    users = users,
-                    anonymousCount = anonymousCount
-                )
-            }
+            reactionLoader.loadCommentReactions(this, setOf(commentId), viewer)[commentId] ?: emptyList()
         }
     }
 

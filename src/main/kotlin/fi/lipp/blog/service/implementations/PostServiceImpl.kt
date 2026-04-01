@@ -539,7 +539,7 @@ class PostServiceImpl(
             val commentReactionGroupEntity = validateCommentReactionGroup(diaryId, post.commentReactionGroupId)
             val reactionSubsetEntity = post.reactionSubset?.let { ReactionSubsetEntity.findById(it) }
             if (reactionSubsetEntity != null) {
-                if (reactionSubsetEntity.diary != diaryId) throw WrongUserException()
+                if (reactionSubsetEntity.diary.value != diaryId) throw WrongUserException()
             }
 
             val postId = Posts.insertAndGetId {
