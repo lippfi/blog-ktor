@@ -21,4 +21,11 @@ class ApplicationPropertiesStub : ApplicationProperties {
     override fun storageBaseDir(): Path = basePath
     override fun filesBaseUrl(): String = baseUrl
 
+    override val maxImageSize: Int = 10 * 1024 * 1024
+    override val maxVideoSize: Int = 100 * 1024 * 1024
+    override val maxAudioSize: Int = 20 * 1024 * 1024
+    override val maxStyleSize: Int = 256 * 1024
+    override val maxOtherSize: Int = 5 * 1024 * 1024
+    override val maxAvatarSize: Int = 1 * 1024 * 1024
+    override val maxReactionSize: Int = 512 * 1024
 }

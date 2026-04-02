@@ -18,4 +18,12 @@ class ApplicationPropertiesImpl(private val environment: ApplicationEnvironment)
 
     override fun storageBaseDir(): Path = Path(environment.config.property("storage.base_dir").getString())
     override fun filesBaseUrl(): String = environment.config.property("storage.base_url").getString().removeSuffix("/")
+
+    override val maxImageSize = environment.config.propertyOrNull("storage.max_file_sizes.image")?.getString()?.toInt() ?: (10 * 1024 * 1024)
+    override val maxVideoSize = environment.config.propertyOrNull("storage.max_file_sizes.video")?.getString()?.toInt() ?: (100 * 1024 * 1024)
+    override val maxAudioSize = environment.config.propertyOrNull("storage.max_file_sizes.audio")?.getString()?.toInt() ?: (20 * 1024 * 1024)
+    override val maxStyleSize = environment.config.propertyOrNull("storage.max_file_sizes.style")?.getString()?.toInt() ?: (256 * 1024)
+    override val maxOtherSize = environment.config.propertyOrNull("storage.max_file_sizes.other")?.getString()?.toInt() ?: (5 * 1024 * 1024)
+    override val maxAvatarSize = environment.config.propertyOrNull("storage.max_file_sizes.avatar")?.getString()?.toInt() ?: (1 * 1024 * 1024)
+    override val maxReactionSize = environment.config.propertyOrNull("storage.max_file_sizes.reaction")?.getString()?.toInt() ?: (512 * 1024)
 }

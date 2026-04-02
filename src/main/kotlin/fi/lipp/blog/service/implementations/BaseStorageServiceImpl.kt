@@ -21,7 +21,7 @@ abstract class BaseStorageServiceImpl(protected val properties: ApplicationPrope
     protected val allowedImageExtensions = setOf("jpg", "jpeg", "png", "gif", "webp", "svg")
 
     override fun store(userId: UUID, files: List<FileUploadData>): List<BlogFile> {
-        return storeInternal(userId, files) { it }
+        return storeInternal(userId, files) { file -> validateRegularFile(file) }
     }
 
     override fun storeAvatars(userId: UUID, files: List<FileUploadData>): List<BlogFile> {
@@ -65,6 +65,24 @@ abstract class BaseStorageServiceImpl(protected val properties: ApplicationPrope
             val storageKey = storageKeysById[fileId] ?: throw InternalServerError()
             "${baseFileUrl()}/$storageKey"
         }
+    }
+
+    protected fun validateRegularFile(file: FileUploadData): FileUploadData {
+        val maxSize = when (file.type) {
+            FileType.IMAGE -> properties.maxImageSize
+            FileType.VIDEO -> properties.maxVideoSize
+            FileType.AUDIO -> properties.maxAudioSize
+            FileType.STYLE -> properties.maxStyleSize
+            FileType.OTHER -> properties.maxOtherSize
+            FileType.AVATAR -> properties.maxAvatarSize
+            FileType.REACTION -> properties.maxReactionSize
+        }
+
+        if (file.bytes.size > maxSize) {
+            throw FileTooLargeException(file.type, maxSize)
+        }
+
+        return file
     }
 
     protected fun validateAvatar(file: FileUploadData): FileUploadData {

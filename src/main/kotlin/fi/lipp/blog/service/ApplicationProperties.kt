@@ -15,4 +15,12 @@ interface ApplicationProperties {
 
     fun storageBaseDir(): Path
     fun filesBaseUrl(): String
+
+    val maxImageSize: Int
+    val maxVideoSize: Int
+    val maxAudioSize: Int
+    val maxStyleSize: Int
+    val maxOtherSize: Int
+    val maxAvatarSize: Int
+    val maxReactionSize: Int
 }
