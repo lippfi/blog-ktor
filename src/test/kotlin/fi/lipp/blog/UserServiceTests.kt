@@ -137,7 +137,7 @@ class UserServiceTests : UnitTestBase() {
             )
 
             assertEquals("Confirm Your Registration", subjectCaptor.lastValue)
-            assertTrue(emailCaptor.lastValue.contains("Confirmation code"))
+            assertTrue(emailCaptor.lastValue.contains("Confirm your email"))
             assertEquals(testUser.email, recipientCaptor.lastValue)
 
             rollback()
@@ -502,7 +502,7 @@ class UserServiceTests : UnitTestBase() {
             // Verify confirmation email was sent
             verify(mailService).sendEmail(any(), any(), any())
             assertEquals("Confirm Your Email Change", subjectCaptor.lastValue)
-            assertTrue(textCaptor.lastValue.contains("Confirmation code"))
+            assertTrue(textCaptor.lastValue.contains("Confirm your email change"))
             assertEquals(newEmail, recipientCaptor.lastValue)
 
             rollback()
@@ -1046,7 +1046,7 @@ class UserServiceTests : UnitTestBase() {
 
             verify(mailService).sendEmail(eq("Password Reset"), stringCaptor.capture(), eq(testUser.email))
 
-            val pattern = Regex("""Reset code:\s*([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})(?![0-9a-fA-F-])""")
+            val pattern = Regex("""([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})""")
             val resetCode = pattern.find(stringCaptor.lastValue)?.groups?.get(1)?.value!!
 
             val passwordResetCodeEntity = PasswordResetCodeEntity.findById(UUID.fromString(resetCode))!!
