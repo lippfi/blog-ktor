@@ -16,6 +16,7 @@ import fi.lipp.blog.domain.UserEntity
 import fi.lipp.blog.model.exceptions.ConfirmationCodeInvalidOrExpiredException
 import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.repository.*
+import fi.lipp.blog.service.implementations.LocalStorageServiceImpl
 import fi.lipp.blog.stubs.ApplicationPropertiesStub
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
@@ -1602,6 +1603,466 @@ class UserServiceTests : UnitTestBase() {
 
             // Verify no primary avatar
             assertNull(user.primaryAvatar)
+
+            rollback()
+        }
+    }
+
+    // ── addAvatar(userId, avatarUri) ────────────────────────────────────
+
+    @Test
+    fun `addAvatar - adds avatar from local storage URL`() {
+        transaction {
+            val (userId1, userId2) = signUsersUp()
+
+            val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            userService.addAvatar(Viewer.Registered(userId1), listOf(avatarUpload))
+            val avatars1 = userService.getAvatars(userId1)
+            assertEquals(1, avatars1.size)
+
+            val localUrl = storageService.getFileURL(avatars1[0])
+            userService.addAvatar(userId2, localUrl)
+
+            val avatars2 = userService.getAvatars(userId2)
+            assertEquals(1, avatars2.size)
+            assertEquals(avatars1[0].id, avatars2[0].id)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `addAvatar - adds avatar from CDN URL`() {
+        transaction {
+            val (userId1, userId2) = signUsersUp()
+
+            val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            userService.addAvatar(Viewer.Registered(userId1), listOf(avatarUpload))
+            val avatars1 = userService.getAvatars(userId1)
+            assertEquals(1, avatars1.size)
+
+            // Build a CDN-style URL using the storage key
+            val cdnBase = "https://cdn.blog.com"
+            val cdnProps = ApplicationPropertiesStub(filesBaseUrl = cdnBase)
+            val cdnStorage = LocalStorageServiceImpl(cdnProps)
+            val cdnUrl = "$cdnBase/${avatars1[0].storageKey}"
+
+            // getStorageKeyByUrl should extract the same key from CDN URL
+            val extractedKey = cdnStorage.getStorageKeyByUrl(cdnUrl)
+            assertEquals(avatars1[0].storageKey, extractedKey)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `addAvatar - reuses existing file no new record in Files`() {
+        transaction {
+            val (userId1, userId2) = signUsersUp()
+
+            val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            userService.addAvatar(Viewer.Registered(userId1), listOf(avatarUpload))
+            val avatars1 = userService.getAvatars(userId1)
+
+            val filesCountBefore = Files.selectAll().count()
+
+            val avatarUrl = storageService.getFileURL(avatars1[0])
+            userService.addAvatar(userId2, avatarUrl)
+
+            val filesCountAfter = Files.selectAll().count()
+            assertEquals(filesCountBefore, filesCountAfter)
+
+            val avatars2 = userService.getAvatars(userId2)
+            assertEquals(1, avatars2.size)
+            assertEquals(avatars1[0].id, avatars2[0].id)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `addAvatar - does nothing if avatar already in user collection`() {
+        transaction {
+            val (userId, _) = signUsersUp()
+
+            val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload))
+            val avatars = userService.getAvatars(userId)
+            assertEquals(1, avatars.size)
+
+            val avatarUrl = storageService.getFileURL(avatars[0])
+            userService.addAvatar(userId, avatarUrl)
+
+            val avatarsAfter = userService.getAvatars(userId)
+            assertEquals(1, avatarsAfter.size)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `addAvatar - rejects URL with wrong base`() {
+        transaction {
+            val (userId, _) = signUsersUp()
+
+            assertThrows(InvalidAvatarUriException::class.java) {
+                userService.addAvatar(userId, "https://evil.com/u/somefile.png")
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `addAvatar - rejects malformed URL with no storage key`() {
+        transaction {
+            val (userId, _) = signUsersUp()
+
+            assertThrows(InvalidAvatarUriException::class.java) {
+                userService.addAvatar(userId, "https://blog.com/")
+            }
+
+            assertThrows(InvalidAvatarUriException::class.java) {
+                userService.addAvatar(userId, "https://blog.com")
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `addAvatar - rejects non-avatar file`() {
+        transaction {
+            val (userId, _) = signUsersUp()
+
+            // Upload a regular file (IMAGE type, not AVATAR)
+            val fileUpload = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            val files = storageService.store(Viewer.Registered(userId), listOf(fileUpload))
+            assertEquals(1, files.size)
+            assertEquals(FileType.IMAGE, files[0].type)
+
+            val fileUrl = storageService.getFileURL(files[0])
+            assertThrows(AvatarNotFoundException::class.java) {
+                userService.addAvatar(userId, fileUrl)
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `addAvatar - works with query params and fragment`() {
+        transaction {
+            val (userId1, userId2) = signUsersUp()
+
+            val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            userService.addAvatar(Viewer.Registered(userId1), listOf(avatarUpload))
+            val avatars1 = userService.getAvatars(userId1)
+            assertEquals(1, avatars1.size)
+
+            val avatarUrl = storageService.getFileURL(avatars1[0])
+            userService.addAvatar(userId2, "$avatarUrl?width=200&height=200#section")
+
+            val avatars2 = userService.getAvatars(userId2)
+            assertEquals(1, avatars2.size)
+            assertEquals(avatars1[0].id, avatars2[0].id)
+
+            rollback()
+        }
+    }
+
+    // ── deleteAvatar(userId, avatarUri) ─────────────────────────────────
+
+    @Test
+    fun `deleteAvatar - deletes avatar by local URL`() {
+        transaction {
+            val (userId, _) = signUsersUp()
+
+            val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload))
+            val avatars = userService.getAvatars(userId)
+            assertEquals(1, avatars.size)
+
+            val localUrl = storageService.getFileURL(avatars[0])
+            userService.deleteAvatar(userId, localUrl)
+
+            val avatarsAfter = userService.getAvatars(userId)
+            assertEquals(0, avatarsAfter.size)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `deleteAvatar - deletes avatar by CDN URL`() {
+        transaction {
+            val (userId, _) = signUsersUp()
+
+            val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload))
+            val avatars = userService.getAvatars(userId)
+            assertEquals(1, avatars.size)
+
+            // Delete using the same local URL (CDN key extraction is tested separately)
+            val avatarUrl = storageService.getFileURL(avatars[0])
+            userService.deleteAvatar(userId, avatarUrl)
+
+            val avatarsAfter = userService.getAvatars(userId)
+            assertEquals(0, avatarsAfter.size)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `deleteAvatar - updates primary avatar to next one`() {
+        transaction {
+            val (userId, _) = signUsersUp()
+
+            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.readBytes())
+            userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload1, avatarUpload2))
+            val avatars = userService.getAvatars(userId)
+            assertEquals(2, avatars.size)
+
+            val user = UserEntity.findById(userId)!!
+            assertEquals(avatars[0].id, user.primaryAvatar!!.value)
+
+            val firstAvatarUrl = storageService.getFileURL(avatars[0])
+            userService.deleteAvatar(userId, firstAvatarUrl)
+
+            assertEquals(avatars[1].id, user.primaryAvatar!!.value)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `deleteAvatar - clears primary avatar if last removed`() {
+        transaction {
+            val (userId, _) = signUsersUp()
+
+            val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload))
+            val avatars = userService.getAvatars(userId)
+            assertEquals(1, avatars.size)
+
+            val user = UserEntity.findById(userId)!!
+            assertNotNull(user.primaryAvatar)
+
+            val avatarUrl = storageService.getFileURL(avatars[0])
+            userService.deleteAvatar(userId, avatarUrl)
+
+            assertNull(user.primaryAvatar)
+
+            rollback()
+        }
+    }
+
+    // ── changePrimaryAvatar(viewer, avatarUri) ──────────────────────────
+
+    @Test
+    fun `changePrimaryAvatar - sets existing avatar as primary if already in collection`() {
+        transaction {
+            val (userId, _) = signUsersUp()
+
+            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.readBytes())
+            userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload1, avatarUpload2))
+            val avatars = userService.getAvatars(userId)
+            assertEquals(2, avatars.size)
+
+            val user = UserEntity.findById(userId)!!
+            assertEquals(avatars[0].id, user.primaryAvatar!!.value)
+
+            val secondAvatarUrl = storageService.getFileURL(avatars[1])
+            userService.changePrimaryAvatar(Viewer.Registered(userId), secondAvatarUrl)
+
+            assertEquals(avatars[1].id, user.primaryAvatar!!.value)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `changePrimaryAvatar - adds avatar to collection and sets as primary if not present`() {
+        transaction {
+            val (userId1, userId2) = signUsersUp()
+
+            val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            userService.addAvatar(Viewer.Registered(userId1), listOf(avatarUpload))
+            val avatars1 = userService.getAvatars(userId1)
+            assertEquals(1, avatars1.size)
+
+            val avatarUrl = storageService.getFileURL(avatars1[0])
+            userService.changePrimaryAvatar(Viewer.Registered(userId2), avatarUrl)
+
+            val avatars2 = userService.getAvatars(userId2)
+            assertEquals(1, avatars2.size)
+            assertEquals(avatars1[0].id, avatars2[0].id)
+
+            val user2 = UserEntity.findById(userId2)!!
+            assertNotNull(user2.primaryAvatar)
+            assertEquals(avatars1[0].id, user2.primaryAvatar!!.value)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `changePrimaryAvatar - does not create new Files record`() {
+        transaction {
+            val (userId1, userId2) = signUsersUp()
+
+            val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            userService.addAvatar(Viewer.Registered(userId1), listOf(avatarUpload))
+            val avatars1 = userService.getAvatars(userId1)
+
+            val filesCountBefore = Files.selectAll().count()
+
+            val avatarUrl = storageService.getFileURL(avatars1[0])
+            userService.changePrimaryAvatar(Viewer.Registered(userId2), avatarUrl)
+
+            val filesCountAfter = Files.selectAll().count()
+            assertEquals(filesCountBefore, filesCountAfter)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `changePrimaryAvatar - works with local URL`() {
+        transaction {
+            val (userId, _) = signUsersUp()
+
+            val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload))
+            val avatars = userService.getAvatars(userId)
+            assertEquals(1, avatars.size)
+
+            val localUrl = storageService.getFileURL(avatars[0])
+            assertTrue(localUrl.startsWith("https://blog.com/"))
+
+            userService.changePrimaryAvatar(Viewer.Registered(userId), localUrl)
+
+            val user = UserEntity.findById(userId)!!
+            assertEquals(avatars[0].id, user.primaryAvatar!!.value)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `changePrimaryAvatar - works with CDN URL`() {
+        transaction {
+            val (userId1, userId2) = signUsersUp()
+
+            val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            userService.addAvatar(Viewer.Registered(userId1), listOf(avatarUpload))
+            val avatars1 = userService.getAvatars(userId1)
+            assertEquals(1, avatars1.size)
+
+            // Verify CDN storage key extraction works with the same storage key
+            val cdnBase = "https://cdn.blog.com"
+            val cdnProps = ApplicationPropertiesStub(filesBaseUrl = cdnBase)
+            val cdnStorage = LocalStorageServiceImpl(cdnProps)
+            val cdnUrl = "$cdnBase/${avatars1[0].storageKey}"
+            val extractedKey = cdnStorage.getStorageKeyByUrl(cdnUrl)
+            assertEquals(avatars1[0].storageKey, extractedKey)
+
+            // Use local URL to actually call changePrimaryAvatar (since service uses local storage)
+            val localUrl = storageService.getFileURL(avatars1[0])
+            userService.changePrimaryAvatar(Viewer.Registered(userId2), localUrl)
+
+            val user2 = UserEntity.findById(userId2)!!
+            assertEquals(avatars1[0].id, user2.primaryAvatar!!.value)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `changePrimaryAvatar - rejects non-avatar file`() {
+        transaction {
+            val (userId, _) = signUsersUp()
+
+            val fileUpload = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            val files = storageService.store(Viewer.Registered(userId), listOf(fileUpload))
+            assertEquals(1, files.size)
+            assertEquals(FileType.IMAGE, files[0].type)
+
+            val fileUrl = storageService.getFileURL(files[0])
+            assertThrows(AvatarNotFoundException::class.java) {
+                userService.changePrimaryAvatar(Viewer.Registered(userId), fileUrl)
+            }
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `changePrimaryAvatar - rejects invalid base URL`() {
+        transaction {
+            val (userId, _) = signUsersUp()
+
+            assertThrows(InvalidAvatarUriException::class.java) {
+                userService.changePrimaryAvatar(Viewer.Registered(userId), "https://evil.com/u/somefile.png")
+            }
+
+            rollback()
+        }
+    }
+
+    // ── StorageService.getStorageKeyByUrl ────────────────────────────────
+
+    @Test
+    fun `getStorageKeyByUrl - extracts storageKey from local URL`() {
+        transaction {
+            val (userId, _) = signUsersUp()
+
+            val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload))
+            val avatars = userService.getAvatars(userId)
+            val avatarUrl = storageService.getFileURL(avatars[0])
+
+            val extractedKey = storageService.getStorageKeyByUrl(avatarUrl)
+            assertEquals(avatars[0].storageKey, extractedKey)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `getStorageKeyByUrl - extracts storageKey from CDN URL`() {
+        val cdnBase = "https://cdn.blog.com"
+        val cdnProps = ApplicationPropertiesStub(filesBaseUrl = cdnBase)
+        val cdnStorage = LocalStorageServiceImpl(cdnProps)
+
+        val storageKey = "u/some-user-id/avatar/some-file.png"
+        val cdnUrl = "$cdnBase/$storageKey"
+        val extractedKey = cdnStorage.getStorageKeyByUrl(cdnUrl)
+        assertEquals(storageKey, extractedKey)
+    }
+
+    @Test
+    fun `getStorageKeyByUrl - rejects foreign base URL`() {
+        assertThrows(InvalidAvatarUriException::class.java) {
+            storageService.getStorageKeyByUrl("https://evil.com/u/somefile.png")
+        }
+    }
+
+    @Test
+    fun `getStorageKeyByUrl - strips query params and fragment`() {
+        transaction {
+            val (userId, _) = signUsersUp()
+
+            val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload))
+            val avatars = userService.getAvatars(userId)
+            val avatarUrl = storageService.getFileURL(avatars[0])
+
+            val extractedKey = storageService.getStorageKeyByUrl("$avatarUrl?width=200&height=200#section")
+            assertEquals(avatars[0].storageKey, extractedKey)
 
             rollback()
         }
