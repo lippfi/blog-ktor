@@ -32,5 +32,7 @@ storage:
         other: 5242880        # 5 MB
         avatar: 1048576       # 1 MB
         reaction: 524288      # 512 KB
+registration:
+    require_invite_code: true
 security:
     bcrypt_cost: 15

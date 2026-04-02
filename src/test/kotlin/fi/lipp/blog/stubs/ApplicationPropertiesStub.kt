@@ -29,4 +29,5 @@ class ApplicationPropertiesStub : ApplicationProperties {
     override val maxAvatarSize: Int = 1 * 1024 * 1024
     override val maxReactionSize: Int = 512 * 1024
     override val bcryptCost: Int = 4
+    override var requireInviteCode: Boolean = true
 }

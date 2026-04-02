@@ -24,4 +24,5 @@ interface ApplicationProperties {
     val maxAvatarSize: Int
     val maxReactionSize: Int
     val bcryptCost: Int
+    val requireInviteCode: Boolean
 }

@@ -79,8 +79,7 @@ class UserServiceImpl(
     override fun signUp(user: UserDto.Registration, inviteCode: String) {
         val inviteCodeEntity = transaction {
             if (inviteCode.trim().isEmpty()) {
-                // TODO enable this later
-//                if (Users.selectAll().count() > 1) throw InviteCodeRequiredException()
+                if (properties.requireInviteCode) throw InviteCodeRequiredException()
                 null
             } else {
                 val uuid = UUID.fromString(inviteCode)
