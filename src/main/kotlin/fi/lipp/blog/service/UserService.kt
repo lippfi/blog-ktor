@@ -74,7 +74,6 @@ interface UserService {
     fun addAvatar(userId: UUID, avatarUri: String)
     fun deleteAvatar(userId: UUID, avatarUri: String)
     fun changePrimaryAvatar(viewer: Viewer.Registered, avatarUri: String)
-    fun uploadAvatar(userId: UUID, avatarUri: String)
 
     /**
      * Send a friend request to another user

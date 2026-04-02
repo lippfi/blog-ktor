@@ -610,9 +610,32 @@ class UserServiceImpl(
         return SerializableMap(avatars)
     }
 
-    // TODO remove duplication
     override fun addAvatar(userId: UUID, avatarUri: String) {
-        uploadAvatar(userId, avatarUri)
+        transaction {
+            val avatarEntity = getFileEntityByUri(avatarUri)
+            val avatarId = avatarEntity.id.value
+
+            if (avatarEntity.fileType != FileType.AVATAR) throw AvatarNotFoundException()
+
+            val avatarInUserCollection = UserAvatars.select {
+                (UserAvatars.user eq userId) and (UserAvatars.avatar eq avatarId)
+            }.count() > 0
+
+            if (avatarInUserCollection) {
+                return@transaction
+            }
+
+            val maxOrdinal = UserAvatars.slice(UserAvatars.ordinal.max())
+                .select { UserAvatars.user eq userId }
+                .firstOrNull()
+                ?.get(UserAvatars.ordinal.max()) ?: 0
+
+            UserAvatars.insert {
+                it[user] = userId
+                it[avatar] = avatarEntity.id
+                it[ordinal] = maxOrdinal + 1
+            }
+        }
     }
 
     override fun deleteAvatar(userId: UUID, avatarUri: String) {
@@ -929,36 +952,6 @@ class UserServiceImpl(
             } else {
                 reuploadFileAsUserAvatar(viewer, avatarId)
             }
-        }
-    }
-
-    // TODO is it different from add?
-    override fun uploadAvatar(userId: UUID, avatarUri: String) {
-        transaction {
-            val avatarEntity = getFileEntityByUri(avatarUri)
-            val avatarId = avatarEntity.id.value
-
-            val avatarInUserCollection = UserAvatars.select {
-                (UserAvatars.user eq userId) and (UserAvatars.avatar eq avatarId)
-            }.count() > 0
-
-            if (avatarInUserCollection) {
-                return@transaction
-            }
-
-            val maxOrdinal = UserAvatars.slice(UserAvatars.ordinal.max())
-                .select { UserAvatars.user eq userId }
-                .firstOrNull()
-                ?.get(UserAvatars.ordinal.max()) ?: 0
-
-            UserAvatars.insert {
-                it[user] = userId
-                it[avatar] = avatarEntity.id
-                it[ordinal] = maxOrdinal + 1
-            }
-
-            // TODO need to do something with type. Maybe remove avatar type?
-//            reuploadFileAsUserAvatar(userId, avatarId)
         }
     }
 

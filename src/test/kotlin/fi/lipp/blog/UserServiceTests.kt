@@ -1509,7 +1509,7 @@ class UserServiceTests : UnitTestBase() {
 
             // Upload the same avatar for second user
             val avatarUrl = storageService.getFileURL(avatars1[0])
-            userService.uploadAvatar(userId2, avatarUrl)
+            userService.addAvatar(userId2, avatarUrl)
 
             // Verify that the same avatar was added to second user
             val avatars2 = userService.getAvatars(userId2)
@@ -1532,7 +1532,7 @@ class UserServiceTests : UnitTestBase() {
 
             // Try to use it as avatar
             val fileUrl = storageService.getFileURL(files[0])
-            userService.uploadAvatar(userId, fileUrl)
+            userService.addAvatar(userId, fileUrl)
 
             // Verify that a new avatar was created
             val avatars = userService.getAvatars(userId)
