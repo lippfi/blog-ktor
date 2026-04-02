@@ -2,7 +2,7 @@ package fi.lipp.blog.service
 
 import fi.lipp.blog.data.BlogFile
 import fi.lipp.blog.data.FileUploadData
-import java.io.File
+import java.io.InputStream
 import java.util.*
 
 interface StorageService {
@@ -10,7 +10,7 @@ interface StorageService {
     fun storeAvatars(userId: UUID, files: List<FileUploadData>): List<BlogFile>
     fun storeReaction(userId: UUID, fileName: String, file: FileUploadData): BlogFile
 
-    fun getFile(file: BlogFile): File
+    fun openFileStream(file: BlogFile): InputStream
     fun getFileURL(file: BlogFile): String
     fun getFileURLs(files: Collection<BlogFile>): Map<UUID, String>
 }

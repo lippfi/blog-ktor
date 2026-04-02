@@ -59,8 +59,7 @@ class DiaryServiceImpl(
         return transaction {
             val styleEntity = DiaryStyleEntity.findById(styleId) ?: throw InvalidStyleException()
             val styleFile = styleEntity.styleFile.toBlogFile()
-            val file = storageService.getFile(styleFile)
-            file.readText()
+            storageService.openFileStream(styleFile).use { it.reader().readText() }
         }
     }
 
@@ -93,7 +92,7 @@ class DiaryServiceImpl(
                         description = junction.style.description,
                         enabled = junction.enabled,
                         styleUri = storageService.getFileURL(styleFile),
-                        styleContent = storageService.getFile(styleFile).readText(),
+                        styleContent = storageService.openFileStream(styleFile).use { it.reader().readText() },
                         authorLogin = junction.style.author.id.toString(),
                         authorNickname = junction.style.author.nickname
                     )
@@ -123,7 +122,7 @@ class DiaryServiceImpl(
                     description = styleEntity.description,
                     enabled = existingJunction.enabled,
                     styleUri = storageService.getFileURL(styleFile),
-                    styleContent = storageService.getFile(styleFile).readText(),
+                    styleContent = storageService.openFileStream(styleFile).use { it.reader().readText() },
                     authorLogin = styleEntity.author.id.toString(),
                     authorNickname = styleEntity.author.nickname
                 )
@@ -144,7 +143,7 @@ class DiaryServiceImpl(
                     description = styleEntity.description,
                     enabled = junction.enabled,
                     styleUri = storageService.getFileURL(styleFile),
-                    styleContent = storageService.getFile(styleFile).readText(),
+                    styleContent = storageService.openFileStream(styleFile).use { it.reader().readText() },
                     authorLogin = styleEntity.author.id.toString(),
                     authorNickname = styleEntity.author.nickname
                 )
@@ -185,7 +184,7 @@ class DiaryServiceImpl(
                 description = styleEntity.description,
                 enabled = junction.enabled,
                 styleUri = storageService.getFileURL(styleFile),
-                styleContent = storageService.getFile(styleFile).readText(),
+                styleContent = storageService.openFileStream(styleFile).use { it.reader().readText() },
                 authorLogin = styleEntity.author.id.toString(),
                 authorNickname = styleEntity.author.nickname
             )
@@ -224,7 +223,7 @@ class DiaryServiceImpl(
                 description = styleEntity.description,
                 enabled = junction.enabled,
                 styleUri = storageService.getFileURL(styleFile),
-                styleContent = storageService.getFile(styleFile).readText(),
+                styleContent = storageService.openFileStream(styleFile).use { it.reader().readText() },
                 authorLogin = styleEntity.author.id.toString(),
                 authorNickname = styleEntity.author.nickname
             )
@@ -243,7 +242,7 @@ class DiaryServiceImpl(
                 (DiaryStyleJunctions.style eq styleEntity.id) and (DiaryStyleJunctions.diary eq diaryEntity.id) 
             }.singleOrNull() ?: throw InvalidStyleException()
 
-            val currentStyleContent = storageService.getFile(styleEntity.styleFile.toBlogFile()).readText()
+            val currentStyleContent = storageService.openFileStream(styleEntity.styleFile.toBlogFile()).use { it.reader().readText() }
             val styleChanged = currentStyleContent != update.styleContent || 
                               styleEntity.name != update.name || 
                               styleEntity.description != update.description
@@ -274,7 +273,7 @@ class DiaryServiceImpl(
                 description = resultStyleEntity.description,
                 enabled = junction.enabled,
                 styleUri = storageService.getFileURL(styleFile),
-                styleContent = storageService.getFile(styleFile).readText(),
+                styleContent = storageService.openFileStream(styleFile).use { it.reader().readText() },
                 authorLogin = resultStyleEntity.author.id.toString(),
                 authorNickname = resultStyleEntity.author.nickname
             )

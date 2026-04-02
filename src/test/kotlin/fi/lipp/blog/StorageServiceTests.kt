@@ -117,18 +117,18 @@ class StorageServiceTests : UnitTestBase() {
             // Test image storage
             val imageFile = createTestImage(100, 100)
             val storedImage = storageService.store(registeredUser.id, listOf(imageFile))[0]
-            val imageStoredFile = storageService.getFile(storedImage)
-            assertTrue(imageStoredFile.parentFile.exists(), "Image directory should be created")
-            assertTrue(imageStoredFile.parentFile.isDirectory, "Image path should be a directory")
-            assertTrue(imageStoredFile.exists(), "Image file should exist")
+            storageService.openFileStream(storedImage).use { stream ->
+                val bytes = stream.readBytes()
+                assertTrue(bytes.isNotEmpty(), "Image file should have content")
+            }
 
             // Test reaction storage
             val reactionFile = createTestImage(50, 50)
             val storedReaction = storageService.storeReaction(registeredUser.id, "3.png", reactionFile)
-            val reactionStoredFile = storageService.getFile(storedReaction)
-            assertTrue(reactionStoredFile.parentFile.exists(), "Reaction directory should be created")
-            assertTrue(reactionStoredFile.parentFile.isDirectory, "Reaction path should be a directory")
-            assertTrue(reactionStoredFile.exists(), "Reaction file should exist")
+            storageService.openFileStream(storedReaction).use { stream ->
+                val bytes = stream.readBytes()
+                assertTrue(bytes.isNotEmpty(), "Reaction file should have content")
+            }
         }
     }
 
@@ -137,14 +137,11 @@ class StorageServiceTests : UnitTestBase() {
         transaction {
             val imageFile = createTestImage(100, 100)
             val storedImage = storageService.store(registeredUser.id, listOf(imageFile))[0]
-            val imageStoredFile = storageService.getFile(storedImage)
 
-            // Check that all parent directories were created
-            var parent = imageStoredFile.parentFile
-            while (parent != null && parent.path.contains(testUser.login)) {
-                assertTrue(parent.exists(), "Parent directory should exist: ${parent.path}")
-                assertTrue(parent.isDirectory, "Parent path should be a directory: ${parent.path}")
-                parent = parent.parentFile
+            // Verify the file is accessible via stream
+            storageService.openFileStream(storedImage).use { stream ->
+                val bytes = stream.readBytes()
+                assertTrue(bytes.isNotEmpty(), "Stored file should be readable and non-empty")
             }
         }
     }

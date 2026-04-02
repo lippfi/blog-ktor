@@ -6,7 +6,7 @@ import fi.lipp.blog.domain.FileEntity
 import fi.lipp.blog.model.exceptions.InternalServerError
 import fi.lipp.blog.service.ApplicationProperties
 import org.jetbrains.exposed.sql.transactions.transaction
-import java.io.File
+import java.io.InputStream
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
@@ -17,11 +17,11 @@ class LocalStorageServiceImpl(properties: ApplicationProperties) : BaseStorageSe
 
     override fun baseFileUrl(): String = properties.filesBaseUrl()
 
-    override fun getFile(file: BlogFile): File {
+    override fun openFileStream(file: BlogFile): InputStream {
         val storageKey = transaction {
             FileEntity.findById(file.id)?.storageKey ?: throw InternalServerError()
         }
-        return resolveStoragePath(storageKey).toFile()
+        return JFiles.newInputStream(resolveStoragePath(storageKey))
     }
 
     override fun persistFile(userId: UUID, fileId: UUID, storageKey: String, file: FileUploadData): PersistResult {

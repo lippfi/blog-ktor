@@ -6,7 +6,7 @@ import fi.lipp.blog.domain.FileEntity
 import fi.lipp.blog.model.exceptions.InternalServerError
 import fi.lipp.blog.service.ApplicationProperties
 import org.jetbrains.exposed.sql.transactions.transaction
-import java.io.File
+import java.io.InputStream
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -19,26 +19,24 @@ class CdnStorageServiceImpl(properties: ApplicationProperties) : BaseStorageServ
 
     override fun baseFileUrl(): String = properties.cdnBaseUrl
 
-    override fun getFile(file: BlogFile): File {
+    override fun openFileStream(file: BlogFile): InputStream {
         val storageKey = transaction {
             FileEntity.findById(file.id)?.storageKey ?: throw InternalServerError()
         }
         val url = "${properties.cdnBaseUrl}/$storageKey"
+
         val request = HttpRequest.newBuilder()
             .uri(URI.create(url))
             .GET()
             .build()
-        val response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream())
-        if (response.statusCode() != 200) throw InternalServerError()
 
-        val tempFile = File.createTempFile("cdn-", "-${file.id}")
-        tempFile.deleteOnExit()
-        response.body().use { input ->
-            tempFile.outputStream().use { output ->
-                input.copyTo(output)
-            }
+        val response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream())
+
+        if (response.statusCode() != 200) {
+            throw InternalServerError()
         }
-        return tempFile
+
+        return response.body()
     }
 
     override fun persistFile(userId: UUID, fileId: UUID, storageKey: String, file: FileUploadData): PersistResult {

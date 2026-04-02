@@ -961,8 +961,10 @@ class UserServiceImpl(
     @Suppress("UnusedReceiverParameter")
     private fun Transaction.reuploadFileAsUserAvatar(userId: UUID, avatarId: UUID) {
         val fileEntity = FileEntity.findById(avatarId) ?: return
-        val file = storageService.getFile(fileEntity.toBlogFile())
-        val fileUploadData = FileUploadData(file.name, file.readBytes())
+        val (fileName, fileBytes) = storageService.openFileStream(fileEntity.toBlogFile()).use { input ->
+            fileEntity.storageKey.substringAfterLast('/') to input.readBytes()
+        }
+        val fileUploadData = FileUploadData(fileName, fileBytes)
 
         val newAvatars = storageService.storeAvatars(userId, listOf(fileUploadData))
         if (newAvatars.isEmpty()) return
