@@ -23,4 +23,5 @@ interface ApplicationProperties {
     val maxOtherSize: Int
     val maxAvatarSize: Int
     val maxReactionSize: Int
+    val bcryptCost: Int
 }

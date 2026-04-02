@@ -26,4 +26,5 @@ class ApplicationPropertiesImpl(private val environment: ApplicationEnvironment)
     override val maxOtherSize = environment.config.propertyOrNull("storage.max_file_sizes.other")?.getString()?.toInt() ?: (5 * 1024 * 1024)
     override val maxAvatarSize = environment.config.propertyOrNull("storage.max_file_sizes.avatar")?.getString()?.toInt() ?: (1 * 1024 * 1024)
     override val maxReactionSize = environment.config.propertyOrNull("storage.max_file_sizes.reaction")?.getString()?.toInt() ?: (512 * 1024)
+    override val bcryptCost = environment.config.propertyOrNull("security.bcrypt_cost")?.getString()?.toInt() ?: 15
 }

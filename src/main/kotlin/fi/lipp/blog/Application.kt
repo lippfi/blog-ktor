@@ -91,7 +91,7 @@ fun KoinApplication.loadMyKoins(environment: ApplicationEnvironment): KoinApplic
             val props = get<ApplicationProperties>()
             if (props.useCdn) CdnStorageServiceImpl(props) else LocalStorageServiceImpl(props)
         }
-        single<PasswordEncoder> { PasswordEncoderImpl() }
+        single<PasswordEncoder> { PasswordEncoderImpl(get<ApplicationProperties>().bcryptCost) }
         single<NotificationService> { NotificationServiceImpl() }
         single<CommentWebSocketService> { CommentWebSocketServiceImpl(get()) }
         single<AccessGroupService> { AccessGroupServiceImpl() }
