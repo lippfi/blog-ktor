@@ -21,5 +21,8 @@ geoip:
 storage:
     base_dir: "/tmp"
     base_url: "http://localhost:8000"
+    use_cdn: false
+    cdn_base_url: ""
+    cdn_api_key: ""
 reactions:
     basic: ["like", "love", "haha", "wow", "sad", "angry"]

@@ -14,6 +14,10 @@ class ApplicationPropertiesStub : ApplicationProperties {
     override val databasePassword: String = ""
     override val databaseDriver: String = "org.h2.Driver"
 
+    override val useCdn: Boolean = false
+    override val cdnBaseUrl: String = ""
+    override val cdnApiKey: String = ""
+
     override fun storageBaseDir(): Path = basePath
     override fun filesBaseUrl(): String = baseUrl
 

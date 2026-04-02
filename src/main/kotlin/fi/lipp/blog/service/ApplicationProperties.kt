@@ -9,6 +9,10 @@ interface ApplicationProperties {
     val databasePassword: String
     val databaseDriver: String
 
+    val useCdn: Boolean
+    val cdnBaseUrl: String
+    val cdnApiKey: String
+
     fun storageBaseDir(): Path
     fun filesBaseUrl(): String
 }

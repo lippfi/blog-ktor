@@ -87,7 +87,10 @@ fun KoinApplication.loadMyKoins(environment: ApplicationEnvironment): KoinApplic
         single<ApplicationEnvironment> { environment }
         single<ApplicationProperties> { ApplicationPropertiesImpl(environment) }
         single<MailService> { MailServiceImpl(get()) }
-        single<StorageService> { StorageServiceImpl(get()) }
+        single<StorageService> {
+            val props = get<ApplicationProperties>()
+            if (props.useCdn) CdnStorageServiceImpl(props) else LocalStorageServiceImpl(props)
+        }
         single<PasswordEncoder> { PasswordEncoderImpl() }
         single<NotificationService> { NotificationServiceImpl() }
         single<CommentWebSocketService> { CommentWebSocketServiceImpl(get()) }

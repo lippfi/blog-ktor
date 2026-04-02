@@ -12,6 +12,10 @@ class ApplicationPropertiesImpl(private val environment: ApplicationEnvironment)
     override val databasePassword = environment.config.propertyOrNull("database.password")?.getString() ?: ""
     override val databaseDriver = environment.config.propertyOrNull("database.driver")?.getString() ?: "org.h2.Driver"
 
+    override val useCdn = environment.config.propertyOrNull("storage.use_cdn")?.getString()?.toBoolean() ?: false
+    override val cdnBaseUrl = environment.config.propertyOrNull("storage.cdn_base_url")?.getString()?.removeSuffix("/") ?: ""
+    override val cdnApiKey = environment.config.propertyOrNull("storage.cdn_api_key")?.getString() ?: ""
+
     override fun storageBaseDir(): Path = Path(environment.config.property("storage.base_dir").getString())
     override fun filesBaseUrl(): String = environment.config.property("storage.base_url").getString().removeSuffix("/")
 }

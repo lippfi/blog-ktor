@@ -15,13 +15,12 @@ import fi.lipp.blog.service.NotificationService
 import fi.lipp.blog.service.PostService
 import fi.lipp.blog.service.Viewer
 import fi.lipp.blog.service.implementations.PostServiceImpl
-import fi.lipp.blog.service.implementations.StorageServiceImpl
+import fi.lipp.blog.service.implementations.LocalStorageServiceImpl
 import fi.lipp.blog.service.implementations.SessionServiceImpl
 import fi.lipp.blog.service.implementations.UserServiceImpl
 import fi.lipp.blog.stubs.ApplicationPropertiesStub
 import fi.lipp.blog.stubs.PasswordEncoderStub
 import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.junit.AfterClass
 import org.junit.Assert.*
@@ -52,7 +51,7 @@ class PostServiceTests : UnitTestBase() {
         private val mailService = mock<MailService>()
         private val notificationService = mock<NotificationService>()
         private val commentWebSocketService = mock<CommentWebSocketService>()
-        private val storageService = StorageServiceImpl(properties)
+        private val storageService = LocalStorageServiceImpl(properties)
         private val sessionServiceLocal = SessionServiceImpl()
         private val userService = UserServiceImpl(encoder, mailService, storageService, groupService, notificationService, properties, sessionServiceLocal)
         private lateinit var postService: PostService

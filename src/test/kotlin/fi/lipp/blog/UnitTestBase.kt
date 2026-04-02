@@ -2,19 +2,17 @@ package fi.lipp.blog
 
 import fi.lipp.blog.data.Language
 import fi.lipp.blog.data.UserDto
-import fi.lipp.blog.data.FileUploadData
 import java.util.UUID
 import fi.lipp.blog.domain.DiaryEntity
 import fi.lipp.blog.domain.PendingRegistrationEntity
 import fi.lipp.blog.domain.UserEntity
 import fi.lipp.blog.domain.Notifications
 import fi.lipp.blog.repository.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import fi.lipp.blog.service.*
 import fi.lipp.blog.service.implementations.AccessGroupServiceImpl
 import fi.lipp.blog.service.implementations.CommentWebSocketServiceImpl
 import fi.lipp.blog.service.implementations.DialogServiceImpl
-import fi.lipp.blog.service.implementations.StorageServiceImpl
+import fi.lipp.blog.service.implementations.LocalStorageServiceImpl
 import fi.lipp.blog.service.implementations.UserServiceImpl
 import fi.lipp.blog.service.implementations.ReactionServiceImpl
 import fi.lipp.blog.service.implementations.ReactionDatabaseSeeder
@@ -34,7 +32,6 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.mockito.kotlin.*
-import java.io.ByteArrayInputStream
 import java.io.File
 import kotlin.io.path.Path
 import kotlin.test.assertTrue
@@ -127,7 +124,7 @@ abstract class UnitTestBase {
                     single<ApplicationProperties> { ApplicationPropertiesStub() }
                     single<PasswordEncoder> { PasswordEncoderStub() }
                     single<MailService> { mock() }
-                    single<StorageService> { StorageServiceImpl(get()) }
+                    single<StorageService> { LocalStorageServiceImpl(get()) }
                     single<AccessGroupService> { AccessGroupServiceImpl() }
                     single<NotificationService> { NotificationServiceImpl() }
                     single<CommentWebSocketService> { mock() }
