@@ -303,6 +303,9 @@ abstract class UnitTestBase {
         // Re-initialize the database with seeders
         val databaseInitializer = org.koin.core.context.GlobalContext.get().get<DatabaseInitializer>()
         databaseInitializer.initialize()
+
+        // Reset the mail service mock to clear accumulated invocations from previous tests
+        reset(mailService)
     }
 
     @After
