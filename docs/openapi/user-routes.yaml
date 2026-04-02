@@ -1,0 +1,818 @@
+openapi: 3.0.3
+info:
+  title: User Routes API
+  version: 1.0.0
+tags:
+  - name: user
+paths:
+  /user/search:
+    get:
+      tags: [user]
+      summary: Search users
+      parameters:
+        - in: query
+          name: text
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Users list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserView'
+  /user/search-logins:
+    get:
+      tags: [user]
+      summary: Get users by logins
+      parameters:
+        - in: query
+          name: logins
+          schema:
+            type: string
+          description: Comma-separated logins
+      responses:
+        '200':
+          description: Users list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserView'
+  /user/sign-up:
+    post:
+      tags: [user]
+      summary: Sign up user
+      parameters:
+        - in: query
+          name: invite-code
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegistration'
+      responses:
+        '200':
+          description: Registration initiated
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/confirm-registration:
+    post:
+      tags: [user]
+      summary: Confirm registration
+      parameters:
+        - in: query
+          name: code
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Token pair
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+  /user/sign-in:
+    post:
+      tags: [user]
+      summary: Sign in user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLogin'
+      responses:
+        '200':
+          description: Token pair
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+  /user/is-login-busy:
+    get:
+      tags: [user]
+      summary: Check login availability
+      parameters:
+        - in: query
+          name: login
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Busy flag as text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/is-email-busy:
+    get:
+      tags: [user]
+      summary: Check email availability
+      parameters:
+        - in: query
+          name: email
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Busy flag as text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/is-nickname-busy:
+    get:
+      tags: [user]
+      summary: Check nickname availability
+      parameters:
+        - in: query
+          name: nickname
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Busy flag as text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/send-password-reset-email:
+    post:
+      tags: [user]
+      summary: Send password reset email
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+          application/json:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/reset-password:
+    post:
+      tags: [user]
+      summary: Reset password
+      parameters:
+        - in: query
+          name: code
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+          application/json:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/session-info:
+    get:
+      tags: [user]
+      summary: Get current session info
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Session info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSessionInfo'
+  /user/create-invite-code:
+    get:
+      tags: [user]
+      summary: Create invite code
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Invite code
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/update:
+    post:
+      tags: [user]
+      summary: Update user profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/update-additional-info:
+    post:
+      tags: [user]
+      summary: Update additional user info
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserAdditionalInfo'
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/avatars:
+    get:
+      tags: [user]
+      summary: Get avatar URLs
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Avatar URLs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SerializableStringMap'
+  /user/reorder-avatars:
+    post:
+      tags: [user]
+      summary: Reorder avatars
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: string
+                format: uuid
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/add-avatar:
+    post:
+      tags: [user]
+      summary: Upload avatar files
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Updated avatar URLs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SerializableStringMap'
+  /user/add-avatar-by-uri:
+    post:
+      tags: [user]
+      summary: Add avatar by URI
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: uri
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/delete-avatar:
+    delete:
+      tags: [user]
+      summary: Delete avatar by URI
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: uri
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/notification-settings:
+    post:
+      tags: [user]
+      summary: Update notification settings
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationSettings'
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/friend-request:
+    post:
+      tags: [user]
+      summary: Send friend request
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FriendRequestCreate'
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+    delete:
+      tags: [user]
+      summary: Cancel friend request
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: requestId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/friend-request/accept:
+    post:
+      tags: [user]
+      summary: Accept friend request
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: requestId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: label
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/friend-request/decline:
+    post:
+      tags: [user]
+      summary: Decline friend request
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: requestId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/friend-requests/sent:
+    get:
+      tags: [user]
+      summary: Get sent friend requests
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Requests list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FriendRequest'
+  /user/friend-requests/received:
+    get:
+      tags: [user]
+      summary: Get received friend requests
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Requests list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FriendRequest'
+  /user/friends:
+    get:
+      tags: [user]
+      summary: Get friends list
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Friends list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserView'
+    delete:
+      tags: [user]
+      summary: Remove friend by login
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: login
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/signature:
+    post:
+      tags: [user]
+      summary: Update user signature
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+          application/json:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/do-not-show-in-feed:
+    post:
+      tags: [user]
+      summary: Hide user from feed by login
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: login
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/show-in-feed:
+    post:
+      tags: [user]
+      summary: Show user in feed by login
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: login
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/do-not-show-in-feed-list:
+    get:
+      tags: [user]
+      summary: List hidden-from-feed users
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Hidden users list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserView'
+  /user/ignore-user:
+    post:
+      tags: [user]
+      summary: Add user to ignore list
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: login
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: reason
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/unignore-user:
+    post:
+      tags: [user]
+      summary: Remove user from ignore list
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: login
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/ignored-users:
+    get:
+      tags: [user]
+      summary: List ignored users
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Ignored users list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserView'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    TokenPair:
+      type: object
+      required: [accessToken, refreshToken]
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+    UserView:
+      type: object
+      required: [login, nickname]
+      properties:
+        login:
+          type: string
+        nickname:
+          type: string
+        avatarUri:
+          type: string
+          nullable: true
+        signature:
+          type: string
+          nullable: true
+    UserRegistration:
+      type: object
+      required: [login, email, password, nickname, timezone, language]
+      properties:
+        login:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        nickname:
+          type: string
+        timezone:
+          type: string
+        language:
+          $ref: '#/components/schemas/Language'
+    UserLogin:
+      type: object
+      required: [login, password]
+      properties:
+        login:
+          type: string
+        password:
+          type: string
+    UserAdditionalInfo:
+      type: object
+      required: [sex, timezone, language, nsfw]
+      properties:
+        sex:
+          $ref: '#/components/schemas/Sex'
+        timezone:
+          type: string
+        language:
+          $ref: '#/components/schemas/Language'
+        nsfw:
+          $ref: '#/components/schemas/NsfwPolicy'
+        birthDate:
+          type: string
+          format: date
+          nullable: true
+    UserSessionInfo:
+      type: object
+      required: [login, nickname, language, nsfw]
+      properties:
+        login:
+          type: string
+        nickname:
+          type: string
+        language:
+          $ref: '#/components/schemas/Language'
+        nsfw:
+          $ref: '#/components/schemas/NsfwPolicy'
+    UpdateUserRequest:
+      type: object
+      required: [user, oldPassword]
+      properties:
+        user:
+          $ref: '#/components/schemas/UserRegistration'
+        oldPassword:
+          type: string
+    SerializableStringMap:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: object
+          additionalProperties:
+            type: string
+    NotificationSettings:
+      type: object
+      required:
+        [
+          notifyAboutComments,
+          notifyAboutReplies,
+          notifyAboutPostReactions,
+          notifyAboutCommentReactions,
+          notifyAboutPrivateMessages,
+          notifyAboutMentions,
+          notifyAboutNewPosts,
+          notifyAboutFriendRequests,
+          notifyAboutReposts
+        ]
+      properties:
+        notifyAboutComments:
+          type: boolean
+        notifyAboutReplies:
+          type: boolean
+        notifyAboutPostReactions:
+          type: boolean
+        notifyAboutCommentReactions:
+          type: boolean
+        notifyAboutPrivateMessages:
+          type: boolean
+        notifyAboutMentions:
+          type: boolean
+        notifyAboutNewPosts:
+          type: boolean
+        notifyAboutFriendRequests:
+          type: boolean
+        notifyAboutReposts:
+          type: boolean
+    FriendRequestCreate:
+      type: object
+      required: [toUser, message]
+      properties:
+        toUser:
+          type: string
+        message:
+          type: string
+        label:
+          type: string
+          nullable: true
+    FriendRequest:
+      type: object
+      required: [id, user, message, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        user:
+          $ref: '#/components/schemas/UserView'
+        message:
+          type: string
+        label:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    Language:
+      type: string
+      enum: [RU, EN, KK, KK_CYRILLIC]
+    Sex:
+      type: string
+      enum: [MALE, FEMALE, UNDEFINED]
+    NsfwPolicy:
+      type: string
+      enum: [SHOW, HIDE, WARN]

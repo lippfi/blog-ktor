@@ -1,0 +1,585 @@
+openapi: 3.0.3
+info:
+  title: Reaction Routes API
+  version: 1.0.0
+tags:
+  - name: reactions
+paths:
+  /reactions:
+    get:
+      tags: [reactions]
+      summary: Get all reactions
+      responses:
+        '200':
+          description: Reactions list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReactionView'
+    delete:
+      tags: [reactions]
+      summary: Delete reaction by name
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /reactions/search:
+    get:
+      tags: [reactions]
+      summary: Search reactions
+      description: Route class contains two handlers on this path (`text` and `pattern`).
+      parameters:
+        - in: query
+          name: text
+          schema:
+            type: string
+        - in: query
+          name: pattern
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reactions list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReactionView'
+  /reactions/basic:
+    get:
+      tags: [reactions]
+      summary: Get basic reactions
+      responses:
+        '200':
+          description: Basic reactions list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReactionPack'
+  /reactions/search-names:
+    get:
+      tags: [reactions]
+      summary: Get reactions by names
+      parameters:
+        - in: query
+          name: names
+          schema:
+            type: string
+          description: Comma-separated names
+      responses:
+        '200':
+          description: Reactions list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReactionView'
+  /reactions/name-busy:
+    get:
+      tags: [reactions]
+      summary: Check reaction name availability
+      parameters:
+        - in: query
+          name: name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Busy flag
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  busy:
+                    type: boolean
+  /reactions/my-packs:
+    get:
+      tags: [reactions]
+      summary: Get current user reaction packs
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Pack list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReactionPack'
+  /reactions/create:
+    post:
+      tags: [reactions]
+      summary: Create custom reaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: name
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: pack
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Created reaction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReactionView'
+  /reactions/rename:
+    put:
+      tags: [reactions]
+      summary: Rename reaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: oldName
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: newName
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /reactions/recent:
+    get:
+      tags: [reactions]
+      summary: Get current user recent reactions
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Reactions list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReactionView'
+  /reactions/pack:
+    put:
+      tags: [reactions]
+      summary: Update reaction pack
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: pack
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: newName
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                icon:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Updated pack
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReactionPack'
+  /reactions/collection:
+    get:
+      tags: [reactions]
+      summary: Get pack collection
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Collection list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReactionPack'
+    post:
+      tags: [reactions]
+      summary: Add pack to collection
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: pack
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+    delete:
+      tags: [reactions]
+      summary: Remove pack from collection
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: pack
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /reactions/collection/reorder:
+    put:
+      tags: [reactions]
+      summary: Reorder pack in collection
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: pack
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: ordinal
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /reactions/subset:
+    post:
+      tags: [reactions]
+      summary: Create reaction subset
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: login
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: name
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: reactions
+          schema:
+            type: string
+          description: Comma-separated reaction names
+      responses:
+        '200':
+          description: Subset id
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id]
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+    put:
+      tags: [reactions]
+      summary: Update reaction subset
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: name
+          schema:
+            type: string
+        - in: query
+          name: reactions
+          schema:
+            type: string
+          description: Comma-separated reaction names
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+    delete:
+      tags: [reactions]
+      summary: Delete reaction subset
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /reactions/post-reaction:
+    post:
+      tags: [reactions]
+      summary: Add reaction to post
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: login
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: uri
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+    delete:
+      tags: [reactions]
+      summary: Remove reaction from post
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: login
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: uri
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /reactions/comment-reaction:
+    post:
+      tags: [reactions]
+      summary: Add reaction to comment
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: commentId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+    delete:
+      tags: [reactions]
+      summary: Remove reaction from comment
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: commentId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /reactions/comment-reactions:
+    get:
+      tags: [reactions]
+      summary: Get comment reactions
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: commentId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Comment reactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReactionInfo'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ReactionView:
+      type: object
+      required: [name, iconUri]
+      properties:
+        name:
+          type: string
+        iconUri:
+          type: string
+    ReactionPack:
+      type: object
+      required: [name, iconUri, reactions]
+      properties:
+        name:
+          type: string
+        iconUri:
+          type: string
+        reactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReactionView'
+    ReactionUserInfo:
+      type: object
+      required: [login, nickname]
+      properties:
+        login:
+          type: string
+        nickname:
+          type: string
+    ReactionInfo:
+      type: object
+      required: [id, name, iconUri, count, users, anonymousCount]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        iconUri:
+          type: string
+        count:
+          type: integer
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReactionUserInfo'
+        anonymousCount:
+          type: integer

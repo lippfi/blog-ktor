@@ -1,0 +1,925 @@
+openapi: 3.0.3
+info:
+  title: Post Routes API
+  version: 1.0.0
+tags:
+  - name: posts
+paths:
+  /posts/comments:
+    get:
+      tags: [posts]
+      summary: Comment updates websocket
+      description: WebSocket endpoint used for comment subscription updates.
+      x-websocket: true
+      responses:
+        '101':
+          description: Switching Protocols
+  /posts/preface:
+    get:
+      tags: [posts]
+      summary: Get diary preface post
+      parameters:
+        - in: query
+          name: diary
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Preface post
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostView'
+        '404':
+          description: No preface found
+          content:
+            text/plain:
+              schema:
+                type: string
+  /posts:
+    get:
+      tags: [posts]
+      summary: Get post by diary+uri or editable post by id
+      description: Public mode uses `login` + `uri`; authenticated mode may use `id` for edit payload.
+      parameters:
+        - in: query
+          name: login
+          schema:
+            type: string
+        - in: query
+          name: uri
+          schema:
+            type: string
+        - in: query
+          name: id
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Post payload
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PostPage'
+                  - $ref: '#/components/schemas/PostUpdate'
+    post:
+      tags: [posts]
+      summary: Create post
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostCreate'
+      responses:
+        '200':
+          description: Created post
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostView'
+    put:
+      tags: [posts]
+      summary: Update post
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostUpdate'
+      responses:
+        '200':
+          description: Updated post
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostView'
+    delete:
+      tags: [posts]
+      summary: Delete post
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: postId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /posts/diary:
+    get:
+      tags: [posts]
+      summary: Get diary posts
+      parameters:
+        - in: query
+          name: diary
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: text
+          schema:
+            type: string
+        - in: query
+          name: tags
+          schema:
+            type: string
+          description: Comma-separated tags
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 10
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [asc, desc]
+        - in: query
+          name: tagPolicy
+          schema:
+            type: string
+            enum: [UNION, INTERSECTION]
+            default: UNION
+      responses:
+        '200':
+          description: Posts page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiaryPage'
+  /posts/search:
+    get:
+      tags: [posts]
+      summary: Search posts
+      parameters:
+        - in: query
+          name: author
+          schema:
+            type: string
+        - in: query
+          name: diary
+          schema:
+            type: string
+        - in: query
+          name: text
+          schema:
+            type: string
+        - in: query
+          name: tags
+          schema:
+            type: string
+          description: Comma-separated tags
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 10
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [asc, desc]
+        - in: query
+          name: tagPolicy
+          schema:
+            type: string
+            enum: [UNION, INTERSECTION]
+            default: UNION
+        - in: query
+          name: isHidden
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Posts page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagePostView'
+  /posts/latest:
+    get:
+      tags: [posts]
+      summary: Get latest posts
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Posts page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagePostView'
+  /posts/discussed:
+    get:
+      tags: [posts]
+      summary: Get discussed posts
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Posts page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagePostView'
+  /posts/hidden:
+    get:
+      tags: [posts]
+      summary: Get hidden posts in diary
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: diary
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Hidden posts page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagePostView'
+  /posts/comment:
+    get:
+      tags: [posts]
+      summary: Get comment by id
+      parameters:
+        - in: query
+          name: commentId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Comment payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentView'
+    post:
+      tags: [posts]
+      summary: Add comment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentCreate'
+      responses:
+        '200':
+          description: Created comment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentView'
+    put:
+      tags: [posts]
+      summary: Update comment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentUpdate'
+      responses:
+        '200':
+          description: Updated comment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentView'
+    delete:
+      tags: [posts]
+      summary: Delete comment
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: commentId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /posts/followed:
+    get:
+      tags: [posts]
+      summary: Get followed users posts
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Posts page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagePostView'
+  /posts/friends:
+    get:
+      tags: [posts]
+      summary: Get friends posts
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Posts page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagePostView'
+  /posts/subscribed:
+    get:
+      tags: [posts]
+      summary: Get subscribed diaries posts
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Posts page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagePostView'
+  /posts/hide:
+    post:
+      tags: [posts]
+      summary: Hide post
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: postId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Hidden
+  /posts/show:
+    post:
+      tags: [posts]
+      summary: Show post
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: postId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Visible
+  /posts/repost:
+    post:
+      tags: [posts]
+      summary: Repost post
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostCreate'
+      responses:
+        '200':
+          description: Created post
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostView'
+  /posts/repost-comment:
+    post:
+      tags: [posts]
+      summary: Repost comment as post
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostCreate'
+      responses:
+        '200':
+          description: Created post
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostView'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    SerializableStringMap:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: object
+          additionalProperties:
+            type: string
+    ReactionUserInfo:
+      type: object
+      required: [login, nickname]
+      properties:
+        login:
+          type: string
+        nickname:
+          type: string
+    ReactionInfo:
+      type: object
+      required: [id, name, iconUri, count, users, anonymousCount]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        iconUri:
+          type: string
+        count:
+          type: integer
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReactionUserInfo'
+        anonymousCount:
+          type: integer
+    PostView:
+      type: object
+      required:
+        [
+          id,
+          uri,
+          avatar,
+          diaryLogin,
+          authorNickname,
+          title,
+          text,
+          creationTime,
+          isPreface,
+          isEncrypted,
+          isHidden,
+          classes,
+          tags,
+          isReactable,
+          reactions,
+          isCommentable,
+          commentsCount,
+          readGroupId,
+          commentGroupId,
+          reactionGroupId,
+          commentReactionGroupId
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        uri:
+          type: string
+        avatar:
+          type: string
+        authorLogin:
+          type: string
+          nullable: true
+        diaryLogin:
+          type: string
+        authorNickname:
+          type: string
+        authorSignature:
+          type: string
+          nullable: true
+        title:
+          type: string
+        text:
+          type: string
+        creationTime:
+          type: string
+          format: date-time
+        isPreface:
+          type: boolean
+        isEncrypted:
+          type: boolean
+        isHidden:
+          type: boolean
+        classes:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+          uniqueItems: true
+        isReactable:
+          type: boolean
+        reactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReactionInfo'
+        isCommentable:
+          type: boolean
+        commentsCount:
+          type: integer
+        readGroupId:
+          type: string
+          format: uuid
+        commentGroupId:
+          type: string
+          format: uuid
+        reactionGroupId:
+          type: string
+          format: uuid
+        commentReactionGroupId:
+          type: string
+          format: uuid
+    PostCreate:
+      type: object
+      required:
+        [
+          uri,
+          avatar,
+          title,
+          text,
+          readGroupId,
+          commentGroupId,
+          reactionGroupId,
+          commentReactionGroupId,
+          tags,
+          classes,
+          isPreface,
+          isEncrypted
+        ]
+      properties:
+        uri:
+          type: string
+        avatar:
+          type: string
+        title:
+          type: string
+        text:
+          type: string
+        readGroupId:
+          type: string
+          format: uuid
+        commentGroupId:
+          type: string
+          format: uuid
+        reactionGroupId:
+          type: string
+          format: uuid
+        commentReactionGroupId:
+          type: string
+          format: uuid
+        tags:
+          type: array
+          items:
+            type: string
+          uniqueItems: true
+        classes:
+          type: string
+        isPreface:
+          type: boolean
+        isEncrypted:
+          type: boolean
+        isHidden:
+          type: boolean
+          default: false
+        reactionSubset:
+          type: string
+          format: uuid
+          nullable: true
+    PostUpdate:
+      type: object
+      required:
+        [
+          id,
+          uri,
+          avatar,
+          title,
+          text,
+          readGroupId,
+          commentGroupId,
+          reactionGroupId,
+          commentReactionGroupId,
+          tags,
+          classes,
+          isEncrypted
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        uri:
+          type: string
+        avatar:
+          type: string
+        title:
+          type: string
+        text:
+          type: string
+        readGroupId:
+          type: string
+          format: uuid
+        commentGroupId:
+          type: string
+          format: uuid
+        reactionGroupId:
+          type: string
+          format: uuid
+        commentReactionGroupId:
+          type: string
+          format: uuid
+        tags:
+          type: array
+          items:
+            type: string
+          uniqueItems: true
+        classes:
+          type: string
+        isEncrypted:
+          type: boolean
+        isHidden:
+          type: boolean
+          default: false
+    CommentCreate:
+      type: object
+      required: [postId, avatar, text]
+      properties:
+        postId:
+          type: string
+          format: uuid
+        avatar:
+          type: string
+        text:
+          type: string
+        parentCommentId:
+          type: string
+          format: uuid
+          nullable: true
+        reactionGroupId:
+          type: string
+          format: uuid
+          nullable: true
+    CommentUpdate:
+      type: object
+      required: [id, avatar, text]
+      properties:
+        id:
+          type: string
+          format: uuid
+        avatar:
+          type: string
+        text:
+          type: string
+    CommentReplyView:
+      type: object
+      required: [id, nickname]
+      properties:
+        id:
+          type: string
+          format: uuid
+        login:
+          type: string
+          nullable: true
+        nickname:
+          type: string
+    CommentView:
+      type: object
+      required:
+        [
+          id,
+          avatar,
+          authorNickname,
+          diaryLogin,
+          postUri,
+          text,
+          creationTime,
+          isReactable,
+          reactions,
+          reactionGroupId,
+          isPublished
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        avatar:
+          type: string
+        authorNickname:
+          type: string
+        authorLogin:
+          type: string
+          nullable: true
+        diaryLogin:
+          type: string
+        postUri:
+          type: string
+        text:
+          type: string
+        creationTime:
+          type: string
+          format: date-time
+        isReactable:
+          type: boolean
+        reactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReactionInfo'
+        inReplyTo:
+          oneOf:
+            - $ref: '#/components/schemas/CommentReplyView'
+            - type: 'null'
+        reactionGroupId:
+          type: string
+          format: uuid
+        isPublished:
+          type: boolean
+          default: true
+    DiaryView:
+      type: object
+      required: [name, subtitle, styles]
+      properties:
+        name:
+          type: string
+        subtitle:
+          type: string
+        styles:
+          type: array
+          items:
+            type: string
+        defaultGroups:
+          oneOf:
+            - $ref: '#/components/schemas/SerializableStringMap'
+            - type: 'null'
+    PostPage:
+      type: object
+      required: [diary, post, comments]
+      properties:
+        diary:
+          $ref: '#/components/schemas/DiaryView'
+        post:
+          $ref: '#/components/schemas/PostView'
+        comments:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommentView'
+    DiaryPage:
+      type: object
+      required: [diary, posts]
+      properties:
+        diary:
+          $ref: '#/components/schemas/DiaryView'
+        posts:
+          $ref: '#/components/schemas/PagePostView'
+    PagePostView:
+      type: object
+      required: [content, currentPage, totalPages]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/PostView'
+        currentPage:
+          type: integer
+        totalPages:
+          type: integer

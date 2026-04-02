@@ -1,0 +1,260 @@
+openapi: 3.0.3
+info:
+  title: Notification Routes API
+  version: 1.0.0
+tags:
+  - name: notifications
+paths:
+  /notifications:
+    get:
+      tags: [notifications]
+      summary: Get notifications or a single notification by id
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: id
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Notifications payload
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+                  - $ref: '#/components/schemas/Notification'
+    delete:
+      tags: [notifications]
+      summary: Delete one notification
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /notifications/settings:
+    get:
+      tags: [notifications]
+      summary: Get notification settings
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Notification settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSettings'
+  /notifications/read:
+    post:
+      tags: [notifications]
+      summary: Mark notification as read
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /notifications/read-all:
+    post:
+      tags: [notifications]
+      summary: Mark all notifications as read
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /notifications/all:
+    delete:
+      tags: [notifications]
+      summary: Delete all notifications
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /posts/mentions:
+    post:
+      tags: [notifications]
+      summary: Notify user about mention in post
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: postId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: login
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+        '400':
+          description: Invalid input
+          content:
+            text/plain:
+              schema:
+                type: string
+  /comments/mentions:
+    post:
+      tags: [notifications]
+      summary: Notify user about mention in comment
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: commentId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: login
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+        '400':
+          description: Invalid input
+          content:
+            text/plain:
+              schema:
+                type: string
+  /notifications/ws:
+    get:
+      tags: [notifications]
+      summary: Notifications websocket endpoint
+      description: WebSocket endpoint for live notification updates.
+      x-websocket: true
+      responses:
+        '101':
+          description: Switching Protocols
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    NotificationType:
+      type: string
+      enum:
+        - COMMENT
+        - NEW_POST
+        - COMMENT_REPLY
+        - POST_REACTION
+        - COMMENT_REACTION
+        - POST_MENTION
+        - COMMENT_MENTION
+        - PRIVATE_MESSAGE
+        - FRIEND_REQUEST
+        - REPOST
+        - COMMENT_REPOST
+    Notification:
+      type: object
+      required: [id, type, isRead, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/NotificationType'
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        diaryLogin:
+          type: string
+        postUri:
+          type: string
+        senderLogin:
+          type: string
+        requestId:
+          type: string
+          format: uuid
+        dialogId:
+          type: string
+          format: uuid
+    NotificationSettings:
+      type: object
+      required:
+        [
+          notifyAboutComments,
+          notifyAboutReplies,
+          notifyAboutPostReactions,
+          notifyAboutCommentReactions,
+          notifyAboutPrivateMessages,
+          notifyAboutMentions,
+          notifyAboutNewPosts,
+          notifyAboutFriendRequests,
+          notifyAboutReposts
+        ]
+      properties:
+        notifyAboutComments:
+          type: boolean
+        notifyAboutReplies:
+          type: boolean
+        notifyAboutPostReactions:
+          type: boolean
+        notifyAboutCommentReactions:
+          type: boolean
+        notifyAboutPrivateMessages:
+          type: boolean
+        notifyAboutMentions:
+          type: boolean
+        notifyAboutNewPosts:
+          type: boolean
+        notifyAboutFriendRequests:
+          type: boolean
+        notifyAboutReposts:
+          type: boolean

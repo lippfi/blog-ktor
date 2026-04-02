@@ -1,0 +1,434 @@
+openapi: 3.0.3
+info:
+  title: Diary Routes API
+  version: 1.0.0
+tags:
+  - name: diary
+paths:
+  /diary/update-diary-info:
+    post:
+      tags: [diary]
+      summary: Update diary info
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: login
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiaryInfo'
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /diary/update-profile:
+    post:
+      tags: [diary]
+      summary: Update diary profile content
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: login
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+          application/json:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /diary/profile:
+    get:
+      tags: [diary]
+      summary: Get user profile page
+      parameters:
+        - in: query
+          name: login
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Profile page payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfilePage'
+  /diary/styles/enabled:
+    get:
+      tags: [diary]
+      summary: Get enabled diary styles
+      parameters:
+        - in: query
+          name: login
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Enabled styles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+  /diary/styles/{styleId}:
+    get:
+      tags: [diary]
+      summary: Get style by id
+      parameters:
+        - in: path
+          name: styleId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Style payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiaryStylePreview'
+    put:
+      tags: [diary]
+      summary: Update style
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: styleId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: login
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiaryStyleUpdate'
+      responses:
+        '200':
+          description: Updated style
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiaryStyle'
+    delete:
+      tags: [diary]
+      summary: Delete style
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: styleId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: login
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Style deleted
+          content:
+            text/plain:
+              schema:
+                type: string
+        '404':
+          description: Style not found
+          content:
+            text/plain:
+              schema:
+                type: string
+  /diary/styles:
+    get:
+      tags: [diary]
+      summary: Get style collection
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: login
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Style collection
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DiaryStyle'
+    post:
+      tags: [diary]
+      summary: Add style
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: login
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiaryStyleCreate'
+      responses:
+        '201':
+          description: Created style
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiaryStyle'
+  /diary/styles/add-style-by-id:
+    post:
+      tags: [diary]
+      summary: Add style by existing style id
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: login
+          schema:
+            type: string
+        - in: query
+          name: styleId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: enable
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '201':
+          description: Created/added style
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiaryStyle'
+  /diary/styles/upload:
+    post:
+      tags: [diary]
+      summary: Upload CSS file and create style
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: diaryLogin
+          schema:
+            type: string
+        - in: query
+          name: name
+          schema:
+            type: string
+            default: New Style
+        - in: query
+          name: enabled
+          schema:
+            type: boolean
+            default: true
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required: [file]
+      responses:
+        '201':
+          description: Created style
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiaryStyle'
+        '400':
+          description: No file uploaded
+          content:
+            text/plain:
+              schema:
+                type: string
+  /diary/styles/reorder:
+    post:
+      tags: [diary]
+      summary: Reorder styles
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: login
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: string
+                format: uuid
+      responses:
+        '200':
+          description: Updated style collection
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DiaryStyle'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    DiaryInfo:
+      type: object
+      required: [name, subtitle, defaultReadGroup, defaultCommentGroup, defaultReactGroup]
+      properties:
+        name:
+          type: string
+        subtitle:
+          type: string
+        defaultReadGroup:
+          type: string
+          format: uuid
+        defaultCommentGroup:
+          type: string
+          format: uuid
+        defaultReactGroup:
+          type: string
+          format: uuid
+    DiaryStyleCreate:
+      type: object
+      required: [name, styleContent, enabled]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        styleContent:
+          type: string
+        enabled:
+          type: boolean
+    DiaryStyleUpdate:
+      type: object
+      required: [id, name, styleContent, enabled]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        styleContent:
+          type: string
+        enabled:
+          type: boolean
+    DiaryStylePreview:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    DiaryStyle:
+      type: object
+      required: [id, name, enabled, styleUri, styleContent, authorLogin, authorNickname]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        enabled:
+          type: boolean
+        styleUri:
+          type: string
+        styleContent:
+          type: string
+        authorLogin:
+          type: string
+        authorNickname:
+          type: string
+    UserProfilePage:
+      type: object
+      required: [login, nickname, content, styles, friends]
+      properties:
+        login:
+          type: string
+        nickname:
+          type: string
+        content:
+          type: string
+        song:
+          type: string
+          nullable: true
+        styles:
+          type: array
+          items:
+            type: string
+        friends:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserView'
+    UserView:
+      type: object
+      required: [login, nickname]
+      properties:
+        login:
+          type: string
+        nickname:
+          type: string
+        avatarUri:
+          type: string
+          nullable: true
+        signature:
+          type: string
+          nullable: true

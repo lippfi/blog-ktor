@@ -1,0 +1,40 @@
+openapi: 3.0.3
+info:
+  title: Storage Routes API
+  version: 1.0.0
+tags:
+  - name: storage
+paths:
+  /storage/upload:
+    post:
+      tags: [storage]
+      summary: Upload files to storage
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Uploaded file URLs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

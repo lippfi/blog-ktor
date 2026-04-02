@@ -1,0 +1,194 @@
+openapi: 3.0.3
+info:
+  title: Access Group Routes API
+  version: 1.0.0
+tags:
+  - name: access-groups
+paths:
+  /access-groups/basic:
+    get:
+      tags: [access-groups]
+      summary: Get basic access groups
+      responses:
+        '200':
+          description: Basic groups list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SerializableStringMap'
+  /access-groups/default:
+    get:
+      tags: [access-groups]
+      summary: Get default access groups for diary
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: diary
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Default groups
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SerializableStringMap'
+        '400':
+          description: Missing diary login
+          content:
+            text/plain:
+              schema:
+                type: string
+  /access-groups:
+    get:
+      tags: [access-groups]
+      summary: Get diary access groups
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: diary
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Groups list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SerializableStringMap'
+        '400':
+          description: Missing diary login
+          content:
+            text/plain:
+              schema:
+                type: string
+    post:
+      tags: [access-groups]
+      summary: Create access group
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: diary
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+          application/json:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+        '400':
+          description: Missing diary login
+          content:
+            text/plain:
+              schema:
+                type: string
+    delete:
+      tags: [access-groups]
+      summary: Delete access group
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: groupId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /access-groups/add-user:
+    post:
+      tags: [access-groups]
+      summary: Add user to group
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: groupId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+          application/json:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /access-groups/remove-user:
+    post:
+      tags: [access-groups]
+      summary: Remove user from group
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: groupId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+          application/json:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    SerializableStringMap:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: object
+          additionalProperties:
+            type: string
