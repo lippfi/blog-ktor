@@ -22,6 +22,7 @@ import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.or
+import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.junit.AfterClass
 import org.junit.Assert.assertThrows
@@ -1544,30 +1545,30 @@ class UserServiceTests : UnitTestBase() {
     }
 
     @Test
-    fun `change primary avatar to other user avatar`() {
+    fun `change primary avatar to other user avatar reuses existing file`() {
         transaction {
-            // Create two users
             val (userId1, userId2) = signUsersUp()
 
-            // Add avatar to first user
             val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
             userService.addAvatar(Viewer.Registered(userId1), listOf(avatarUpload))
             val avatars1 = userService.getAvatars(userId1)
             assertEquals(1, avatars1.size)
 
-            // Try to set first user's avatar as primary for second user
+            val filesCountBefore = Files.selectAll().count()
+
             val avatarUrl = storageService.getFileURL(avatars1[0])
             userService.changePrimaryAvatar(Viewer.Registered(userId2), avatarUrl)
 
-            // Verify that a new copy of the avatar was created
             val avatars2 = userService.getAvatars(userId2)
             assertEquals(1, avatars2.size)
-            assertNotEquals(avatars1[0].id, avatars2[0].id)
+            assertEquals(avatars1[0].id, avatars2[0].id)
 
-            // Verify it was set as primary
+            val filesCountAfter = Files.selectAll().count()
+            assertEquals(filesCountBefore, filesCountAfter)
+
             val user2 = UserEntity.findById(userId2)!!
             assertNotNull(user2.primaryAvatar)
-            assertEquals(avatars2[0].id, user2.primaryAvatar!!.value)
+            assertEquals(avatars1[0].id, user2.primaryAvatar!!.value)
 
             rollback()
         }

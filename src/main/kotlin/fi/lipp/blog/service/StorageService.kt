@@ -13,4 +13,5 @@ interface StorageService {
     fun openFileStream(file: BlogFile): InputStream
     fun getFileURL(file: BlogFile): String
     fun getFileURLs(files: Collection<BlogFile>): Map<UUID, String>
+    fun getStorageKeyByUrl(url: String): String
 }

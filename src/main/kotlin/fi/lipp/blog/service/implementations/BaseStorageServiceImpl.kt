@@ -108,6 +108,20 @@ abstract class BaseStorageServiceImpl(protected val properties: ApplicationPrope
 
     protected abstract fun cleanupFile(storageKey: String)
 
+    override fun getStorageKeyByUrl(url: String): String {
+        val cleanUrl = url.substringBefore('#').substringBefore('?')
+        val base = baseFileUrl().removeSuffix("/")
+
+        if (!cleanUrl.startsWith(base)) {
+            throw InvalidAvatarUriException()
+        }
+
+        return cleanUrl
+            .removePrefix(base)
+            .removePrefix("/")
+            .ifBlank { throw InvalidAvatarUriException() }
+    }
+
     private fun storeInternal(
         userId: UUID,
         files: List<FileUploadData>,

@@ -938,36 +938,42 @@ class UserServiceImpl(
 
     override fun changePrimaryAvatar(viewer: Viewer.Registered, avatarUri: String) {
         val userId = viewer.userId
+
         transaction {
+            val user = UserEntity.findById(userId) ?: throw UserNotFoundException()
             val avatarEntity = getFileEntityByUri(avatarUri)
+
+            if (avatarEntity.fileType != FileType.AVATAR) {
+                throw AvatarNotFoundException()
+            }
+
             val avatarId = avatarEntity.id.value
+
             val avatarInUserCollection = UserAvatars.select {
                 (UserAvatars.user eq userId) and (UserAvatars.avatar eq avatarId)
             }.count() > 0
 
-            if (avatarInUserCollection) {
-                UserEntity.findById(userId)?.apply {
-                    primaryAvatar = avatarEntity.id
+            if (!avatarInUserCollection) {
+                val maxOrdinal = UserAvatars
+                    .slice(UserAvatars.ordinal.max())
+                    .select { UserAvatars.user eq userId }
+                    .firstOrNull()
+                    ?.get(UserAvatars.ordinal.max()) ?: 0
+
+                UserAvatars.insert {
+                    it[UserAvatars.user] = EntityID(userId, Users)
+                    it[avatar] = avatarEntity.id
+                    it[ordinal] = maxOrdinal + 1
                 }
-            } else {
-                reuploadFileAsUserAvatar(viewer, avatarId)
             }
+
+            user.primaryAvatar = avatarEntity.id
         }
     }
 
     @Suppress("UnusedReceiverParameter")
     private fun Transaction.getFileEntityByUri(uri: String): FileEntity {
-        val base = properties.filesBaseUrl().removeSuffix("/")
-
-        if (!uri.startsWith(base)) {
-            throw InvalidAvatarUriException()
-        }
-
-        val storageKey = uri
-            .removePrefix(base)
-            .removePrefix("/")
-            .substringBefore("?")
-            .ifBlank { throw InvalidAvatarUriException() }
+        val storageKey = storageService.getStorageKeyByUrl(uri)
 
         return FileEntity.find { Files.storageKey eq storageKey }
             .firstOrNull()
