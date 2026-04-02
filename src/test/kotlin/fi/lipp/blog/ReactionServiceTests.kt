@@ -36,7 +36,7 @@ class ReactionServiceTests : UnitTestBase() {
             testUser2 = findUserByLogin(UnitTestBase.testUser2.login)!!
             testFile = storageService.storeReaction(testUser.id, "reaction.png",FileUploadData(
                 fullName = "reaction.png",
-                inputStream = avatarFile1.inputStream()
+                bytes = avatarFile1.readBytes()
             ))
             val config = MapApplicationConfig().apply {
                 put("reactions.basic.size", "6")
@@ -82,7 +82,7 @@ class ReactionServiceTests : UnitTestBase() {
         val name = "like"
         val icon = FileUploadData(
             fullName = "reaction.png",
-            inputStream = avatarFile1.inputStream()
+            bytes = avatarFile1.readBytes()
         )
 
         val created = reactionService.createReaction(testUser.id, name, "custom", icon)
@@ -102,7 +102,7 @@ class ReactionServiceTests : UnitTestBase() {
             "custom",
             FileUploadData(
                 fullName = "reaction.png",
-                inputStream = avatarFile1.inputStream()
+                bytes = avatarFile1.readBytes()
             )
         )
 
@@ -128,7 +128,7 @@ class ReactionServiceTests : UnitTestBase() {
             "custom",
             FileUploadData(
                 fullName = "reaction.png",
-                inputStream = avatarFile1.inputStream()
+                bytes = avatarFile1.readBytes()
             )
         )
 
@@ -149,7 +149,7 @@ class ReactionServiceTests : UnitTestBase() {
             "custom",
             FileUploadData(
                 fullName = "reaction.png",
-                inputStream = avatarFile1.inputStream()
+                bytes = avatarFile1.readBytes()
             )
         )
 
@@ -170,7 +170,7 @@ class ReactionServiceTests : UnitTestBase() {
             "custom",
             FileUploadData(
                 fullName = "reaction.png",
-                inputStream = avatarFile1.inputStream()
+                bytes = avatarFile1.readBytes()
             )
         )
 
@@ -200,7 +200,7 @@ class ReactionServiceTests : UnitTestBase() {
                     "custom",
                     FileUploadData(
                         fullName = "reaction.png",
-                        inputStream = avatarFile1.inputStream()
+                        bytes = avatarFile1.readBytes()
                     )
                 )
             }
@@ -222,7 +222,7 @@ class ReactionServiceTests : UnitTestBase() {
                 "custom",
                 FileUploadData(
                     fullName = "reaction.png",
-                    inputStream = avatarFile1.inputStream()
+                    bytes = avatarFile1.readBytes()
                 )
             )
         }
@@ -233,7 +233,7 @@ class ReactionServiceTests : UnitTestBase() {
         val name = "like"
         val icon = FileUploadData(
             fullName = "reaction.png",
-            inputStream = avatarFile1.inputStream()
+            bytes = avatarFile1.readBytes()
         )
 
         reactionService.createReaction(testUser.id, name, "custom", icon)
@@ -241,7 +241,7 @@ class ReactionServiceTests : UnitTestBase() {
         assertFailsWith<Exception>("Should not allow duplicate reaction names") {
             reactionService.createReaction(testUser.id, name, "custom", FileUploadData(
                 fullName = "reaction2.png",
-                inputStream = avatarFile2.inputStream()
+                bytes = avatarFile2.readBytes()
             ))
         }
     }
@@ -258,7 +258,7 @@ class ReactionServiceTests : UnitTestBase() {
             "custom",
             FileUploadData(
                 fullName = "reaction.png",
-                inputStream = avatarFile1.inputStream()
+                bytes = avatarFile1.readBytes()
             )
         )
 
@@ -300,7 +300,7 @@ class ReactionServiceTests : UnitTestBase() {
             "custom",
             FileUploadData(
                 fullName = "reaction.png",
-                inputStream = avatarFile1.inputStream()
+                bytes = avatarFile1.readBytes()
             )
         )
 
@@ -344,7 +344,7 @@ class ReactionServiceTests : UnitTestBase() {
                 "custom",
                 FileUploadData(
                     fullName = "reaction.png",
-                    inputStream = avatarFile1.inputStream()
+                    bytes = avatarFile1.readBytes()
                 )
             )
         }
@@ -381,7 +381,7 @@ class ReactionServiceTests : UnitTestBase() {
                 "custom",
                 FileUploadData(
                     fullName = "reaction.png",
-                    inputStream = avatarFile1.inputStream()
+                    bytes = avatarFile1.readBytes()
                 )
             )
         }
@@ -421,7 +421,7 @@ class ReactionServiceTests : UnitTestBase() {
                 "basic",
                 FileUploadData(
                     fullName = "reaction.png",
-                    inputStream = avatarFile1.inputStream()
+                    bytes = avatarFile1.readBytes()
                 )
             )
         }
@@ -433,7 +433,7 @@ class ReactionServiceTests : UnitTestBase() {
             "custom",
             FileUploadData(
                 fullName = "reaction.png",
-                inputStream = avatarFile1.inputStream()
+                bytes = avatarFile1.readBytes()
             )
         )
 
@@ -461,7 +461,7 @@ class ReactionServiceTests : UnitTestBase() {
             packName,
             FileUploadData(
                 fullName = "reaction.png",
-                inputStream = avatarFile1.inputStream()
+                bytes = avatarFile1.readBytes()
             )
         )
 
@@ -495,7 +495,7 @@ class ReactionServiceTests : UnitTestBase() {
                 "custom",
                 FileUploadData(
                     fullName = "reaction.png",
-                    inputStream = avatarFile1.inputStream()
+                    bytes = avatarFile1.readBytes()
                 )
             )
         }
@@ -537,7 +537,7 @@ class ReactionServiceTests : UnitTestBase() {
                 "custom",
                 FileUploadData(
                     fullName = "reaction.png",
-                    inputStream = avatarFile1.inputStream()
+                    bytes = avatarFile1.readBytes()
                 )
             )
 
@@ -605,7 +605,7 @@ class ReactionServiceTests : UnitTestBase() {
                 "custom",
                 FileUploadData(
                     fullName = "reaction.png",
-                    inputStream = avatarFile1.inputStream()
+                    bytes = avatarFile1.readBytes()
                 )
             )
 

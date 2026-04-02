@@ -218,12 +218,13 @@ class ReactionDatabaseSeeder(
                 }
             } else {
                 val resourcePath = "$resourcePathPrefix/$fileName"
-                val inputStream = this::class.java.classLoader.getResourceAsStream(resourcePath)
+                val bytes = this::class.java.classLoader.getResourceAsStream(resourcePath)
+                    ?.readBytes()
                     ?: throw IllegalStateException("Resource not found: $resourcePath")
 
                 val fileUploadData = FileUploadData(
                     fullName = fileName,
-                    inputStream = inputStream
+                    bytes = bytes
                 )
 
                 val storedFile = storageService.storeReaction(systemUserId, fileName, fileUploadData)

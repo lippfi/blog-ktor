@@ -157,7 +157,7 @@ class DiaryServiceImpl(
             val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
             if (diaryEntity.owner.value != userId) throw WrongUserException()
 
-            val styleUploadData = FileUploadData("style.css", style.styleContent.byteInputStream())
+            val styleUploadData = FileUploadData("style.css", style.styleContent.toByteArray())
             val blogFile = storageService.store(userId, listOf(styleUploadData))[0]
 
             val userEntity = UserEntity.findById(userId) ?: throw UserNotFoundException()
@@ -249,7 +249,7 @@ class DiaryServiceImpl(
                               styleEntity.description != update.description
 
             val resultStyleEntity = if (styleChanged) {
-                val styleUploadData = FileUploadData("style.css", update.styleContent.byteInputStream())
+                val styleUploadData = FileUploadData("style.css", update.styleContent.toByteArray())
                 val blogFile = storageService.store(userId, listOf(styleUploadData))[0]
 
                 val newStyleEntity = DiaryStyleEntity.new {

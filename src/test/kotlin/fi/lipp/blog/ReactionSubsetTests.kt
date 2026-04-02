@@ -25,9 +25,9 @@ class ReactionSubsetTests : UnitTestBase() {
 
         // Create some reactions to use
         transaction {
-            reactionService.createReaction(user1Id, "like", "custom", FileUploadData("like.png", avatarFile1.inputStream()))
-            reactionService.createReaction(user1Id, "love", "custom", FileUploadData("love.png", avatarFile1.inputStream()))
-            reactionService.createReaction(user1Id, "haha", "custom", FileUploadData("haha.png", avatarFile1.inputStream()))
+            reactionService.createReaction(user1Id, "like", "custom", FileUploadData("like.png", avatarFile1.readBytes()))
+            reactionService.createReaction(user1Id, "love", "custom", FileUploadData("love.png", avatarFile1.readBytes()))
+            reactionService.createReaction(user1Id, "haha", "custom", FileUploadData("haha.png", avatarFile1.readBytes()))
         }
     }
 

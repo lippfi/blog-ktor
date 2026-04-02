@@ -42,11 +42,9 @@ class CdnStorageServiceImpl(properties: ApplicationProperties) : BaseStorageServ
     }
 
     override fun persistFile(userId: UUID, fileId: UUID, storageKey: String, file: FileUploadData): PersistResult {
-        val bytes = file.inputStream.readAllBytes()
+        uploadToCdn(storageKey, file.bytes, file.mimeType)
 
-        uploadToCdn(storageKey, bytes, file.mimeType)
-
-        val hash = sha256Hex(bytes)
+        val hash = sha256Hex(file.bytes)
         val physicalFileName = storageKey.substringAfterLast('/')
         val blogFile = BlogFile(fileId, userId, physicalFileName, file.type)
         return PersistResult(blogFile, hash)

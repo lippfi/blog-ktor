@@ -31,7 +31,7 @@ class LocalStorageServiceImpl(properties: ApplicationProperties) : BaseStorageSe
         val tmpPath = targetPath.resolveSibling("${targetPath.fileName}.tmp-${UUID.randomUUID()}")
 
         try {
-            file.inputStream.use { input ->
+            file.bytes.inputStream().use { input ->
                 tmpPath.toFile().outputStream().use { output ->
                     input.copyTo(output)
                 }
@@ -42,7 +42,7 @@ class LocalStorageServiceImpl(properties: ApplicationProperties) : BaseStorageSe
             throw e
         }
 
-        val hash = sha256HexFromPath(targetPath)
+        val hash = sha256Hex(file.bytes)
         val blogFile = BlogFile(fileId, userId, targetPath.fileName.toString(), file.type)
         return PersistResult(blogFile, hash)
     }
@@ -65,16 +65,9 @@ class LocalStorageServiceImpl(properties: ApplicationProperties) : BaseStorageSe
     private fun resolveStoragePath(storageKey: String): Path =
         properties.storageBaseDir().resolve(storageKey)
 
-    private fun sha256HexFromPath(path: Path): String {
+    private fun sha256Hex(bytes: ByteArray): String {
         val md = MessageDigest.getInstance("SHA-256")
-        val buf = ByteArray(1024 * 64)
-        JFiles.newInputStream(path).use { input ->
-            while (true) {
-                val read = input.read(buf)
-                if (read <= 0) break
-                md.update(buf, 0, read)
-            }
-        }
+        md.update(bytes)
         return md.digest().joinToString("") { "%02x".format(it) }
     }
 }

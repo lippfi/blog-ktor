@@ -34,7 +34,7 @@ class ReactionBehaviorTests : UnitTestBase() {
     private fun createReaction(userId: UUID, name: String): ReactionDto.View {
         return reactionService.createReaction(userId, name, "test-pack", FileUploadData(
             fullName = "reaction.png",
-            inputStream = avatarFile1.inputStream()
+            bytes = avatarFile1.readBytes()
         ))
     }
 

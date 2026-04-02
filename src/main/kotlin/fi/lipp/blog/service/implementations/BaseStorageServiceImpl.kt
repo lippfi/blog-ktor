@@ -8,9 +8,11 @@ import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.repository.Files
 import fi.lipp.blog.service.ApplicationProperties
 import fi.lipp.blog.service.StorageService
+import org.jetbrains.exposed.exceptions.ExposedSQLException
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
+import java.sql.SQLException
 import java.util.*
 import javax.imageio.ImageIO
 
@@ -30,15 +32,12 @@ abstract class BaseStorageServiceImpl(protected val properties: ApplicationPrope
 
     override fun storeReaction(userId: UUID, fileName: String, file: FileUploadData): BlogFile {
         val validated = validateReaction(file)
-
-        val exists = transaction {
-            Files.select { (Files.fileType eq FileType.REACTION) and (Files.name eq fileName) }
-                .limit(1)
-                .empty().not()
+        return try {
+            storeInternal(userId, listOf(validated), fileName) { it }.single()
+        } catch (e: ExposedSQLException) {
+            if (e.isUniqueViolation()) throw ReactionAlreadyExistsException()
+            throw e
         }
-        if (exists) throw ReactionAlreadyExistsException()
-
-        return storeInternal(userId, listOf(validated), fileName) { it }.single()
     }
 
     override fun getFileURL(file: BlogFile): String {
@@ -71,24 +70,21 @@ abstract class BaseStorageServiceImpl(protected val properties: ApplicationPrope
     protected fun validateAvatar(file: FileUploadData): FileUploadData {
         val ext = file.ext ?: throw InvalidAvatarExtensionException()
         if (ext !in allowedImageExtensions) throw InvalidAvatarExtensionException()
+        if (file.bytes.size > 1_048_576) throw InvalidAvatarSizeException()
 
-        val bytes = file.inputStream.readAllBytes()
-        if (bytes.size > 1_048_576) throw InvalidAvatarSizeException()
-
-        val image = ImageIO.read(bytes.inputStream()) ?: throw InvalidAvatarExtensionException()
+        val image = ImageIO.read(file.bytes.inputStream())
+            ?: throw InvalidAvatarExtensionException()
         if (image.width != image.height) throw InvalidAvatarDimensionsException()
 
-        return FileUploadData(fullName = file.fullName, inputStream = bytes.inputStream())
+        return file
     }
 
     protected fun validateReaction(file: FileUploadData): FileUploadData {
         val ext = file.ext ?: throw InvalidReactionImageException()
         if (ext !in allowedImageExtensions) throw InvalidReactionImageException()
+        if (file.bytes.size > 512 * 1024) throw InvalidReactionImageException()
 
-        val bytes = file.inputStream.readAllBytes()
-        if (bytes.size > 512 * 1024) throw InvalidReactionImageException()
-
-        return FileUploadData(fullName = file.fullName, inputStream = bytes.inputStream(), forcedType = FileType.REACTION)
+        return file.copy(forcedType = FileType.REACTION)
     }
 
     protected data class PersistResult(val blogFile: BlogFile, val hash: String)
@@ -161,4 +157,16 @@ abstract class BaseStorageServiceImpl(protected val properties: ApplicationPrope
 
         return blogFiles.toList()
     }
+
+    fun Throwable.findSqlException(): SQLException? {
+        var current: Throwable? = this
+        while (current != null) {
+            if (current is SQLException) return current
+            current = current.cause
+        }
+        return null
+    }
+
+    fun ExposedSQLException.isUniqueViolation(): Boolean =
+        findSqlException()?.sqlState == "23505"
 }

@@ -5,7 +5,7 @@ import java.io.InputStream
 
 data class FileUploadData(
     val fullName: String,
-    val inputStream: InputStream,
+    val bytes: ByteArray,
     val forcedType: FileType? = null
 ) {
     val name: String = fullName.substringBeforeLast('.', missingDelimiterValue = fullName)
@@ -35,17 +35,23 @@ data class FileUploadData(
         "css" -> FileType.STYLE
         else -> FileType.OTHER
     }
+
+    fun inputStream(): InputStream = bytes.inputStream()
 }
 
 suspend fun MultiPartData.toFileUploadDatas(): List<FileUploadData> {
     val result = mutableListOf<FileUploadData>()
     forEachPart { part ->
-        if (part is PartData.FileItem) {
-            val fileName = part.originalFileName ?: "no_name"
-            val stream = part.streamProvider.invoke()
+        try {
+            if (part is PartData.FileItem) {
+                val fileName = part.originalFileName ?: "no_name"
+                val bytes = part.streamProvider().readBytes()
 
-            val fileUploadData = FileUploadData(fullName = fileName, inputStream = stream)
-            result.add(fileUploadData)
+                val fileUploadData = FileUploadData(fullName = fileName, bytes = bytes)
+                result.add(fileUploadData)
+            }
+        } finally {
+            part.dispose()
         }
     }
     return result

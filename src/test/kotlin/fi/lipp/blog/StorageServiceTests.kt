@@ -50,7 +50,7 @@ class StorageServiceTests : UnitTestBase() {
 
         return FileUploadData(
             fullName = "test.$format",
-            inputStream = ByteArrayInputStream(bytes)
+            bytes = bytes
         )
     }
 
@@ -88,7 +88,7 @@ class StorageServiceTests : UnitTestBase() {
         transaction {
             val file = FileUploadData(
                 fullName = "test.txt",
-                inputStream = ByteArrayInputStream(ByteArray(10))
+                bytes = ByteArray(10)
             )
             assertFailsWith<InvalidReactionImageException> {
                 storageService.storeReaction(registeredUser.id, "1.png",file)
@@ -103,7 +103,7 @@ class StorageServiceTests : UnitTestBase() {
             val largeBytes = ByteArray(600 * 1024)
             val largeFile = FileUploadData(
                 fullName = "test.png",
-                inputStream = ByteArrayInputStream(largeBytes)
+                bytes = largeBytes
             )
             assertFailsWith<InvalidReactionImageException> {
                 storageService.storeReaction(registeredUser.id, "2.png", largeFile)

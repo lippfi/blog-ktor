@@ -89,12 +89,15 @@ fun Route.diaryRoutes(diaryService: DiaryService) {
                     var fileUploadData: FileUploadData? = null
 
                     multipart.forEachPart { part ->
-                        if (part is PartData.FileItem) {
-                            val fileName = part.originalFileName ?: "style.css"
-                            val stream = part.streamProvider.invoke()
-                            fileUploadData = FileUploadData(fileName, stream)
+                        try {
+                            if (part is PartData.FileItem) {
+                                val fileName = part.originalFileName ?: "style.css"
+                                val bytes = part.streamProvider().readBytes()
+                                fileUploadData = FileUploadData(fileName, bytes)
+                            }
+                        } finally {
+                            part.dispose()
                         }
-                        part.dispose()
                     }
 
                     if (fileUploadData != null) {

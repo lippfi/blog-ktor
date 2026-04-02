@@ -1069,9 +1069,9 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `add avatar test`() {
         transaction {
-            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
-            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
-            val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.inputStream())
+            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.readBytes())
+            val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.readBytes())
 
             val (userId, _) = signUsersUp()
 
@@ -1107,9 +1107,9 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `adding avatar with wrong dimensions`() {
         transaction {
-            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
+            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
             // Modify the image dimensions by wrapping it in a new FileUploadData
-            val modifiedInputStream = avatarFile1.inputStream().use { input ->
+            val modifiedBytes = avatarFile1.inputStream().use { input ->
                 val originalImage = ImageIO.read(input)
                 val resizedImage = java.awt.image.BufferedImage(200, 250, originalImage.type)
                 val g = resizedImage.createGraphics()
@@ -1118,9 +1118,9 @@ class UserServiceTests : UnitTestBase() {
 
                 val outputStream = java.io.ByteArrayOutputStream()
                 ImageIO.write(resizedImage, "png", outputStream)
-                java.io.ByteArrayInputStream(outputStream.toByteArray())
+                outputStream.toByteArray()
             }
-            val wrongSizeUpload = FileUploadData(avatarFile1.name, modifiedInputStream)
+            val wrongSizeUpload = FileUploadData(avatarFile1.name, modifiedBytes)
 
             val (userId, _) = signUsersUp()
 
@@ -1153,7 +1153,7 @@ class UserServiceTests : UnitTestBase() {
 
             val outputStream = java.io.ByteArrayOutputStream()
             ImageIO.write(image, "png", outputStream)
-            val largeFileData = FileUploadData("large_avatar.png", java.io.ByteArrayInputStream(outputStream.toByteArray()))
+            val largeFileData = FileUploadData("large_avatar.png", outputStream.toByteArray())
 
             val (userId, _) = signUsersUp()
 
@@ -1170,7 +1170,7 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `adding avatar with wrong extension`() {
         transaction {
-            val avatarUploadTxt = FileUploadData(avatarFileTxt.name, avatarFileTxt.inputStream())
+            val avatarUploadTxt = FileUploadData(avatarFileTxt.name, avatarFileTxt.readBytes())
 
             val (userId, _) = signUsersUp()
 
@@ -1187,9 +1187,9 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `add multiple avatars at once test`() {
         transaction {
-            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
-            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
-            val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.inputStream())
+            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.readBytes())
+            val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.readBytes())
 
             val (userId, _) = signUsersUp()
 
@@ -1215,9 +1215,9 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `delete first avatar`() {
         transaction {
-            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
-            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
-            val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.inputStream())
+            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.readBytes())
+            val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.readBytes())
 
             val (userId, _) = signUsersUp()
 
@@ -1237,9 +1237,9 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `delete last avatar`() {
         transaction {
-            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
-            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
-            val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.inputStream())
+            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.readBytes())
+            val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.readBytes())
 
             val (userId, _) = signUsersUp()
 
@@ -1259,9 +1259,9 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `delete in between avatar`() {
         transaction {
-            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
-            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
-            val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.inputStream())
+            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.readBytes())
+            val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.readBytes())
 
             val (userId, _) = signUsersUp()
 
@@ -1281,9 +1281,9 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `reorder avatars`() {
         transaction {
-            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
-            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
-            val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.inputStream())
+            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.readBytes())
+            val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.readBytes())
 
             val (userId, _) = signUsersUp()
 
@@ -1303,9 +1303,9 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `reorder avatars with one missing`() {
         transaction {
-            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
-            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
-            val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.inputStream())
+            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.readBytes())
+            val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.readBytes())
 
             val (userId, _) = signUsersUp()
 
@@ -1324,9 +1324,9 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `delete avatar with nonexistent uuid`() {
         transaction {
-            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
-            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
-            val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.inputStream())
+            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.readBytes())
+            val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.readBytes())
 
             val (userId, _) = signUsersUp()
 
@@ -1344,8 +1344,8 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `delete avatar of other user`() {
         transaction {
-            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
-            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
+            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.readBytes())
 
             val (userId1, userId2) = signUsersUp()
 
@@ -1374,9 +1374,9 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `reorder avatars with uuid of other users file`() {
         transaction {
-            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
-            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
-            val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.inputStream())
+            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.readBytes())
+            val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.readBytes())
 
             val (userId1, userId2) = signUsersUp()
 
@@ -1399,9 +1399,9 @@ class UserServiceTests : UnitTestBase() {
     @Test
     fun `reorder avatars with non-avatar uuid`() {
         transaction {
-            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
-            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
-            val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.inputStream())
+            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.readBytes())
+            val avatarUpload3 = FileUploadData(avatarFile3.name, avatarFile3.readBytes())
 
             // Get system user to generate invite code
             val systemUserId = userService.getOrCreateSystemUser()
@@ -1444,7 +1444,7 @@ class UserServiceTests : UnitTestBase() {
             val (userId, _) = signUsersUp()
 
             // Add first avatar
-            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
+            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
             userService.addAvatar(userId, listOf(avatarUpload1))
             val avatars1 = userService.getAvatars(userId)
             assertEquals(1, avatars1.size)
@@ -1455,7 +1455,7 @@ class UserServiceTests : UnitTestBase() {
             assertEquals(avatars1[0].id, user.primaryAvatar!!.value)
 
             // Add second avatar
-            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
+            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.readBytes())
             userService.addAvatar(userId, listOf(avatarUpload2))
             val avatars2 = userService.getAvatars(userId)
             assertEquals(2, avatars2.size)
@@ -1473,8 +1473,8 @@ class UserServiceTests : UnitTestBase() {
             val (userId, _) = signUsersUp()
 
             // Add two avatars
-            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
-            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
+            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.readBytes())
             userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2))
             val avatars = userService.getAvatars(userId)
             assertEquals(2, avatars.size)
@@ -1500,7 +1500,7 @@ class UserServiceTests : UnitTestBase() {
             val (userId1, userId2) = signUsersUp()
 
             // Add avatar to first user
-            val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
+            val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
             userService.addAvatar(userId1, listOf(avatarUpload))
             val avatars1 = userService.getAvatars(userId1)
             assertEquals(1, avatars1.size)
@@ -1524,7 +1524,7 @@ class UserServiceTests : UnitTestBase() {
             val (userId, _) = signUsersUp()
 
             // Upload a non-avatar file
-            val fileUpload = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
+            val fileUpload = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
             val files = storageService.store(userId, listOf(fileUpload))
             assertEquals(1, files.size)
 
@@ -1548,7 +1548,7 @@ class UserServiceTests : UnitTestBase() {
             val (userId1, userId2) = signUsersUp()
 
             // Add avatar to first user
-            val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
+            val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
             userService.addAvatar(userId1, listOf(avatarUpload))
             val avatars1 = userService.getAvatars(userId1)
             assertEquals(1, avatars1.size)
@@ -1577,8 +1577,8 @@ class UserServiceTests : UnitTestBase() {
             val (userId, _) = signUsersUp()
 
             // Add two avatars
-            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.inputStream())
-            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.inputStream())
+            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.readBytes())
             userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2))
             val avatars = userService.getAvatars(userId)
             assertEquals(2, avatars.size)

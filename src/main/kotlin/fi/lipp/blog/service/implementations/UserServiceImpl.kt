@@ -962,7 +962,7 @@ class UserServiceImpl(
     private fun Transaction.reuploadFileAsUserAvatar(userId: UUID, avatarId: UUID) {
         val fileEntity = FileEntity.findById(avatarId) ?: return
         val file = storageService.getFile(fileEntity.toBlogFile())
-        val fileUploadData = FileUploadData(file.name, file.inputStream())
+        val fileUploadData = FileUploadData(file.name, file.readBytes())
 
         val newAvatars = storageService.storeAvatars(userId, listOf(fileUploadData))
         if (newAvatars.isEmpty()) return
