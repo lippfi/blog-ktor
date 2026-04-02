@@ -17,6 +17,6 @@ class UserSessionEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var firstSeen by UserSessions.firstSeen
     var lastSeen by UserSessions.lastSeen
     var refreshTokenExpiresAt by UserSessions.refreshTokenExpiresAt
-    var isMobile by UserSessions.isMobile
+    var userAgent by UserSessions.userAgent
     var isRevoked by UserSessions.isRevoked
 }

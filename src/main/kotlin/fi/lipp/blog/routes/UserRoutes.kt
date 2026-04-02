@@ -44,21 +44,19 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService,
 
         post("/confirm-registration") {
             val confirmationCode = call.request.queryParameters["code"] ?: ""
-            val deviceName = call.request.headers["User-Agent"] ?: "unknown"
+            val userAgent = call.request.headers["User-Agent"] ?: "unknown"
             val ip = call.request.origin.remoteHost
             val location = geoLocationService.resolveLocation(ip)
-            val isMobile = isMobileUserAgent(deviceName)
-            val tokenPair = userService.confirmRegistration(confirmationCode, deviceName, location, isMobile)
+            val tokenPair = userService.confirmRegistration(confirmationCode, userAgent, location, userAgent)
             call.respond(tokenPair)
         }
 
         post("/sign-in") {
             val user = call.receive<UserDto.Login>()
-            val deviceName = call.request.headers["User-Agent"] ?: "unknown"
+            val userAgent = call.request.headers["User-Agent"] ?: "unknown"
             val ip = call.request.origin.remoteHost
             val location = geoLocationService.resolveLocation(ip)
-            val isMobile = isMobileUserAgent(deviceName)
-            val tokenPair = userService.signIn(user, deviceName, location, isMobile)
+            val tokenPair = userService.signIn(user, userAgent, location, userAgent)
             call.respond(tokenPair)
         }
 
@@ -255,9 +253,3 @@ private data class UpdateUserRequest(
     val user: UserDto.Registration,
     val oldPassword: String
 )
-
-private val MOBILE_USER_AGENT_REGEX = Regex("Mobile|Android|iPhone|iPad|iPod|webOS|BlackBerry|Opera Mini|IEMobile", RegexOption.IGNORE_CASE)
-
-private fun isMobileUserAgent(userAgent: String): Boolean {
-    return MOBILE_USER_AGENT_REGEX.containsMatchIn(userAgent)
-}

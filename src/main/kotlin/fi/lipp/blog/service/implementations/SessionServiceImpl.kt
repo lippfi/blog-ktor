@@ -19,6 +19,12 @@ import java.util.UUID
 
 private const val REFRESH_TOKEN_LIFETIME_DAYS = 30L
 
+private val MOBILE_USER_AGENT_REGEX = Regex("Mobile|Android|iPhone|iPad|iPod|webOS|BlackBerry|Opera Mini|IEMobile", RegexOption.IGNORE_CASE)
+
+private fun isMobileUserAgent(userAgent: String): Boolean {
+    return MOBILE_USER_AGENT_REGEX.containsMatchIn(userAgent)
+}
+
 class SessionServiceImpl : SessionService {
 
     private fun loadUserPermissionsInTransaction(userId: UUID): Set<UserPermission> {
@@ -27,7 +33,7 @@ class SessionServiceImpl : SessionService {
             .toSet()
     }
 
-    override fun createSession(userId: UUID, deviceName: String, location: String, isMobile: Boolean): TokenPair {
+    override fun createSession(userId: UUID, deviceName: String, location: String, userAgent: String): TokenPair {
         val refreshToken = UUID.randomUUID().toString()
         val session = transaction {
             UserSessionEntity.new {
@@ -35,7 +41,7 @@ class SessionServiceImpl : SessionService {
                 this.refreshToken = refreshToken
                 this.deviceName = deviceName
                 this.location = location
-                this.isMobile = isMobile
+                this.userAgent = userAgent
             }
         }
         val permissions = transaction { loadUserPermissionsInTransaction(userId) }
@@ -112,7 +118,7 @@ class SessionServiceImpl : SessionService {
                     location = session.location,
                     firstSeen = session.firstSeen,
                     lastSeen = session.lastSeen,
-                    isMobile = session.isMobile,
+                    isMobile = isMobileUserAgent(session.userAgent),
                     isCurrent = session.id.value == currentSessionId,
                 )
             }

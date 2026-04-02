@@ -18,7 +18,7 @@ class SessionServiceTests : UnitTestBase() {
     fun `create session returns token pair`() {
         transaction {
             val (userId, _) = signUsersUp()
-            val tokenPair = sessionService.createSession(userId, "Chrome/120", "192.168.1.1", false)
+            val tokenPair = sessionService.createSession(userId, "Chrome/120", "192.168.1.1", "Chrome/120")
 
             assertNotNull(tokenPair.accessToken)
             assertNotNull(tokenPair.refreshToken)
@@ -33,7 +33,7 @@ class SessionServiceTests : UnitTestBase() {
     fun `refresh session returns new tokens with rotated refresh token`() {
         transaction {
             val (userId, _) = signUsersUp()
-            val tokenPair = sessionService.createSession(userId, "Chrome/120", "192.168.1.1", false)
+            val tokenPair = sessionService.createSession(userId, "Chrome/120", "192.168.1.1", "Chrome/120")
             val refreshedPair = sessionService.refreshSession(tokenPair.refreshToken)
 
             assertNotNull(refreshedPair.accessToken)
@@ -48,7 +48,7 @@ class SessionServiceTests : UnitTestBase() {
     fun `old refresh token is invalid after rotation`() {
         transaction {
             val (userId, _) = signUsersUp()
-            val tokenPair = sessionService.createSession(userId, "Chrome/120", "192.168.1.1", false)
+            val tokenPair = sessionService.createSession(userId, "Chrome/120", "192.168.1.1", "Chrome/120")
             val refreshedPair = sessionService.refreshSession(tokenPair.refreshToken)
 
             // Old refresh token should no longer work
@@ -79,7 +79,7 @@ class SessionServiceTests : UnitTestBase() {
             // signUsersUp creates sessions via confirmRegistration, revoke them first
             sessionService.revokeAllSessions(userId)
 
-            val tokenPair = sessionService.createSession(userId, "Chrome/120", "192.168.1.1", false)
+            val tokenPair = sessionService.createSession(userId, "Chrome/120", "192.168.1.1", "Chrome/120")
 
             val sessions = sessionService.getActiveSessions(userId, java.util.UUID.randomUUID())
             assertEquals(1, sessions.size)
@@ -99,7 +99,7 @@ class SessionServiceTests : UnitTestBase() {
             val (userId1, userId2) = signUsersUp()
             sessionService.revokeAllSessions(userId1)
 
-            val tokenPair = sessionService.createSession(userId1, "Chrome/120", "192.168.1.1", false)
+            val tokenPair = sessionService.createSession(userId1, "Chrome/120", "192.168.1.1", "Chrome/120")
 
             val sessions = sessionService.getActiveSessions(userId1, java.util.UUID.randomUUID())
             val sessionId = sessions[0].id
@@ -118,9 +118,9 @@ class SessionServiceTests : UnitTestBase() {
             val (userId, _) = signUsersUp()
             sessionService.revokeAllSessions(userId)
 
-            sessionService.createSession(userId, "Chrome/120", "192.168.1.1", false)
-            sessionService.createSession(userId, "Firefox/110", "10.0.0.1", false)
-            sessionService.createSession(userId, "Safari/17", "172.16.0.1", false)
+            sessionService.createSession(userId, "Chrome/120", "192.168.1.1", "Chrome/120")
+            sessionService.createSession(userId, "Firefox/110", "10.0.0.1", "Firefox/110")
+            sessionService.createSession(userId, "Safari/17", "172.16.0.1", "Safari/17")
 
             val allSessions = sessionService.getActiveSessions(userId, java.util.UUID.randomUUID())
             assertEquals(3, allSessions.size)
@@ -143,8 +143,8 @@ class SessionServiceTests : UnitTestBase() {
             val (userId, _) = signUsersUp()
             sessionService.revokeAllSessions(userId)
 
-            sessionService.createSession(userId, "Chrome/120", "192.168.1.1", false)
-            sessionService.createSession(userId, "Firefox/110", "10.0.0.1", false)
+            sessionService.createSession(userId, "Chrome/120", "192.168.1.1", "Chrome/120")
+            sessionService.createSession(userId, "Firefox/110", "10.0.0.1", "Firefox/110")
 
             val allSessions = sessionService.getActiveSessions(userId, java.util.UUID.randomUUID())
             assertEquals(2, allSessions.size)
@@ -164,7 +164,7 @@ class SessionServiceTests : UnitTestBase() {
             val (userId, _) = signUsersUp()
             sessionService.revokeAllSessions(userId)
 
-            sessionService.createSession(userId, "Chrome/120", "192.168.1.1", false)
+            sessionService.createSession(userId, "Chrome/120", "192.168.1.1", "Chrome/120")
 
             val sessions = sessionService.getActiveSessions(userId, java.util.UUID.randomUUID())
             assertEquals(1, sessions.size)
@@ -186,7 +186,7 @@ class SessionServiceTests : UnitTestBase() {
     @Test
     fun `refresh revoked session throws exception`() {
         val (userId, _) = signUsersUp()
-        val tokenPair = sessionService.createSession(userId, "Chrome/120", "192.168.1.1", false)
+        val tokenPair = sessionService.createSession(userId, "Chrome/120", "192.168.1.1", "Chrome/120")
 
         val sessions = sessionService.getActiveSessions(userId, java.util.UUID.randomUUID())
         val session = sessions.first { it.deviceName == "Chrome/120" }
@@ -206,7 +206,7 @@ class SessionServiceTests : UnitTestBase() {
                 fi.lipp.blog.data.UserDto.Login(testUser.login, testUser.password),
                 "TestBrowser/1.0",
                 "10.0.0.5",
-                false
+                "TestBrowser/1.0"
             )
 
             assertNotNull(tokenPair.accessToken)

@@ -131,7 +131,7 @@ class UserServiceImpl(
     }
 
     @Throws(ConfirmationCodeInvalidOrExpiredException::class)
-    override fun confirmRegistration(confirmationCode: String, deviceName: String, location: String, isMobile: Boolean): TokenPair {
+    override fun confirmRegistration(confirmationCode: String, deviceName: String, location: String, userAgent: String): TokenPair {
         val pendingRegistration = transaction {
             val uuid = try {
                 UUID.fromString(confirmationCode)
@@ -194,15 +194,15 @@ class UserServiceImpl(
             userId.value
         }
 
-        return sessionService.createSession(userId, deviceName, location, isMobile)
+        return sessionService.createSession(userId, deviceName, location, userAgent)
     }
 
-    override fun signIn(user: UserDto.Login, deviceName: String, location: String, isMobile: Boolean): TokenPair {
+    override fun signIn(user: UserDto.Login, deviceName: String, location: String, userAgent: String): TokenPair {
         val userEntity = getUserByLogin(user.login) ?: throw UserNotFoundException()
         if (!encoder.matches(user.password, userEntity.password)) {
             throw WrongPasswordException()
         }
-        return sessionService.createSession(userEntity.id.value, deviceName, location, isMobile)
+        return sessionService.createSession(userEntity.id.value, deviceName, location, userAgent)
     }
 
     override fun updateAdditionalInfo(userId: UUID, info: UserDto.AdditionalInfo) {

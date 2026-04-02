@@ -10,10 +10,10 @@ interface SessionService {
      * @param userId The ID of the authenticated user
      * @param deviceName The name/user-agent of the device
      * @param location The IP address or location of the device
-     * @param isMobile Whether the device is a mobile device
+     * @param userAgent The full User-Agent header string
      * @return A pair of short-lived access token and long-lived refresh token
      */
-    fun createSession(userId: UUID, deviceName: String, location: String, isMobile: Boolean): TokenPair
+    fun createSession(userId: UUID, deviceName: String, location: String, userAgent: String): TokenPair
 
     /**
      * Refreshes the access token using a valid refresh token.

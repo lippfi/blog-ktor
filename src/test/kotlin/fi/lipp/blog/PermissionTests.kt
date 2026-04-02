@@ -31,7 +31,7 @@ class PermissionTests : UnitTestBase() {
             }
             val confirmationCode = pendingRegistration.id.value.toString()
 
-            userService.confirmRegistration(confirmationCode, "test-device", "127.0.0.1", false)
+            userService.confirmRegistration(confirmationCode, "test-device", "127.0.0.1", "test-device")
 
             registeredUser = findUserByLogin(testUser.login)!!
         }

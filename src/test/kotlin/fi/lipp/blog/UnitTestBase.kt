@@ -337,7 +337,7 @@ abstract class UnitTestBase {
         val confirmationCode1 = pendingRegistration1.id.value.toString()
 
         // Confirm registration for first user
-        userService.confirmRegistration(confirmationCode1, "test-device", "127.0.0.1", false)
+        userService.confirmRegistration(confirmationCode1, "test-device", "127.0.0.1", "test-device")
         val user1 = findUserByLogin(testUser.login)!!
 
         val nextInviteCode = userService.generateInviteCode(user1.id)
@@ -354,7 +354,7 @@ abstract class UnitTestBase {
         val confirmationCode2 = pendingRegistration2.id.value.toString()
 
         // Confirm registration for second user
-        userService.confirmRegistration(confirmationCode2, "test-device", "127.0.0.1", false)
+        userService.confirmRegistration(confirmationCode2, "test-device", "127.0.0.1", "test-device")
         val user2 = findUserByLogin(testUser2.login)!!
 
         return user1.id to user2.id
@@ -380,7 +380,7 @@ abstract class UnitTestBase {
         val confirmationCode1 = pendingRegistration1.id.value.toString()
 
         // Confirm registration for first user
-        userService.confirmRegistration(confirmationCode1, "test-device", "127.0.0.1", false)
+        userService.confirmRegistration(confirmationCode1, "test-device", "127.0.0.1", "test-device")
         var userEntity = findUserByLogin(testUser.login)!!
         users.add(userEntity.id to testUser.login)
 
@@ -399,7 +399,7 @@ abstract class UnitTestBase {
             val confirmationCode = pendingRegistration.id.value.toString()
 
             // Confirm registration for random user
-            userService.confirmRegistration(confirmationCode, "test-device", "127.0.0.1", false)
+            userService.confirmRegistration(confirmationCode, "test-device", "127.0.0.1", "test-device")
             userEntity = findUserByLogin(randomUser.login)!!
             users.add(userEntity.id to randomUser.login)
             --i

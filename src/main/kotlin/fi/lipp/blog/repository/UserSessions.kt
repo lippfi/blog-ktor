@@ -18,6 +18,6 @@ object UserSessions : UUIDTable() {
     val refreshTokenExpiresAt = datetime("refresh_token_expires_at").clientDefault {
         LocalDateTime.now().plusDays(REFRESH_TOKEN_LIFETIME_DAYS).toKotlinLocalDateTime()
     }
-    val isMobile = bool("is_mobile").default(false)
+    val userAgent = varchar("user_agent", 500).default("unknown")
     val isRevoked = bool("is_revoked").default(false)
 }
