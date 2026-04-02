@@ -268,7 +268,7 @@ class ReactionBehaviorTests : UnitTestBase() {
             val (user1, user2) = signUsersUp()
             createReaction(user1, "like")
             createReaction(user1, "heart")
-            val subsetId = reactionService.createReactionSubset(user1, testUser.login, "my-subset", listOf("like"))
+            val subsetId = reactionService.createReactionSubset(Viewer.Registered(user1), testUser.login, "my-subset", listOf("like"))
             val post = createPost(user1, reactionSubset = subsetId)
 
             reactionService.addReaction(Viewer.Registered(user2), testUser.login, post.uri, "like")
@@ -284,7 +284,7 @@ class ReactionBehaviorTests : UnitTestBase() {
             val (user1, user2) = signUsersUp()
             createReaction(user1, "like")
             createReaction(user1, "heart")
-            val subsetId = reactionService.createReactionSubset(user1, testUser.login, "my-subset", listOf("like"))
+            val subsetId = reactionService.createReactionSubset(Viewer.Registered(user1), testUser.login, "my-subset", listOf("like"))
             val post = createPost(user1, reactionSubset = subsetId)
 
             assertFailsWith<WrongUserException> {
@@ -530,7 +530,7 @@ class ReactionBehaviorTests : UnitTestBase() {
         transaction {
             val (user1, _) = signUsersUp()
             createReaction(user1, "to-delete")
-            reactionService.deleteReaction(user1, "to-delete")
+            reactionService.deleteReaction(Viewer.Registered(user1), "to-delete")
             val all = reactionService.getReactions()
             assertFalse(all.any { it.name == "to-delete" })
             rollback()
@@ -543,7 +543,7 @@ class ReactionBehaviorTests : UnitTestBase() {
             val (user1, user2) = signUsersUp()
             createReaction(user1, "not-yours")
             assertFailsWith<WrongUserException> {
-                reactionService.deleteReaction(user2, "not-yours")
+                reactionService.deleteReaction(Viewer.Registered(user2), "not-yours")
             }
             rollback()
         }
@@ -553,7 +553,7 @@ class ReactionBehaviorTests : UnitTestBase() {
     fun `createReactionSubset succeeds for diary owner`() {
         transaction {
             val (user1, _) = signUsersUp()
-            val subsetId = reactionService.createReactionSubset(user1, testUser.login, "my-subset", emptyList())
+            val subsetId = reactionService.createReactionSubset(Viewer.Registered(user1), testUser.login, "my-subset", emptyList())
             assertNotNull(subsetId)
             rollback()
         }
@@ -564,7 +564,7 @@ class ReactionBehaviorTests : UnitTestBase() {
         transaction {
             val (user1, user2) = signUsersUp()
             assertFailsWith<WrongUserException> {
-                reactionService.createReactionSubset(user2, testUser.login, "bad-subset", emptyList())
+                reactionService.createReactionSubset(Viewer.Registered(user2), testUser.login, "bad-subset", emptyList())
             }
             rollback()
         }
@@ -575,7 +575,7 @@ class ReactionBehaviorTests : UnitTestBase() {
         transaction {
             val (user1, _) = signUsersUp()
             assertFailsWith<ReactionNotFoundException> {
-                reactionService.createReactionSubset(user1, testUser.login, "bad-subset", listOf("nonexistent-reaction"))
+                reactionService.createReactionSubset(Viewer.Registered(user1), testUser.login, "bad-subset", listOf("nonexistent-reaction"))
             }
             rollback()
         }
@@ -585,8 +585,8 @@ class ReactionBehaviorTests : UnitTestBase() {
     fun `deleteReactionSubset succeeds for owner`() {
         transaction {
             val (user1, _) = signUsersUp()
-            val subsetId = reactionService.createReactionSubset(user1, testUser.login, "to-del", emptyList())
-            reactionService.deleteReactionSubset(user1, subsetId)
+            val subsetId = reactionService.createReactionSubset(Viewer.Registered(user1), testUser.login, "to-del", emptyList())
+            reactionService.deleteReactionSubset(Viewer.Registered(user1), subsetId)
             rollback()
         }
     }
@@ -595,9 +595,9 @@ class ReactionBehaviorTests : UnitTestBase() {
     fun `deleteReactionSubset fails for non-owner`() {
         transaction {
             val (user1, user2) = signUsersUp()
-            val subsetId = reactionService.createReactionSubset(user1, testUser.login, "not-yours", emptyList())
+            val subsetId = reactionService.createReactionSubset(Viewer.Registered(user1), testUser.login, "not-yours", emptyList())
             assertFailsWith<WrongUserException> {
-                reactionService.deleteReactionSubset(user2, subsetId)
+                reactionService.deleteReactionSubset(Viewer.Registered(user2), subsetId)
             }
             rollback()
         }

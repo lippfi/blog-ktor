@@ -223,7 +223,7 @@ class PostCreationUpdateAndUriTests : UnitTestBase() {
         transaction {
             val (user1, user2) = signUsersUp()
             // Create a reaction subset for user2
-            val subsetId = reactionService.createReactionSubset(user2, testUser2.login, "user2-subset", emptyList())
+            val subsetId = reactionService.createReactionSubset(Viewer.Registered(user2), testUser2.login, "user2-subset", emptyList())
 
             assertFailsWith<WrongUserException> {
                 postService.addPost(user1, PostDto.Create(

@@ -109,11 +109,11 @@ class ReactionServiceTests : UnitTestBase() {
 
         // Another user should not be able to delete the reaction
         assertFailsWith<WrongUserException>("Should not allow deletion by non-creator") {
-            reactionService.deleteReaction(user2.id, name)
+            reactionService.deleteReaction(Viewer.Registered(user2.id), name)
         }
 
         // Original creator should be able to delete the reaction
-        reactionService.deleteReaction(testUser.id, name)
+        reactionService.deleteReaction(Viewer.Registered(testUser.id), name)
 
         // Verify the reaction was deleted by trying to get all reactions
         val reactions = reactionService.getReactions()

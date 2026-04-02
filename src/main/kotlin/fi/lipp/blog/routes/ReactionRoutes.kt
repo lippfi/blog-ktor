@@ -42,6 +42,12 @@ fun Route.reactionRoutes(reactionService: ReactionService) {
             call.respond(reactions)
         }
 
+        get("/name-busy") {
+            val name = call.request.queryParameters["name"] ?: throw IllegalArgumentException("Missing name parameter")
+            val isBusy = reactionService.isReactionNameBusy(name)
+            call.respond(mapOf("busy" to isBusy))
+        }
+
         authenticate {
             post("/create") {
                 val name = call.request.queryParameters["name"] ?: throw IllegalArgumentException("Missing name parameter")
@@ -58,14 +64,55 @@ fun Route.reactionRoutes(reactionService: ReactionService) {
 
             delete {
                 val name = call.request.queryParameters["name"] ?: throw IllegalArgumentException("Missing name parameter")
-                reactionService.deleteReaction(userId, name)
+                reactionService.deleteReaction(viewer as Viewer.Registered, name)
                 call.respondText("Reaction deleted successfully")
+            }
+
+            put("/rename") {
+                val oldName = call.request.queryParameters["oldName"] ?: throw IllegalArgumentException("Missing oldName parameter")
+                val newName = call.request.queryParameters["newName"] ?: throw IllegalArgumentException("Missing newName parameter")
+                reactionService.renameReaction(viewer as Viewer.Registered, oldName, newName)
+                call.respondText("Reaction renamed successfully")
             }
 
             get("/recent") {
                 val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 50
                 val reactions = reactionService.getUserRecentReactions(userId, limit)
                 call.respond(reactions)
+            }
+
+            // Reaction pack management
+            put("/pack") {
+                val packName = call.request.queryParameters["pack"] ?: throw IllegalArgumentException("Missing pack parameter")
+                val newName = call.request.queryParameters["newName"]
+                val multipart = call.receiveMultipart()
+                val files = multipart.toFileUploadDatas()
+                val newIcon = files.firstOrNull()
+                val pack = reactionService.updateReactionPack(viewer as Viewer.Registered, packName, newName, newIcon)
+                call.respond(pack)
+            }
+
+            // Reaction subset management
+            post("/subset") {
+                val diaryLogin = call.request.queryParameters["login"] ?: throw IllegalArgumentException("Missing login parameter")
+                val name = call.request.queryParameters["name"] ?: throw IllegalArgumentException("Missing name parameter")
+                val reactionNames = (call.request.queryParameters["reactions"] ?: "").split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                val subsetId = reactionService.createReactionSubset(viewer as Viewer.Registered, diaryLogin, name, reactionNames)
+                call.respond(mapOf("id" to subsetId.toString()))
+            }
+
+            put("/subset") {
+                val subsetId = call.request.queryParameters["id"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing id parameter")
+                val name = call.request.queryParameters["name"]
+                val reactionNames = call.request.queryParameters["reactions"]?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }
+                reactionService.updateReactionSubset(viewer as Viewer.Registered, subsetId, name, reactionNames)
+                call.respondText("Reaction subset updated successfully")
+            }
+
+            delete("/subset") {
+                val subsetId = call.request.queryParameters["id"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing id parameter")
+                reactionService.deleteReactionSubset(viewer as Viewer.Registered, subsetId)
+                call.respondText("Reaction subset deleted successfully")
             }
         }
 
@@ -103,6 +150,12 @@ fun Route.reactionRoutes(reactionService: ReactionService) {
 
                 reactionService.removeCommentReaction(viewer, commentId, reactionName)
                 call.respondText("Comment reaction removed successfully")
+            }
+
+            get("/comment-reactions") {
+                val commentId = call.request.queryParameters["commentId"]?.let { UUID.fromString(it) } ?: throw IllegalArgumentException("Missing commentId parameter")
+                val reactions = reactionService.getCommentReactions(viewer, commentId)
+                call.respond(reactions)
             }
         }
     }

@@ -37,7 +37,7 @@ class ReactionSubsetTests : UnitTestBase() {
         val name = "My Favorites"
         val reactionNames = listOf("fire", "heart")
 
-        val subsetId = reactionService.createReactionSubset(user1Id, testUser.login, name, reactionNames)
+        val subsetId = reactionService.createReactionSubset(Viewer.Registered(user1Id), testUser.login, name, reactionNames)
 
         transaction {
             val subset = ReactionSubsetEntity.findById(subsetId)
@@ -53,7 +53,7 @@ class ReactionSubsetTests : UnitTestBase() {
 
     @Test
     fun `test create empty reaction subset`() {
-        val subsetId = reactionService.createReactionSubset(user1Id, testUser.login, "Empty", emptyList())
+        val subsetId = reactionService.createReactionSubset(Viewer.Registered(user1Id), testUser.login, "Empty", emptyList())
         transaction {
             val subset = ReactionSubsetEntity.findById(subsetId)
             assertNotNull(subset)
@@ -65,13 +65,13 @@ class ReactionSubsetTests : UnitTestBase() {
     @Test
     fun `test create reaction subset with non-existent reaction`() {
         assertFailsWith<ReactionNotFoundException> {
-            reactionService.createReactionSubset(user1Id, testUser.login, "Invalid", listOf("like", "missing"))
+            reactionService.createReactionSubset(Viewer.Registered(user1Id), testUser.login, "Invalid", listOf("like", "missing"))
         }
     }
 
     @Test
     fun `test create reaction subset with duplicate names`() {
-        val subsetId = reactionService.createReactionSubset(user1Id, testUser.login, "Duplicates", listOf("like", "like"))
+        val subsetId = reactionService.createReactionSubset(Viewer.Registered(user1Id), testUser.login, "Duplicates", listOf("like", "like"))
         transaction {
             val subsetReactions = ReactionSubsetReactionEntity.find { ReactionSubsetReactions.subset eq subsetId }.toList()
             assertEquals(1, subsetReactions.size)
@@ -81,15 +81,15 @@ class ReactionSubsetTests : UnitTestBase() {
     @Test
     fun `test create reaction subset wrong user`() {
         assertFailsWith<WrongUserException> {
-            reactionService.createReactionSubset(user2Id, testUser.login, "Hacker Subset", listOf("like"))
+            reactionService.createReactionSubset(Viewer.Registered(user2Id), testUser.login, "Hacker Subset", listOf("like"))
         }
     }
 
     @Test
     fun `test update reaction subset name`() {
-        val subsetId = reactionService.createReactionSubset(user1Id, testUser.login, "Old Name", listOf("like"))
+        val subsetId = reactionService.createReactionSubset(Viewer.Registered(user1Id), testUser.login, "Old Name", listOf("like"))
 
-        reactionService.updateReactionSubset(user1Id, subsetId, "New Name", null)
+        reactionService.updateReactionSubset(Viewer.Registered(user1Id), subsetId, "New Name", null)
 
         transaction {
             val subset = ReactionSubsetEntity.findById(subsetId)
@@ -101,9 +101,9 @@ class ReactionSubsetTests : UnitTestBase() {
 
     @Test
     fun `test update reaction subset reactions`() {
-        val subsetId = reactionService.createReactionSubset(user1Id, testUser.login, "Subset", listOf("wolf"))
+        val subsetId = reactionService.createReactionSubset(Viewer.Registered(user1Id), testUser.login, "Subset", listOf("wolf"))
 
-        reactionService.updateReactionSubset(user1Id, subsetId, null, listOf("fire", "heart"))
+        reactionService.updateReactionSubset(Viewer.Registered(user1Id), subsetId, null, listOf("fire", "heart"))
 
         transaction {
             val subsetReactions = ReactionSubsetReactionEntity.find { ReactionSubsetReactions.subset eq subsetId }.toList()
@@ -116,9 +116,9 @@ class ReactionSubsetTests : UnitTestBase() {
 
     @Test
     fun `test update reaction subset to empty`() {
-        val subsetId = reactionService.createReactionSubset(user1Id, testUser.login, "Subset", listOf("like"))
+        val subsetId = reactionService.createReactionSubset(Viewer.Registered(user1Id), testUser.login, "Subset", listOf("like"))
 
-        reactionService.updateReactionSubset(user1Id, subsetId, null, emptyList())
+        reactionService.updateReactionSubset(Viewer.Registered(user1Id), subsetId, null, emptyList())
 
         transaction {
             val subsetReactions = ReactionSubsetReactionEntity.find { ReactionSubsetReactions.subset eq subsetId }.toList()
@@ -128,31 +128,31 @@ class ReactionSubsetTests : UnitTestBase() {
 
     @Test
     fun `test update reaction subset wrong user`() {
-        val subsetId = reactionService.createReactionSubset(user1Id, testUser.login, "User1 Subset", listOf("like"))
+        val subsetId = reactionService.createReactionSubset(Viewer.Registered(user1Id), testUser.login, "User1 Subset", listOf("like"))
 
         assertFailsWith<WrongUserException> {
-            reactionService.updateReactionSubset(user2Id, subsetId, "Hacked", null)
+            reactionService.updateReactionSubset(Viewer.Registered(user2Id), subsetId, "Hacked", null)
         }
     }
 
     @Test
     fun `test update reaction subset with non-existent reaction`() {
-        val subsetId = reactionService.createReactionSubset(user1Id, testUser.login, "Subset", listOf("like"))
+        val subsetId = reactionService.createReactionSubset(Viewer.Registered(user1Id), testUser.login, "Subset", listOf("like"))
         assertFailsWith<ReactionNotFoundException> {
-            reactionService.updateReactionSubset(user1Id, subsetId, null, listOf("missing"))
+            reactionService.updateReactionSubset(Viewer.Registered(user1Id), subsetId, null, listOf("missing"))
         }
     }
 
     @Test
     fun `test update non-existent reaction subset`() {
-        reactionService.updateReactionSubset(user1Id, UUID.randomUUID(), "Whatever", null)
+        reactionService.updateReactionSubset(Viewer.Registered(user1Id), UUID.randomUUID(), "Whatever", null)
     }
 
     @Test
     fun `test delete reaction subset`() {
-        val subsetId = reactionService.createReactionSubset(user1Id, testUser.login, "Delete Me", listOf("like"))
+        val subsetId = reactionService.createReactionSubset(Viewer.Registered(user1Id), testUser.login, "Delete Me", listOf("like"))
 
-        reactionService.deleteReactionSubset(user1Id, subsetId)
+        reactionService.deleteReactionSubset(Viewer.Registered(user1Id), subsetId)
 
         transaction {
             assertNull(ReactionSubsetEntity.findById(subsetId))
@@ -163,10 +163,10 @@ class ReactionSubsetTests : UnitTestBase() {
 
     @Test
     fun `test delete reaction subset wrong user`() {
-        val subsetId = reactionService.createReactionSubset(user1Id, testUser.login, "User1 Subset", listOf("like"))
+        val subsetId = reactionService.createReactionSubset(Viewer.Registered(user1Id), testUser.login, "User1 Subset", listOf("like"))
 
         assertFailsWith<WrongUserException> {
-            reactionService.deleteReactionSubset(user2Id, subsetId)
+            reactionService.deleteReactionSubset(Viewer.Registered(user2Id), subsetId)
         }
 
         transaction {
@@ -176,6 +176,6 @@ class ReactionSubsetTests : UnitTestBase() {
 
     @Test
     fun `test delete non-existent reaction subset`() {
-        reactionService.deleteReactionSubset(user1Id, UUID.randomUUID())
+        reactionService.deleteReactionSubset(Viewer.Registered(user1Id), UUID.randomUUID())
     }
 }

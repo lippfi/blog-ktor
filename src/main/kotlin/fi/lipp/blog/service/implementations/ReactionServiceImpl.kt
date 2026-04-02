@@ -10,6 +10,7 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInSubQuery
 import org.jetbrains.exposed.sql.transactions.transaction
+import fi.lipp.blog.data.UserPermission
 import java.io.FileNotFoundException
 import java.util.*
 
@@ -82,6 +83,13 @@ class ReactionServiceImpl(
                         this.creator = UserEntity.findById(userId)!!
                     }
 
+                // Check if user is allowed to add reactions to this pack
+                val isPackCreator = pack.creator.id.value == userId
+                val canWriteBasic = packName == "basic" && UserPermission.WRITE_BASIC_REACTIONS in viewer.permissions
+                if (!isPackCreator && !canWriteBasic) {
+                    throw WrongUserException()
+                }
+
                 val reactionEntity = ReactionEntity.new {
                     this.name = name
                     this.icon = iconFile
@@ -104,13 +112,76 @@ class ReactionServiceImpl(
         }
     }
 
-    override fun deleteReaction(userId: UUID, name: String) {
+    override fun deleteReaction(viewer: Viewer.Registered, name: String) {
         transaction {
             val reactionEntity = ReactionEntity.find { Reactions.name eq name }.firstOrNull() ?: throw ReactionNotFoundException()
-            if (reactionEntity.creator.value != userId) {
+            val isCreator = reactionEntity.creator.value == viewer.userId
+            val canWriteBasic = reactionEntity.pack.name == "basic" && UserPermission.WRITE_BASIC_REACTIONS in viewer.permissions
+            if (!isCreator && !canWriteBasic) {
                 throw WrongUserException()
             }
             reactionEntity.delete()
+        }
+    }
+
+    override fun renameReaction(viewer: Viewer.Registered, oldName: String, newName: String) {
+        ReactionDto.validateName(newName)
+        transaction {
+            val reactionEntity = ReactionEntity.find { Reactions.name eq oldName }.firstOrNull() ?: throw ReactionNotFoundException()
+            val isCreator = reactionEntity.creator.value == viewer.userId
+            val canWriteBasic = reactionEntity.pack.name == "basic" && UserPermission.WRITE_BASIC_REACTIONS in viewer.permissions
+            if (!isCreator && !canWriteBasic) {
+                throw WrongUserException()
+            }
+            val nameExists = ReactionEntity.find { Reactions.name eq newName }.firstOrNull() != null
+            if (nameExists) {
+                throw ReactionNameIsTakenException()
+            }
+            reactionEntity.name = newName
+        }
+    }
+
+    override fun isReactionNameBusy(name: String): Boolean {
+        return transaction {
+            ReactionEntity.find { Reactions.name eq name }.firstOrNull() != null
+        }
+    }
+
+    override fun updateReactionPack(viewer: Viewer.Registered, packName: String, newName: String?, newIcon: FileUploadData?): ReactionPackDto {
+        return transaction {
+            val pack = ReactionPackEntity.find { ReactionPacks.name eq packName }.firstOrNull()
+                ?: throw ReactionPackNotFoundException()
+            val isCreator = pack.creator.id.value == viewer.userId
+            val canWriteBasic = packName == "basic" && UserPermission.WRITE_BASIC_REACTIONS in viewer.permissions
+            if (!isCreator && !canWriteBasic) {
+                throw WrongUserException()
+            }
+
+            if (newName != null && newName != pack.name) {
+                val nameExists = ReactionPackEntity.find { ReactionPacks.name eq newName }.firstOrNull() != null
+                if (nameExists) {
+                    throw ReactionNameIsTakenException()
+                }
+                pack.name = newName
+            }
+
+            if (newIcon != null) {
+                val storedFile = storageService.storeReaction(
+                    viewer,
+                    "pack-icon-${pack.name}",
+                    newIcon
+                )
+                val iconFile = FileEntity.findById(storedFile.id) ?: throw FileNotFoundException()
+                pack.icon = iconFile
+            }
+
+            ReactionPackDto(
+                name = pack.name,
+                iconUri = pack.icon?.let { storageService.getFileURL(it.toBlogFile()) }
+                    ?: pack.reactions.minByOrNull { it.ordinal }?.let { storageService.getFileURL(it.icon.toBlogFile()) }
+                    ?: "",
+                reactions = pack.reactions.sortedBy { it.ordinal }.map { toReactionView(it) }
+            )
         }
     }
 
@@ -188,10 +259,10 @@ class ReactionServiceImpl(
         }
     }
 
-    override fun createReactionSubset(userId: UUID, diaryLogin: String, name: String, reactionNames: List<String>): UUID {
+    override fun createReactionSubset(viewer: Viewer.Registered, diaryLogin: String, name: String, reactionNames: List<String>): UUID {
         return transaction {
             val userDiary = DiaryEntity.find { Diaries.login eq diaryLogin }.first()
-            if (userDiary.owner.value != userId) {
+            if (userDiary.owner.value != viewer.userId) {
                 throw WrongUserException()
             }
 
@@ -219,12 +290,12 @@ class ReactionServiceImpl(
         }
     }
 
-    override fun updateReactionSubset(userId: UUID, subsetId: UUID, name: String?, reactionNames: List<String>?) {
+    override fun updateReactionSubset(viewer: Viewer.Registered, subsetId: UUID, name: String?, reactionNames: List<String>?) {
         transaction {
             val subset = ReactionSubsetEntity.findById(subsetId) ?: return@transaction
             val subsetDiary = DiaryEntity.findById(subset.diary)!!
             val diaryOwner = subsetDiary.owner
-            if (diaryOwner.value != userId) throw WrongUserException()
+            if (diaryOwner.value != viewer.userId) throw WrongUserException()
 
             if (name != null) {
                 subset.name = name
@@ -250,12 +321,12 @@ class ReactionServiceImpl(
         }
     }
 
-    override fun deleteReactionSubset(userId: UUID, subsetId: UUID) {
+    override fun deleteReactionSubset(viewer: Viewer.Registered, subsetId: UUID) {
         transaction {
             val subset = ReactionSubsetEntity.findById(subsetId) ?: return@transaction
             val subsetDiary = DiaryEntity.findById(subset.diary)!!
             val diaryOwner = subsetDiary.owner
-            if (diaryOwner.value != userId) throw WrongUserException()
+            if (diaryOwner.value != viewer.userId) throw WrongUserException()
             ReactionSubsets.deleteWhere { ReactionSubsets.id eq subsetId }
         }
     }
