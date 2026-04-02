@@ -228,10 +228,11 @@ interface UserService {
 
     /**
      * Add a user to the ignore list
+     * @param reason Optional reason text for adding user to ignore list
      * @throws UserNotFoundException if target user doesn't exist
      */
     @Throws(UserNotFoundException::class)
-    fun ignoreUser(userId: UUID, userLogin: String)
+    fun ignoreUser(userId: UUID, userLogin: String, reason: String? = null)
 
     /**
      * Remove a user from the ignore list

@@ -230,7 +230,8 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService,
 
             post("/ignore-user") {
                 val userLogin = call.parameters["login"] ?: throw IllegalArgumentException("Missing login parameter")
-                userService.ignoreUser(userId, userLogin)
+                val reason = call.request.queryParameters["reason"]
+                userService.ignoreUser(userId, userLogin, reason)
                 call.respondText("User added to ignore list successfully")
             }
 

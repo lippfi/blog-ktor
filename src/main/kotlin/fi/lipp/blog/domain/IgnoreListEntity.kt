@@ -11,4 +11,5 @@ class IgnoreListEntity(id: EntityID<UUID>) : UUIDEntity(id) {
 
     var user by UserEntity referencedOn IgnoreList.user
     var ignoredUser by UserEntity referencedOn IgnoreList.ignoredUser
+    var reason by IgnoreList.reason
 }

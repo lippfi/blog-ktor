@@ -1227,7 +1227,7 @@ class UserServiceImpl(
         }
     }
 
-    override fun ignoreUser(userId: UUID, userLogin: String) {
+    override fun ignoreUser(userId: UUID, userLogin: String, reason: String?) {
         return transaction {
             val targetUser = getUserByLogin(userLogin) ?: throw UserNotFoundException()
             val targetUserId = targetUser.id.value
@@ -1241,6 +1241,7 @@ class UserServiceImpl(
             IgnoreListEntity.new {
                 user = UserEntity[userId]
                 ignoredUser = targetUser
+                this.reason = reason?.takeIf { it.isNotBlank() }
             }
         }
     }

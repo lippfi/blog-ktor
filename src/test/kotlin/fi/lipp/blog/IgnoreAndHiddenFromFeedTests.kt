@@ -14,6 +14,7 @@ import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class IgnoreAndHiddenFromFeedTests : UnitTestBase() {
@@ -111,6 +112,39 @@ class IgnoreAndHiddenFromFeedTests : UnitTestBase() {
     }
 
     // --- Ignore list and hidden-from-feed behavior for posts ---
+
+    @Test
+    fun `ignore user stores optional reason`() {
+        transaction {
+            val (user1, user2) = signUsersUp()
+            val reason = "spam reactions"
+
+            userService.ignoreUser(user1, testUser2.login, reason)
+
+            val ignoreRecord = IgnoreList
+                .select { (IgnoreList.user eq user1) and (IgnoreList.ignoredUser eq user2) }
+                .singleOrNull()
+
+            assertNotNull(ignoreRecord)
+            assertEquals(reason, ignoreRecord[IgnoreList.reason])
+        }
+    }
+
+    @Test
+    fun `ignore user stores null reason when reason is blank`() {
+        transaction {
+            val (user1, user2) = signUsersUp()
+
+            userService.ignoreUser(user1, testUser2.login, "   ")
+
+            val ignoreRecord = IgnoreList
+                .select { (IgnoreList.user eq user1) and (IgnoreList.ignoredUser eq user2) }
+                .singleOrNull()
+
+            assertNotNull(ignoreRecord)
+            assertNull(ignoreRecord[IgnoreList.reason])
+        }
+    }
 
     @Test
     fun `a registered viewer does not see posts authored by a local user they ignored`() {
