@@ -27,7 +27,9 @@ class UserServiceImpl(
     private val notificationService: NotificationService,
     private val properties: ApplicationProperties,
     private val sessionService: SessionService,
+    private val reactionServiceProvider: Lazy<ReactionService>,
 ) : UserService {
+    private val reactionService by reactionServiceProvider
     override fun getUserPermissions(userId: UUID): Set<UserPermission> {
         return transaction {
             UserEntity.findById(userId) ?: throw UserNotFoundException()
@@ -196,6 +198,8 @@ class UserServiceImpl(
 
             userId.value
         }
+
+        reactionService.initializePackCollection(userId)
 
         return sessionService.createSession(userId, deviceName, location, userAgent)
     }

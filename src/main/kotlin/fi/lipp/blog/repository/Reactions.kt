@@ -52,3 +52,13 @@ object AnonymousPostReactions : UUIDTable() {
         uniqueIndex("anonymous_post_reactions_unique", ipFingerprint, post, reaction)
     }
 }
+
+object ReactionPackCollections : UUIDTable() {
+    val user = reference("user", Users, onDelete = ReferenceOption.CASCADE)
+    val pack = reference("pack", ReactionPacks, onDelete = ReferenceOption.CASCADE)
+    val ordinal = integer("ordinal").default(0)
+
+    init {
+        uniqueIndex("reaction_pack_collections_unique", user, pack)
+    }
+}

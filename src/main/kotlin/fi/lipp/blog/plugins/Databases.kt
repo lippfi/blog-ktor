@@ -63,6 +63,7 @@ fun Application.configureDatabases() {
             IgnoreList,
             UserSessions,
             UserPermissions,
+            ReactionPackCollections,
         )
     }
 

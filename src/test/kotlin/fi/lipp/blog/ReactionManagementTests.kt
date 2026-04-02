@@ -415,4 +415,235 @@ class ReactionManagementTests : UnitTestBase() {
         val basicPacks = packs.filter { it.name == "basic" }
         assertEquals(1, basicPacks.size)
     }
+
+    // =====================================================================
+    // Pack Collection - getPackCollection
+    // =====================================================================
+
+    @Test
+    fun `getPackCollection returns basic pack by default for new user`() {
+        val collection = reactionService.getPackCollection(Viewer.Registered(user1Id))
+        assertEquals(1, collection.size)
+        assertEquals("basic", collection[0].name)
+    }
+
+    @Test
+    fun `getPackCollection returns basic pack with its reactions`() {
+        val collection = reactionService.getPackCollection(Viewer.Registered(user1Id))
+        assertEquals(1, collection.size)
+        assertTrue(collection[0].reactions.isNotEmpty())
+    }
+
+    @Test
+    fun `getPackCollection is isolated between users`() {
+        val viewer1 = Viewer.Registered(user1Id)
+        val viewer2 = Viewer.Registered(user2Id)
+        reactionService.createReaction(viewer1, "coll-r1", "coll-pack1", createIcon())
+        reactionService.addPackToCollection(viewer1, "coll-pack1")
+
+        val coll1 = reactionService.getPackCollection(viewer1)
+        val coll2 = reactionService.getPackCollection(viewer2)
+
+        assertTrue(coll1.any { it.name == "coll-pack1" })
+        assertFalse(coll2.any { it.name == "coll-pack1" })
+    }
+
+    // =====================================================================
+    // Pack Collection - addPackToCollection
+    // =====================================================================
+
+    @Test
+    fun `addPackToCollection adds a pack to user collection`() {
+        val viewer = Viewer.Registered(user1Id)
+        reactionService.createReaction(viewer, "add-r1", "add-pack1", createIcon())
+        reactionService.addPackToCollection(viewer, "add-pack1")
+
+        val collection = reactionService.getPackCollection(viewer)
+        assertTrue(collection.any { it.name == "add-pack1" })
+    }
+
+    @Test
+    fun `addPackToCollection can add another user pack`() {
+        val viewer1 = Viewer.Registered(user1Id)
+        val viewer2 = Viewer.Registered(user2Id)
+        reactionService.createReaction(viewer1, "other-r", "other-pack", createIcon())
+        reactionService.addPackToCollection(viewer2, "other-pack")
+
+        val collection = reactionService.getPackCollection(viewer2)
+        assertTrue(collection.any { it.name == "other-pack" })
+    }
+
+    @Test
+    fun `addPackToCollection is idempotent (adding same pack twice does not duplicate)`() {
+        val viewer = Viewer.Registered(user1Id)
+        reactionService.createReaction(viewer, "dup-r", "dup-pack", createIcon())
+        reactionService.addPackToCollection(viewer, "dup-pack")
+        reactionService.addPackToCollection(viewer, "dup-pack")
+
+        val collection = reactionService.getPackCollection(viewer)
+        assertEquals(1, collection.count { it.name == "dup-pack" })
+    }
+
+    @Test
+    fun `addPackToCollection throws for nonexistent pack`() {
+        assertFailsWith<ReactionPackNotFoundException> {
+            reactionService.addPackToCollection(Viewer.Registered(user1Id), "nonexistent-pack")
+        }
+    }
+
+    @Test
+    fun `addPackToCollection appends at end with correct ordinal`() {
+        val viewer = Viewer.Registered(user1Id)
+        reactionService.createReaction(viewer, "ord-r1", "ord-pack1", createIcon())
+        reactionService.createReaction(viewer, "ord-r2", "ord-pack2", createIcon())
+
+        reactionService.addPackToCollection(viewer, "ord-pack1")
+        reactionService.addPackToCollection(viewer, "ord-pack2")
+
+        val collection = reactionService.getPackCollection(viewer)
+        // basic should be first (ordinal 0), then ord-pack1, then ord-pack2
+        assertEquals("basic", collection[0].name)
+        assertEquals("ord-pack1", collection[1].name)
+        assertEquals("ord-pack2", collection[2].name)
+    }
+
+    // =====================================================================
+    // Pack Collection - removePackFromCollection
+    // =====================================================================
+
+    @Test
+    fun `removePackFromCollection removes a pack from user collection`() {
+        val viewer = Viewer.Registered(user1Id)
+        reactionService.createReaction(viewer, "rem-r", "rem-pack", createIcon())
+        reactionService.addPackToCollection(viewer, "rem-pack")
+        assertTrue(reactionService.getPackCollection(viewer).any { it.name == "rem-pack" })
+
+        reactionService.removePackFromCollection(viewer, "rem-pack")
+        assertFalse(reactionService.getPackCollection(viewer).any { it.name == "rem-pack" })
+    }
+
+    @Test
+    fun `removePackFromCollection allows removing basic pack and it stays removed`() {
+        val viewer = Viewer.Registered(user1Id)
+        // Basic pack was added during registration
+        assertTrue(reactionService.getPackCollection(viewer).any { it.name == "basic" })
+
+        reactionService.removePackFromCollection(viewer, "basic")
+
+        // After removal, basic pack should NOT be re-added
+        val collection = reactionService.getPackCollection(viewer)
+        assertFalse(collection.any { it.name == "basic" })
+    }
+
+    @Test
+    fun `removePackFromCollection is silent for pack not in collection`() {
+        val viewer = Viewer.Registered(user1Id)
+        reactionService.createReaction(viewer, "not-in-r", "not-in-pack", createIcon())
+        // Should not throw
+        reactionService.removePackFromCollection(viewer, "not-in-pack")
+    }
+
+    @Test
+    fun `removePackFromCollection throws for nonexistent pack`() {
+        assertFailsWith<ReactionPackNotFoundException> {
+            reactionService.removePackFromCollection(Viewer.Registered(user1Id), "nonexistent-pack")
+        }
+    }
+
+    @Test
+    fun `removePackFromCollection does not affect other users`() {
+        val viewer1 = Viewer.Registered(user1Id)
+        val viewer2 = Viewer.Registered(user2Id)
+        reactionService.createReaction(viewer1, "shared-r", "shared-pack", createIcon())
+        reactionService.addPackToCollection(viewer1, "shared-pack")
+        reactionService.addPackToCollection(viewer2, "shared-pack")
+
+        reactionService.removePackFromCollection(viewer1, "shared-pack")
+        assertFalse(reactionService.getPackCollection(viewer1).any { it.name == "shared-pack" })
+        assertTrue(reactionService.getPackCollection(viewer2).any { it.name == "shared-pack" })
+    }
+
+    // =====================================================================
+    // Pack Collection - reorderPackInCollection
+    // =====================================================================
+
+    @Test
+    fun `reorderPackInCollection moves pack to new position`() {
+        val viewer = Viewer.Registered(user1Id)
+        reactionService.createReaction(viewer, "reord-r1", "reord-pack1", createIcon())
+        reactionService.createReaction(viewer, "reord-r2", "reord-pack2", createIcon())
+        reactionService.addPackToCollection(viewer, "reord-pack1")
+        reactionService.addPackToCollection(viewer, "reord-pack2")
+
+        // Current order: basic(0), reord-pack1(1), reord-pack2(2)
+        // Move reord-pack2 to position 0
+        reactionService.reorderPackInCollection(viewer, "reord-pack2", 0)
+
+        val collection = reactionService.getPackCollection(viewer)
+        assertEquals("reord-pack2", collection[0].name)
+        assertEquals("basic", collection[1].name)
+        assertEquals("reord-pack1", collection[2].name)
+    }
+
+    @Test
+    fun `reorderPackInCollection moves pack down`() {
+        val viewer = Viewer.Registered(user1Id)
+        reactionService.createReaction(viewer, "down-r1", "down-pack1", createIcon())
+        reactionService.createReaction(viewer, "down-r2", "down-pack2", createIcon())
+        reactionService.addPackToCollection(viewer, "down-pack1")
+        reactionService.addPackToCollection(viewer, "down-pack2")
+
+        // Current order: basic(0), down-pack1(1), down-pack2(2)
+        // Move basic to position 2
+        reactionService.reorderPackInCollection(viewer, "basic", 2)
+
+        val collection = reactionService.getPackCollection(viewer)
+        assertEquals("down-pack1", collection[0].name)
+        assertEquals("down-pack2", collection[1].name)
+        assertEquals("basic", collection[2].name)
+    }
+
+    @Test
+    fun `reorderPackInCollection with same position is no-op`() {
+        val viewer = Viewer.Registered(user1Id)
+        reactionService.createReaction(viewer, "noop-ord-r", "noop-ord-pack", createIcon())
+        reactionService.addPackToCollection(viewer, "noop-ord-pack")
+
+        // basic(0), noop-ord-pack(1) — reorder to same position
+        reactionService.reorderPackInCollection(viewer, "noop-ord-pack", 1)
+
+        val collection = reactionService.getPackCollection(viewer)
+        assertEquals("basic", collection[0].name)
+        assertEquals("noop-ord-pack", collection[1].name)
+    }
+
+    @Test
+    fun `reorderPackInCollection throws for nonexistent pack`() {
+        assertFailsWith<ReactionPackNotFoundException> {
+            reactionService.reorderPackInCollection(Viewer.Registered(user1Id), "no-such-pack", 0)
+        }
+    }
+
+    @Test
+    fun `reorderPackInCollection throws for pack not in collection`() {
+        val viewer = Viewer.Registered(user1Id)
+        reactionService.createReaction(viewer, "not-coll-r", "not-coll-pack", createIcon())
+        assertFailsWith<ReactionPackNotFoundException> {
+            reactionService.reorderPackInCollection(viewer, "not-coll-pack", 0)
+        }
+    }
+
+    @Test
+    fun `pack collection preserves reactions within packs`() {
+        val viewer = Viewer.Registered(user1Id)
+        reactionService.createReaction(viewer, "pr1", "preserv-pack", createIcon())
+        reactionService.createReaction(viewer, "pr2", "preserv-pack", createIcon())
+        reactionService.addPackToCollection(viewer, "preserv-pack")
+
+        val collection = reactionService.getPackCollection(viewer)
+        val pack = collection.find { it.name == "preserv-pack" }!!
+        assertEquals(2, pack.reactions.size)
+        assertTrue(pack.reactions.any { it.name == "pr1" })
+        assertTrue(pack.reactions.any { it.name == "pr2" })
+    }
 }

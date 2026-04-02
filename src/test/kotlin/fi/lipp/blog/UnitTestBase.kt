@@ -117,6 +117,7 @@ abstract class UnitTestBase {
                     PostSubscriptions,
                     UserSessions,
                     UserPermissions,
+                    ReactionPackCollections,
                 )
             }
             startKoin {
@@ -132,7 +133,7 @@ abstract class UnitTestBase {
                     single<CommentWebSocketService> { mock() }
                     single<SessionService> { SessionServiceImpl() }
                     single<GeoLocationService> { GeoLocationServiceStub() }
-                    single<UserService> { UserServiceImpl(get(), get(), get(), get(), get(), get(), get()) }
+                    single<UserService> { UserServiceImpl(get(), get(), get(), get(), get(), get(), get(), lazy { get<ReactionService>() }) }
 
                     // Database seeders
                     single { ReactionDatabaseSeeder(get(), get()) }

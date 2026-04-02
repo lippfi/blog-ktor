@@ -566,6 +566,124 @@ class ReactionServiceImpl(
         }
     }
 
+    private fun toPackDto(pack: ReactionPackEntity): ReactionPackDto {
+        return ReactionPackDto(
+            name = pack.name,
+            iconUri = pack.icon?.let { storageService.getFileURL(it.toBlogFile()) }
+                ?: pack.reactions.minByOrNull { it.ordinal }?.let { storageService.getFileURL(it.icon.toBlogFile()) }
+                ?: "",
+            reactions = pack.reactions.sortedBy { it.ordinal }.map { toReactionView(it) }
+        )
+    }
+
+    override fun getPackCollection(viewer: Viewer.Registered): List<ReactionPackDto> {
+        return transaction {
+            ReactionPackCollectionEntity.find { ReactionPackCollections.user eq viewer.userId }
+                .orderBy(ReactionPackCollections.ordinal to SortOrder.ASC)
+                .map { toPackDto(it.pack) }
+        }
+    }
+
+    override fun addPackToCollection(viewer: Viewer.Registered, packName: String) {
+        transaction {
+            val pack = ReactionPackEntity.find { ReactionPacks.name eq packName }.firstOrNull()
+                ?: throw ReactionPackNotFoundException()
+
+            val alreadyExists = ReactionPackCollectionEntity.find {
+                (ReactionPackCollections.user eq viewer.userId) and (ReactionPackCollections.pack eq pack.id)
+            }.firstOrNull()
+            if (alreadyExists != null) return@transaction
+
+            val maxOrdinal = ReactionPackCollections
+                .slice(ReactionPackCollections.ordinal.max())
+                .select { ReactionPackCollections.user eq viewer.userId }
+                .map { it[ReactionPackCollections.ordinal.max()] }
+                .firstOrNull() ?: -1
+
+            ReactionPackCollectionEntity.new {
+                this.user = UserEntity.findById(viewer.userId)!!
+                this.pack = pack
+                this.ordinal = maxOrdinal + 1
+            }
+        }
+    }
+
+    override fun removePackFromCollection(viewer: Viewer.Registered, packName: String) {
+        transaction {
+            val pack = ReactionPackEntity.find { ReactionPacks.name eq packName }.firstOrNull()
+                ?: throw ReactionPackNotFoundException()
+
+            val entry = ReactionPackCollectionEntity.find {
+                (ReactionPackCollections.user eq viewer.userId) and (ReactionPackCollections.pack eq pack.id)
+            }.firstOrNull() ?: return@transaction
+
+            entry.delete()
+        }
+    }
+
+    override fun reorderPackInCollection(viewer: Viewer.Registered, packName: String, newOrdinal: Int) {
+        transaction {
+            val pack = ReactionPackEntity.find { ReactionPacks.name eq packName }.firstOrNull()
+                ?: throw ReactionPackNotFoundException()
+
+            val entry = ReactionPackCollectionEntity.find {
+                (ReactionPackCollections.user eq viewer.userId) and (ReactionPackCollections.pack eq pack.id)
+            }.firstOrNull() ?: throw ReactionPackNotFoundException()
+
+            val oldOrdinal = entry.ordinal
+
+            if (oldOrdinal == newOrdinal) return@transaction
+
+            if (newOrdinal < oldOrdinal) {
+                // Moving up: shift items in [newOrdinal, oldOrdinal) down by 1
+                ReactionPackCollections.update({
+                    (ReactionPackCollections.user eq viewer.userId) and
+                    (ReactionPackCollections.ordinal greaterEq newOrdinal) and
+                    (ReactionPackCollections.ordinal less oldOrdinal)
+                }) {
+                    with(SqlExpressionBuilder) {
+                        it[ordinal] = ordinal + 1
+                    }
+                }
+            } else {
+                // Moving down: shift items in (oldOrdinal, newOrdinal] up by 1
+                ReactionPackCollections.update({
+                    (ReactionPackCollections.user eq viewer.userId) and
+                    (ReactionPackCollections.ordinal greater oldOrdinal) and
+                    (ReactionPackCollections.ordinal lessEq newOrdinal)
+                }) {
+                    with(SqlExpressionBuilder) {
+                        it[ordinal] = ordinal - 1
+                    }
+                }
+            }
+
+            ReactionPackCollections.update({
+                ReactionPackCollections.id eq entry.id
+            }) {
+                it[ordinal] = newOrdinal
+            }
+        }
+    }
+
+    override fun initializePackCollection(userId: UUID) {
+        transaction {
+            val basicPack = ReactionPackEntity.find { ReactionPacks.name eq "basic" }.firstOrNull() ?: return@transaction
+
+            val alreadyHasBasic = ReactionPackCollectionEntity.find {
+                (ReactionPackCollections.user eq userId) and (ReactionPackCollections.pack eq basicPack.id)
+            }.firstOrNull()
+
+            if (alreadyHasBasic == null) {
+                ReactionPackCollectionEntity.new {
+                    this.user = UserEntity.findById(userId)!!
+                    this.pack = basicPack
+                    this.ordinal = 0
+                }
+            }
+        }
+    }
+
     override fun search(text: String): List<ReactionDto.View> {
         return transaction {
             ReactionEntity.find { Reactions.name like "%${text}%" }

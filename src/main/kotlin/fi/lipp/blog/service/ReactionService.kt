@@ -31,6 +31,13 @@ interface ReactionService {
 
     fun getMyPacks(viewer: Viewer.Registered): List<ReactionPackDto>
 
+    // Pack collection management
+    fun initializePackCollection(userId: UUID)
+    fun getPackCollection(viewer: Viewer.Registered): List<ReactionPackDto>
+    fun addPackToCollection(viewer: Viewer.Registered, packName: String)
+    fun removePackFromCollection(viewer: Viewer.Registered, packName: String)
+    fun reorderPackInCollection(viewer: Viewer.Registered, packName: String, newOrdinal: Int)
+
     fun search(text: String): List<ReactionDto.View>
 
     fun createReactionSubset(viewer: Viewer.Registered, diaryLogin: String, name: String, reactionNames: List<String>): UUID

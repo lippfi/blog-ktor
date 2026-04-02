@@ -53,7 +53,7 @@ class PostServiceTests : UnitTestBase() {
         private val commentWebSocketService = mock<CommentWebSocketService>()
         private val storageService = LocalStorageServiceImpl(properties)
         private val sessionServiceLocal = SessionServiceImpl()
-        private val userService = UserServiceImpl(encoder, mailService, storageService, groupService, notificationService, properties, sessionServiceLocal)
+        private val userService = UserServiceImpl(encoder, mailService, storageService, groupService, notificationService, properties, sessionServiceLocal, lazy { reactionService })
         private lateinit var postService: PostService
 
         private val testUser = UserDto.Registration(

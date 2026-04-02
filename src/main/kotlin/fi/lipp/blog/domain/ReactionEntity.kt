@@ -42,3 +42,11 @@ class AnonymousPostReactionEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var post by PostEntity referencedOn AnonymousPostReactions.post
     var reaction by ReactionEntity referencedOn AnonymousPostReactions.reaction
 }
+
+class ReactionPackCollectionEntity(id: EntityID<UUID>) : UUIDEntity(id) {
+    companion object : UUIDEntityClass<ReactionPackCollectionEntity>(ReactionPackCollections)
+
+    var user by UserEntity referencedOn ReactionPackCollections.user
+    var pack by ReactionPackEntity referencedOn ReactionPackCollections.pack
+    var ordinal by ReactionPackCollections.ordinal
+}

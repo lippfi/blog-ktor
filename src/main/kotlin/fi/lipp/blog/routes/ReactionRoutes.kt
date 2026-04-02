@@ -97,6 +97,31 @@ fun Route.reactionRoutes(reactionService: ReactionService) {
                 call.respond(pack)
             }
 
+            // Pack collection management
+            get("/collection") {
+                val collection = reactionService.getPackCollection(viewer as Viewer.Registered)
+                call.respond(collection)
+            }
+
+            post("/collection") {
+                val packName = call.request.queryParameters["pack"] ?: throw IllegalArgumentException("Missing pack parameter")
+                reactionService.addPackToCollection(viewer as Viewer.Registered, packName)
+                call.respondText("Pack added to collection")
+            }
+
+            delete("/collection") {
+                val packName = call.request.queryParameters["pack"] ?: throw IllegalArgumentException("Missing pack parameter")
+                reactionService.removePackFromCollection(viewer as Viewer.Registered, packName)
+                call.respondText("Pack removed from collection")
+            }
+
+            put("/collection/reorder") {
+                val packName = call.request.queryParameters["pack"] ?: throw IllegalArgumentException("Missing pack parameter")
+                val ordinal = call.request.queryParameters["ordinal"]?.toIntOrNull() ?: throw IllegalArgumentException("Missing or invalid ordinal parameter")
+                reactionService.reorderPackInCollection(viewer as Viewer.Registered, packName, ordinal)
+                call.respondText("Pack reordered in collection")
+            }
+
             // Reaction subset management
             post("/subset") {
                 val diaryLogin = call.request.queryParameters["login"] ?: throw IllegalArgumentException("Missing login parameter")
