@@ -18,7 +18,7 @@ object Notifications : UUIDTable() {
     val sender = reference("sender", Users)
     val recipient = reference("recipient", Users)
     val relatedPost = reference("related_post", Posts).nullable()
-    val relatedComment = reference("related_comment", Comments).nullable()
+    val relatedComment = reference("related_comment", Comments, onDelete = org.jetbrains.exposed.sql.ReferenceOption.CASCADE).nullable()
     val relatedReaction = reference("related_reaction", Reactions).nullable()
     val relatedRequest = reference("related_request", FriendRequests).nullable()
     val relatedDialog = reference("related_dialog", Dialogs).nullable()

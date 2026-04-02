@@ -11,4 +11,7 @@ object NotificationSettings : UUIDTable() {
     val notifyAboutCommentReactions = bool("notify_about_comment_reactions").default(true)
     val notifyAboutPrivateMessages = bool("notify_about_private_messages").default(true)
     val notifyAboutMentions = bool("notify_about_mentions").default(true)
+    val notifyAboutNewPosts = bool("notify_about_new_posts").default(true)
+    val notifyAboutFriendRequests = bool("notify_about_friend_requests").default(true)
+    val notifyAboutReposts = bool("notify_about_reposts").default(true)
 }

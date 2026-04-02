@@ -5,7 +5,8 @@ import java.util.UUID
 
 interface NotificationService {
     /**
-     * Get paginated list of notifications for a user
+     * Get paginated list of notifications for a user.
+     * Excludes notifications from ignored users and users who ignore the recipient.
      */
     fun getNotifications(userId: UUID): List<NotificationDto>
 
@@ -25,8 +26,24 @@ interface NotificationService {
     fun markAllAsRead(userId: UUID)
 
     /**
-     * Notify every subscribed user about new comment in a post
-     * Also notifies original comment author about a reply
+     * Delete a single notification
+     */
+    fun deleteNotification(userId: UUID, notificationId: UUID)
+
+    /**
+     * Delete all notifications for a user
+     */
+    fun deleteAllNotifications(userId: UUID)
+
+    /**
+     * Get notification settings for a user
+     */
+    fun getNotificationSettings(userId: UUID): fi.lipp.blog.data.NotificationSettings
+
+    /**
+     * Notify every subscribed user about new comment in a post.
+     * Also notifies original comment author about a reply.
+     * Respects ignore lists and notification settings.
      */
     fun notifyAboutComment(
         postId: UUID,
@@ -35,32 +52,38 @@ interface NotificationService {
     )
 
     /**
-     * Notify about a reaction on a post
+     * Notify about a reaction on a post.
+     * Respects ignore lists and notification settings.
      */
     fun notifyAboutPostReaction(userId: UUID, postId: UUID)
 
     /**
-     * Notify about a repost of a post
+     * Notify about a repost of a post.
+     * Respects ignore lists and notification settings.
      */
     fun notifyAboutRepost(userId: UUID, repostId: UUID)
 
     /**
-     * Notify about a repost of a comment
+     * Notify about a repost of a comment.
+     * Respects ignore lists and notification settings.
      */
     fun notifyAboutCommentRepost(userId: UUID, repostId: UUID)
 
     /**
-     * Notify about a reaction on a comment
+     * Notify about a reaction on a comment.
+     * Respects ignore lists and notification settings.
      */
     fun notifyAboutCommentReaction(commentId: UUID)
 
     /**
-     * Notify user about being mentioned in a post
+     * Notify user about being mentioned in a post.
+     * Respects ignore lists and notification settings.
      */
     fun notifyAboutPostMention(userId: UUID, postId: UUID, mentionLogin: String)
 
     /**
-     * Notify user about being mentioned in a comment
+     * Notify user about being mentioned in a comment.
+     * Respects ignore lists and notification settings.
      */
     fun notifyAboutCommentMention(userId: UUID, commentId: UUID, mentionLogin: String)
 
@@ -82,7 +105,8 @@ interface NotificationService {
     fun readAllPostNotifications(userId: UUID, postId: UUID)
 
     /**
-     * Notify user about a friend request
+     * Notify user about a friend request.
+     * Respects ignore lists and notification settings.
      */
     fun notifyAboutFriendRequest(recipientId: UUID, requestId: UUID, senderLogin: String)
 
@@ -100,9 +124,10 @@ interface NotificationService {
      * Notify user about a new private message.
      * If there is already an unread notification about new message from the same user,
      * do not send another notification.
+     * Respects ignore lists and notification settings.
      *
      * @param recipientId ID of the message recipient
-     * @param messageId ID of the new message
+     * @param dialogId ID of the dialog
      */
     fun notifyAboutPrivateMessage(recipientId: UUID, dialogId: UUID)
 

@@ -537,7 +537,7 @@ class PostServiceImpl(
 
             val postId = postEntity.id.value
             notificationService.subscribeToComments(userId, postId)
-            notificationService.notifyAboutComment(commentId.value, userId, postId)
+            notificationService.notifyAboutComment(postId, userId, commentId.value)
 
             val commentEntity = CommentEntity.findById(commentId)!!
 

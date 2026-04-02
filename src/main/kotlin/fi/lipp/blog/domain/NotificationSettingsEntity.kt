@@ -16,4 +16,7 @@ class NotificationSettingsEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var notifyAboutCommentReactions by NotificationSettings.notifyAboutCommentReactions
     var notifyAboutPrivateMessages by NotificationSettings.notifyAboutPrivateMessages
     var notifyAboutMentions by NotificationSettings.notifyAboutMentions
+    var notifyAboutNewPosts by NotificationSettings.notifyAboutNewPosts
+    var notifyAboutFriendRequests by NotificationSettings.notifyAboutFriendRequests
+    var notifyAboutReposts by NotificationSettings.notifyAboutReposts
 }

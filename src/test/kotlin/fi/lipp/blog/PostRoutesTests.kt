@@ -65,6 +65,7 @@ class PostRoutesTests {
                 single { mock<UserService>() }
                 single { mock<ReactionService>() }
                 single { mock<NotificationService>() }
+                single { mock<NotificationWebSocketService>() }
                 single { mock<DialogService>() }
                 single { mock<DiaryService>() }
                 single { mock<StorageService>() }

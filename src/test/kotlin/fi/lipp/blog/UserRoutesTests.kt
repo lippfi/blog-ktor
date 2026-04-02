@@ -74,6 +74,7 @@ class UserRoutesTests {
                 single { sessionService }
                 // Mock other required services
                 single { mock(NotificationService::class.java) }
+                single { mock(NotificationWebSocketService::class.java) }
                 single { mock(DialogService::class.java) }
                 single { mock(PostService::class.java) }
                 single { mock(DiaryService::class.java) }

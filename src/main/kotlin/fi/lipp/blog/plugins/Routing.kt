@@ -44,7 +44,7 @@ fun Application.configureRouting() {
         storageRoutes(get())
         accessGroupRoutes(get())
         reactionRoutes(get())
-        notificationRoutes(get())
+        notificationRoutes(get(), get())
         dialogRoutes(get())
         sessionRoutes(sessionService)
         get("/") {

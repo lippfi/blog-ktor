@@ -10,4 +10,7 @@ data class NotificationSettings(
     val notifyAboutCommentReactions: Boolean = true,
     val notifyAboutPrivateMessages: Boolean = true,
     val notifyAboutMentions: Boolean = true,
+    val notifyAboutNewPosts: Boolean = true,
+    val notifyAboutFriendRequests: Boolean = true,
+    val notifyAboutReposts: Boolean = true,
 )

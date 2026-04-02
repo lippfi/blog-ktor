@@ -1,29 +1,38 @@
 package fi.lipp.blog.routes
 
-import fi.lipp.blog.model.Pageable
 import fi.lipp.blog.plugins.userId
 import fi.lipp.blog.service.NotificationService
-import org.jetbrains.exposed.sql.SortOrder
+import fi.lipp.blog.service.NotificationWebSocketService
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
+import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.server.websocket.*
+import io.ktor.websocket.*
 import java.util.*
 
-fun Route.notificationRoutes(notificationService: NotificationService) {
+fun Route.notificationRoutes(notificationService: NotificationService, notificationWebSocketService: NotificationWebSocketService) {
     authenticate {
         route("/notifications") {
             get {
-                val notifications = notificationService.getNotifications(userId)
-                call.respond(notifications)
+                val id = call.request.queryParameters["id"]
+                if (id != null) {
+                    val notificationId = try { UUID.fromString(id) } catch (e: Exception) {
+                        return@get call.respond(HttpStatusCode.BadRequest, "Invalid notification ID")
+                    }
+                    val notification = notificationService.getNotification(userId, notificationId)
+                    call.respond(notification)
+                } else {
+                    val notifications = notificationService.getNotifications(userId)
+                    call.respond(notifications)
+                }
             }
 
-            get {
-                val id = call.request.queryParameters["id"]?.let { UUID.fromString(it) }
-                    ?: return@get call.respond(HttpStatusCode.BadRequest, "Invalid notification ID")
-                val notification = notificationService.getNotification(userId, id)
-                call.respond(notification)
+            get("/settings") {
+                val settings = notificationService.getNotificationSettings(userId)
+                call.respond(settings)
             }
 
             post("/read") {
@@ -36,6 +45,18 @@ fun Route.notificationRoutes(notificationService: NotificationService) {
             post("/read-all") {
                 notificationService.markAllAsRead(userId)
                 call.respondText("All notifications marked as read")
+            }
+
+            delete {
+                val id = call.request.queryParameters["id"]?.let { UUID.fromString(it) }
+                    ?: return@delete call.respond(HttpStatusCode.BadRequest, "Invalid notification ID")
+                notificationService.deleteNotification(userId, id)
+                call.respondText("Notification deleted")
+            }
+
+            delete("/all") {
+                notificationService.deleteAllNotifications(userId)
+                call.respondText("All notifications deleted")
             }
         }
 
@@ -68,6 +89,30 @@ fun Route.notificationRoutes(notificationService: NotificationService) {
                 } catch (e: Exception) {
                     call.respond(HttpStatusCode.BadRequest, e.message ?: "Failed to notify user")
                 }
+            }
+        }
+    }
+
+    authenticate(optional = true) {
+        webSocket("/notifications/ws") {
+            val userIdValue = call.principal<io.ktor.server.auth.jwt.JWTPrincipal>()
+                ?.payload?.getClaim("userId")?.asString()
+                ?.let { UUID.fromString(it) }
+
+            if (userIdValue == null) {
+                close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Authentication required"))
+                return@webSocket
+            }
+
+            notificationWebSocketService.addSession(userIdValue, this)
+            try {
+                for (frame in incoming) {
+                    // Keep connection alive; no client messages expected
+                }
+            } catch (e: Exception) {
+                // Connection closed
+            } finally {
+                notificationWebSocketService.removeSession(this)
             }
         }
     }

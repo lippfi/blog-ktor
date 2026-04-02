@@ -127,7 +127,8 @@ abstract class UnitTestBase {
                     single<MailService> { mock() }
                     single<StorageService> { LocalStorageServiceImpl(get()) }
                     single<AccessGroupService> { AccessGroupServiceImpl() }
-                    single<NotificationService> { NotificationServiceImpl() }
+                    single<NotificationWebSocketService> { mock() }
+                    single<NotificationService> { NotificationServiceImpl(get()) }
                     single<CommentWebSocketService> { mock() }
                     single<SessionService> { SessionServiceImpl() }
                     single<GeoLocationService> { GeoLocationServiceStub() }

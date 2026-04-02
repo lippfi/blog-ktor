@@ -186,6 +186,9 @@ class UserServiceImpl(
                 notifyAboutCommentReactions = true
                 notifyAboutPrivateMessages = true
                 notifyAboutMentions = true
+                notifyAboutNewPosts = true
+                notifyAboutFriendRequests = true
+                notifyAboutReposts = true
             }
 
             // Delete the pending registration
@@ -675,6 +678,9 @@ class UserServiceImpl(
                 notifyAboutCommentReactions = settings.notifyAboutCommentReactions
                 notifyAboutPrivateMessages = settings.notifyAboutPrivateMessages
                 notifyAboutMentions = settings.notifyAboutMentions
+                notifyAboutNewPosts = settings.notifyAboutNewPosts
+                notifyAboutFriendRequests = settings.notifyAboutFriendRequests
+                notifyAboutReposts = settings.notifyAboutReposts
             }
         }
     }
