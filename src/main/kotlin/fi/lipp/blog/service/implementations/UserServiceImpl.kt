@@ -587,7 +587,6 @@ class UserServiceImpl(
                 ?.get(UserAvatars.ordinal.max()) ?: 0
         }
 
-        // TODO FileType.AVATAR where?
         val newAvatars = storageService.storeAvatars(viewer, files)
 
         transaction {

@@ -89,7 +89,7 @@ abstract class BaseStorageServiceImpl(protected val properties: ApplicationPrope
             ?: throw InvalidAvatarExtensionException()
         if (image.width != image.height) throw InvalidAvatarDimensionsException()
 
-        return file
+        return file.copy(forcedType = FileType.AVATAR)
     }
 
     protected fun validateReaction(file: FileUploadData): FileUploadData {

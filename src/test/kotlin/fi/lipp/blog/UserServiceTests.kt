@@ -1,5 +1,6 @@
 package fi.lipp.blog
 
+import fi.lipp.blog.data.FileType
 import fi.lipp.blog.data.FileUploadData
 import fi.lipp.blog.data.FriendRequestDto
 import fi.lipp.blog.data.Language
@@ -1081,21 +1082,21 @@ class UserServiceTests : UnitTestBase() {
             assertEquals(1, avatars.size)
             val avatar1 = avatars.last()
             assertEquals(userId, avatar1.ownerId)
-            assertEquals(avatarUpload1.type, avatar1.type)
+            assertEquals(FileType.AVATAR, avatar1.type)
 
             userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload2))
             avatars = userService.getAvatars(userId)
             assertEquals(2, avatars.size)
             val avatar2 = avatars.last()
             assertEquals(userId, avatar2.ownerId)
-            assertEquals(avatarUpload2.type, avatar2.type)
+            assertEquals(FileType.AVATAR, avatar2.type)
 
             userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload3))
             avatars = userService.getAvatars(userId)
             assertEquals(3, avatars.size)
             val avatar3 = avatars.last()
             assertEquals(userId, avatar3.ownerId)
-            assertEquals(avatarUpload3.type, avatar3.type)
+            assertEquals(FileType.AVATAR, avatar3.type)
 
             assertEquals(avatar1, avatars[0])
             assertEquals(avatar2, avatars[1])
@@ -1199,15 +1200,15 @@ class UserServiceTests : UnitTestBase() {
             assertEquals(3, avatars.size)
             val avatar1 = avatars[0]
             assertEquals(userId, avatar1.ownerId)
-            assertEquals(avatarUpload1.type, avatar1.type)
+            assertEquals(FileType.AVATAR, avatar1.type)
 
             val avatar2 = avatars[1]
             assertEquals(userId, avatar2.ownerId)
-            assertEquals(avatarUpload2.type, avatar2.type)
+            assertEquals(FileType.AVATAR, avatar2.type)
 
             val avatar3 = avatars[2]
             assertEquals(userId, avatar3.ownerId)
-            assertEquals(avatarUpload3.type, avatar3.type)
+            assertEquals(FileType.AVATAR, avatar3.type)
 
             rollback()
         }
