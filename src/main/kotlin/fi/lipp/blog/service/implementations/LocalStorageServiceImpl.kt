@@ -2,10 +2,8 @@ package fi.lipp.blog.service.implementations
 
 import fi.lipp.blog.data.BlogFile
 import fi.lipp.blog.data.FileUploadData
-import fi.lipp.blog.domain.FileEntity
 import fi.lipp.blog.model.exceptions.InternalServerError
 import fi.lipp.blog.service.ApplicationProperties
-import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.InputStream
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
@@ -18,10 +16,7 @@ class LocalStorageServiceImpl(properties: ApplicationProperties) : BaseStorageSe
     override fun baseFileUrl(): String = properties.filesBaseUrl()
 
     override fun openFileStream(file: BlogFile): InputStream {
-        val storageKey = transaction {
-            FileEntity.findById(file.id)?.storageKey ?: throw InternalServerError()
-        }
-        return JFiles.newInputStream(resolveStoragePath(storageKey))
+        return JFiles.newInputStream(resolveStoragePath(file.storageKey))
     }
 
     override fun persistFile(userId: UUID, fileId: UUID, storageKey: String, file: FileUploadData): PersistResult {
@@ -43,7 +38,7 @@ class LocalStorageServiceImpl(properties: ApplicationProperties) : BaseStorageSe
         }
 
         val hash = sha256Hex(file.bytes)
-        val blogFile = BlogFile(fileId, userId, targetPath.fileName.toString(), file.type)
+        val blogFile = BlogFile(fileId, userId, targetPath.fileName.toString(), file.type, storageKey)
         return PersistResult(blogFile, hash)
     }
 

@@ -138,7 +138,8 @@ internal class ReactionLoader(private val storageService: StorageService) {
                 Files.id,
                 Files.name,
                 Files.owner,
-                Files.fileType
+                Files.fileType,
+                Files.storageKey
             )
             .select { Reactions.id inList reactionIds.toList() }
             .map { row ->
@@ -149,7 +150,8 @@ internal class ReactionLoader(private val storageService: StorageService) {
                         id = row[Files.id].value,
                         ownerId = row[Files.owner].value,
                         name = row[Files.name],
-                        type = row[Files.fileType]
+                        type = row[Files.fileType],
+                        storageKey = row[Files.storageKey]
                     )
                 )
             }

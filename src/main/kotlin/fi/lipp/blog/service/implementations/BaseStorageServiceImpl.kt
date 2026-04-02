@@ -3,7 +3,6 @@ package fi.lipp.blog.service.implementations
 import fi.lipp.blog.data.BlogFile
 import fi.lipp.blog.data.FileType
 import fi.lipp.blog.data.FileUploadData
-import fi.lipp.blog.domain.FileEntity
 import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.repository.Files
 import fi.lipp.blog.service.ApplicationProperties
@@ -41,30 +40,15 @@ abstract class BaseStorageServiceImpl(protected val properties: ApplicationPrope
     }
 
     override fun getFileURL(file: BlogFile): String {
-        val storageKey = transaction {
-            val fileEntity = FileEntity.findById(file.id) ?: throw InternalServerError()
-            fileEntity.storageKey
-        }
-        return "${baseFileUrl()}/$storageKey"
+        return "${baseFileUrl()}/${file.storageKey}"
     }
 
     override fun getFileURLs(files: Collection<BlogFile>): Map<UUID, String> {
-        if (files.isEmpty()) return emptyMap()
-
-        val fileIds = files.map { it.id }.distinct()
-        val storageKeysById = transaction {
-            Files
-                .slice(Files.id, Files.storageKey)
-                .select { Files.id inList fileIds }
-                .associate { row ->
-                    row[Files.id].value to row[Files.storageKey]
-                }
-        }
-
-        return fileIds.associateWith { fileId ->
-            val storageKey = storageKeysById[fileId] ?: throw InternalServerError()
-            "${baseFileUrl()}/$storageKey"
-        }
+        return files
+            .distinctBy { it.id }
+            .associate { file ->
+                file.id to "${baseFileUrl()}/${file.storageKey}"
+            }
     }
 
     protected fun validateRegularFile(file: FileUploadData): FileUploadData {

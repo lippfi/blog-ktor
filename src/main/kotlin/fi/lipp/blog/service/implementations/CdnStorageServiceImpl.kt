@@ -2,10 +2,8 @@ package fi.lipp.blog.service.implementations
 
 import fi.lipp.blog.data.BlogFile
 import fi.lipp.blog.data.FileUploadData
-import fi.lipp.blog.domain.FileEntity
 import fi.lipp.blog.model.exceptions.InternalServerError
 import fi.lipp.blog.service.ApplicationProperties
-import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.InputStream
 import java.net.URI
 import java.net.http.HttpClient
@@ -20,10 +18,7 @@ class CdnStorageServiceImpl(properties: ApplicationProperties) : BaseStorageServ
     override fun baseFileUrl(): String = properties.cdnBaseUrl
 
     override fun openFileStream(file: BlogFile): InputStream {
-        val storageKey = transaction {
-            FileEntity.findById(file.id)?.storageKey ?: throw InternalServerError()
-        }
-        val url = "${properties.cdnBaseUrl}/$storageKey"
+        val url = "${properties.cdnBaseUrl}/${file.storageKey}"
 
         val request = HttpRequest.newBuilder()
             .uri(URI.create(url))
@@ -44,7 +39,7 @@ class CdnStorageServiceImpl(properties: ApplicationProperties) : BaseStorageServ
 
         val hash = sha256Hex(file.bytes)
         val physicalFileName = storageKey.substringAfterLast('/')
-        val blogFile = BlogFile(fileId, userId, physicalFileName, file.type)
+        val blogFile = BlogFile(fileId, userId, physicalFileName, file.type, storageKey)
         return PersistResult(blogFile, hash)
     }
 
