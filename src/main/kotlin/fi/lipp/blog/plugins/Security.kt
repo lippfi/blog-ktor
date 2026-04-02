@@ -2,6 +2,7 @@ package fi.lipp.blog.plugins
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
+import fi.lipp.blog.data.UserPermission
 import fi.lipp.blog.service.SessionService
 import fi.lipp.blog.service.Viewer
 import io.ktor.http.*
@@ -18,6 +19,7 @@ import kotlin.time.Duration.Companion.minutes
 
 const val USER_ID = "user-id"
 const val SESSION_ID = "session-id"
+const val PERMISSIONS = "permissions"
 private val ACCESS_TOKEN_LIFETIME = 15.minutes.inWholeMilliseconds
 
 fun Application.configureSecurity() {
@@ -81,7 +83,9 @@ fun Application.configureSecurity() {
 
 private val environment by inject<ApplicationEnvironment>(ApplicationEnvironment::class.java)
 
-fun createAccessToken(userId: UUID, sessionId: UUID): String {
+// Permissions in the access token are a snapshot at issuance time.
+// Changes in DB take effect after the token is refreshed or reissued.
+fun createAccessToken(userId: UUID, sessionId: UUID, permissions: Set<UserPermission> = emptySet()): String {
     val jwtAudience = environment.config.property("jwt.audience").getString()
     val jwtIssuer = environment.config.property("jwt.issuer").getString()
     val jwtSecret = environment.config.property("jwt.secret").getString()
@@ -94,6 +98,7 @@ fun createAccessToken(userId: UUID, sessionId: UUID): String {
         .withIssuer(jwtIssuer)
         .withClaim(USER_ID, userId.toString())
         .withClaim(SESSION_ID, sessionId.toString())
+        .withClaim(PERMISSIONS, permissions.map { it.name })
         .withIssuedAt(Date(now))
         .withExpiresAt(expiration)
         .sign(Algorithm.HMAC256(jwtSecret))
@@ -107,6 +112,16 @@ inline val ApplicationCall.userId: UUID get() {
     return UUID.fromString(string)
 }
 
+inline val ApplicationCall.userPermissions: Set<UserPermission> get() {
+    val principal = this.principal<JWTPrincipal>()
+        ?: throw fi.lipp.blog.model.exceptions.UnauthorizedException()
+    return principal.payload.getClaim(PERMISSIONS)
+        ?.asList(String::class.java)
+        ?.mapNotNull { raw -> runCatching { UserPermission.valueOf(raw) }.getOrNull() }
+        ?.toSet()
+        ?: emptySet()
+}
+
 inline val ApplicationCall.sessionId: UUID get() {
     val principal = this.principal<JWTPrincipal>()
         ?: throw fi.lipp.blog.model.exceptions.UnauthorizedException()
@@ -117,6 +132,7 @@ inline val ApplicationCall.sessionId: UUID get() {
 
 inline val PipelineContext<*, ApplicationCall>.userId: UUID get() = call.userId
 inline val PipelineContext<*, ApplicationCall>.sessionId: UUID get() = call.sessionId
+inline val PipelineContext<*, ApplicationCall>.userPermissions: Set<UserPermission> get() = call.userPermissions
 
 inline val ApplicationCall.viewer: Viewer
     get() {
@@ -132,7 +148,12 @@ inline val ApplicationCall.viewer: Viewer
         val browserFingerprint = this.request.headers["User-Agent"] ?: "unknown"
         return Viewer.Anonymous(ip, browserFingerprint)
     }
-    return Viewer.Registered(UUID.fromString(userId))
+    val permissions = principal.payload.getClaim(PERMISSIONS)
+        ?.asList(String::class.java)
+        ?.mapNotNull { raw -> runCatching { UserPermission.valueOf(raw) }.getOrNull() }
+        ?.toSet()
+        ?: emptySet()
+    return Viewer.Registered(UUID.fromString(userId), permissions)
 }
 
 inline val PipelineContext<*, ApplicationCall>.viewer: Viewer get() = call.viewer

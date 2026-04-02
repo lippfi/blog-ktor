@@ -62,6 +62,7 @@ fun Application.configureDatabases() {
             HiddenFromFeed,
             IgnoreList,
             UserSessions,
+            UserPermissions,
         )
     }
 

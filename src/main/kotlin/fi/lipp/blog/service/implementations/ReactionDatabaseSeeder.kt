@@ -1,6 +1,7 @@
 package fi.lipp.blog.service.implementations
 
 import fi.lipp.blog.data.FileUploadData
+import fi.lipp.blog.data.UserPermission
 import fi.lipp.blog.domain.FileEntity
 import fi.lipp.blog.domain.ReactionEntity
 import fi.lipp.blog.domain.ReactionPackEntity
@@ -11,6 +12,7 @@ import fi.lipp.blog.repository.Users
 import fi.lipp.blog.service.DatabaseSeeder
 import fi.lipp.blog.service.StorageService
 import fi.lipp.blog.service.UserService
+import fi.lipp.blog.service.Viewer
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.FileNotFoundException
@@ -227,7 +229,8 @@ class ReactionDatabaseSeeder(
                     bytes = bytes
                 )
 
-                val storedFile = storageService.storeReaction(systemUserId, fileName, fileUploadData)
+                val viewer = Viewer.Registered(systemUserId, setOf(UserPermission.SVG_UPLOAD))
+                val storedFile = storageService.storeReaction(viewer, fileName, fileUploadData)
                 val iconFile = FileEntity.findById(storedFile.id) ?: throw FileNotFoundException()
 
                 ReactionEntity.new {

@@ -104,7 +104,7 @@ interface PostService {
 }
 
 sealed interface Viewer {
-    class Registered(val userId: UUID) : Viewer
+    class Registered(val userId: UUID, val permissions: Set<UserPermission> = emptySet()) : Viewer
     class Anonymous(ip: String, fingerprint: String) : Viewer {
         companion object {
             private val digest = MessageDigest.getInstance("SHA-256")

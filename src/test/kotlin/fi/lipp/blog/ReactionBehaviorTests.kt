@@ -32,7 +32,7 @@ class ReactionBehaviorTests : UnitTestBase() {
     }
 
     private fun createReaction(userId: UUID, name: String): ReactionDto.View {
-        return reactionService.createReaction(userId, name, "test-pack", FileUploadData(
+        return reactionService.createReaction(Viewer.Registered(userId), name, "test-pack", FileUploadData(
             fullName = "reaction.png",
             bytes = avatarFile1.readBytes()
         ))

@@ -3,6 +3,7 @@ package fi.lipp.blog
 import fi.lipp.blog.data.BlogFile
 import fi.lipp.blog.data.FileUploadData
 import fi.lipp.blog.data.PostDto
+
 import fi.lipp.blog.data.UserDto
 import fi.lipp.blog.model.Pageable
 import fi.lipp.blog.model.exceptions.WrongUserException
@@ -34,7 +35,7 @@ class ReactionServiceTests : UnitTestBase() {
             val (userId1, userId2) = signUsersUp()
             testUser = findUserByLogin(UnitTestBase.testUser.login)!!
             testUser2 = findUserByLogin(UnitTestBase.testUser2.login)!!
-            testFile = storageService.storeReaction(testUser.id, "reaction.png",FileUploadData(
+            testFile = storageService.storeReaction(Viewer.Registered(testUser.id), "reaction.png",FileUploadData(
                 fullName = "reaction.png",
                 bytes = avatarFile1.readBytes()
             ))
@@ -85,7 +86,7 @@ class ReactionServiceTests : UnitTestBase() {
             bytes = avatarFile1.readBytes()
         )
 
-        val created = reactionService.createReaction(testUser.id, name, "custom", icon)
+        val created = reactionService.createReaction(Viewer.Registered(testUser.id), name, "custom", icon)
         assertNotNull(created)
         assertEquals(name, created.name)
     }
@@ -97,7 +98,7 @@ class ReactionServiceTests : UnitTestBase() {
 
         val name = "like"
         reactionService.createReaction(
-            testUser.id,
+            Viewer.Registered(testUser.id),
             name,
             "custom",
             FileUploadData(
@@ -123,7 +124,7 @@ class ReactionServiceTests : UnitTestBase() {
     fun `test add reaction to post`() {
         val reactionName = "like"
         val reaction = reactionService.createReaction(
-            testUser.id,
+            Viewer.Registered(testUser.id),
             reactionName,
             "custom",
             FileUploadData(
@@ -144,7 +145,7 @@ class ReactionServiceTests : UnitTestBase() {
     fun `test remove reaction from post`() {
         val reactionName = "like"
         val reaction = reactionService.createReaction(
-            testUser.id,
+            Viewer.Registered(testUser.id),
             reactionName,
             "custom",
             FileUploadData(
@@ -165,7 +166,7 @@ class ReactionServiceTests : UnitTestBase() {
     @Test
     fun `test anonymous reactions`() {
         val reaction = reactionService.createReaction(
-            testUser.id,
+            Viewer.Registered(testUser.id),
             "like",
             "custom",
             FileUploadData(
@@ -195,7 +196,7 @@ class ReactionServiceTests : UnitTestBase() {
         for (invalidName in invalidNames) {
             assertFailsWith<IllegalArgumentException>("Name '$invalidName' should be invalid") {
                 reactionService.createReaction(
-                    testUser.id,
+                    Viewer.Registered(testUser.id),
                     invalidName,
                     "custom",
                     FileUploadData(
@@ -217,7 +218,7 @@ class ReactionServiceTests : UnitTestBase() {
         for (validName in validNames) {
             // Valid name should not throw
             reactionService.createReaction(
-                testUser.id,
+                Viewer.Registered(testUser.id),
                 validName,
                 "custom",
                 FileUploadData(
@@ -236,10 +237,10 @@ class ReactionServiceTests : UnitTestBase() {
             bytes = avatarFile1.readBytes()
         )
 
-        reactionService.createReaction(testUser.id, name, "custom", icon)
+        reactionService.createReaction(Viewer.Registered(testUser.id), name, "custom", icon)
 
         assertFailsWith<Exception>("Should not allow duplicate reaction names") {
-            reactionService.createReaction(testUser.id, name, "custom", FileUploadData(
+            reactionService.createReaction(Viewer.Registered(testUser.id), name, "custom", FileUploadData(
                 fullName = "reaction2.png",
                 bytes = avatarFile2.readBytes()
             ))
@@ -253,7 +254,7 @@ class ReactionServiceTests : UnitTestBase() {
 
         // Create a reaction
         val reaction = reactionService.createReaction(
-            testUser.id,
+            Viewer.Registered(testUser.id),
             "like",
             "custom",
             FileUploadData(
@@ -295,7 +296,7 @@ class ReactionServiceTests : UnitTestBase() {
 
         // Create a reaction
         val reaction = reactionService.createReaction(
-            testUser.id,
+            Viewer.Registered(testUser.id),
             "like",
             "custom",
             FileUploadData(
@@ -339,7 +340,7 @@ class ReactionServiceTests : UnitTestBase() {
 
         testReactions.forEach { name ->
             reactionService.createReaction(
-                testUser.id,
+                Viewer.Registered(testUser.id),
                 name,
                 "custom",
                 FileUploadData(
@@ -376,7 +377,7 @@ class ReactionServiceTests : UnitTestBase() {
 
         val createdReactions = testReactions.map { name ->
             reactionService.createReaction(
-                testUser.id,
+                Viewer.Registered(testUser.id),
                 name,
                 "custom",
                 FileUploadData(
@@ -416,7 +417,7 @@ class ReactionServiceTests : UnitTestBase() {
         val expectedBasicReactions = listOf("like", "love", "haha", "wow", "sad", "angry")
         expectedBasicReactions.forEach { name ->
             reactionService.createReaction(
-                testUser.id,
+                Viewer.Registered(testUser.id),
                 name,
                 "basic",
                 FileUploadData(
@@ -428,7 +429,7 @@ class ReactionServiceTests : UnitTestBase() {
 
         // Create a non-basic reaction
         reactionService.createReaction(
-            testUser.id,
+            Viewer.Registered(testUser.id),
             "custom-reaction",
             "custom",
             FileUploadData(
@@ -456,7 +457,7 @@ class ReactionServiceTests : UnitTestBase() {
     fun `test get reaction packs`() {
         val packName = "test-pack"
         reactionService.createReaction(
-            testUser.id,
+            Viewer.Registered(testUser.id),
             "pack-reaction",
             packName,
             FileUploadData(
@@ -490,7 +491,7 @@ class ReactionServiceTests : UnitTestBase() {
 
         testReactionNames.forEach { name ->
             reactionService.createReaction(
-                testUser.id,
+                Viewer.Registered(testUser.id),
                 name,
                 "custom",
                 FileUploadData(
@@ -532,7 +533,7 @@ class ReactionServiceTests : UnitTestBase() {
 
             // Create a reaction
             val reaction = reactionService.createReaction(
-                postOwner.id,
+                Viewer.Registered(postOwner.id),
                 "like",
                 "custom",
                 FileUploadData(
@@ -600,7 +601,7 @@ class ReactionServiceTests : UnitTestBase() {
 
             // Create a reaction
             val reaction = reactionService.createReaction(
-                postOwner.id,
+                Viewer.Registered(postOwner.id),
                 "like",
                 "custom",
                 FileUploadData(

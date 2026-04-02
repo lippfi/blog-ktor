@@ -6,9 +6,9 @@ import java.io.InputStream
 import java.util.*
 
 interface StorageService {
-    fun store(userId: UUID, files: List<FileUploadData>): List<BlogFile>
-    fun storeAvatars(userId: UUID, files: List<FileUploadData>): List<BlogFile>
-    fun storeReaction(userId: UUID, fileName: String, file: FileUploadData): BlogFile
+    fun store(viewer: Viewer.Registered, files: List<FileUploadData>): List<BlogFile>
+    fun storeAvatars(viewer: Viewer.Registered, files: List<FileUploadData>): List<BlogFile>
+    fun storeReaction(viewer: Viewer.Registered, fileName: String, file: FileUploadData): BlogFile
 
     fun openFileStream(file: BlogFile): InputStream
     fun getFileURL(file: BlogFile): String

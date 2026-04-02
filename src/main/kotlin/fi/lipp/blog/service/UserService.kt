@@ -8,6 +8,8 @@ import java.util.UUID
 import kotlin.jvm.Throws
 
 interface UserService {
+    fun getUserPermissions(userId: UUID): Set<UserPermission>
+    fun updateUserPermissions(userId: UUID, permissions: Set<UserPermission>)
     fun generateInviteCode(userId: UUID): String
 
     fun getCurrentSessionInfo(userId: UUID): UserDto.SessionInfo
@@ -68,10 +70,10 @@ interface UserService {
     fun getAvatars(userId: UUID): List<BlogFile>
     fun getAvatarUris(userId: UUID): SerializableMap
     fun reorderAvatars(userId: UUID, permutation: List<UUID>)
-    fun addAvatar(userId: UUID, files: List<FileUploadData>): SerializableMap
+    fun addAvatar(viewer: Viewer.Registered, files: List<FileUploadData>): SerializableMap
     fun addAvatar(userId: UUID, avatarUri: String)
     fun deleteAvatar(userId: UUID, avatarUri: String)
-    fun changePrimaryAvatar(userId: UUID, avatarUri: String)
+    fun changePrimaryAvatar(viewer: Viewer.Registered, avatarUri: String)
     fun uploadAvatar(userId: UUID, avatarUri: String)
 
     /**

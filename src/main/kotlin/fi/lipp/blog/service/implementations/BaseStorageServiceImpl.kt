@@ -1,12 +1,11 @@
 package fi.lipp.blog.service.implementations
 
-import fi.lipp.blog.data.BlogFile
-import fi.lipp.blog.data.FileType
-import fi.lipp.blog.data.FileUploadData
+import fi.lipp.blog.data.*
 import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.repository.Files
 import fi.lipp.blog.service.ApplicationProperties
 import fi.lipp.blog.service.StorageService
+import fi.lipp.blog.service.Viewer
 import org.jetbrains.exposed.exceptions.ExposedSQLException
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -19,23 +18,35 @@ abstract class BaseStorageServiceImpl(protected val properties: ApplicationPrope
 
     protected val allowedImageExtensions = setOf("jpg", "jpeg", "png", "gif", "webp", "svg")
 
-    override fun store(userId: UUID, files: List<FileUploadData>): List<BlogFile> {
-        return storeInternal(userId, files) { file -> validateRegularFile(file) }
+    override fun store(viewer: Viewer.Registered, files: List<FileUploadData>): List<BlogFile> {
+        validateUploadPermissions(files, viewer.permissions)
+        return storeInternal(viewer.userId, files) { file -> validateRegularFile(file) }
     }
 
-    override fun storeAvatars(userId: UUID, files: List<FileUploadData>): List<BlogFile> {
-        return storeInternal(userId, files) { file ->
+    override fun storeAvatars(viewer: Viewer.Registered, files: List<FileUploadData>): List<BlogFile> {
+        validateUploadPermissions(files, viewer.permissions)
+        return storeInternal(viewer.userId, files) { file ->
             validateAvatar(file)
         }
     }
 
-    override fun storeReaction(userId: UUID, fileName: String, file: FileUploadData): BlogFile {
+    override fun storeReaction(viewer: Viewer.Registered, fileName: String, file: FileUploadData): BlogFile {
+        validateUploadPermissions(listOf(file), viewer.permissions)
         val validated = validateReaction(file)
         return try {
-            storeInternal(userId, listOf(validated), fileName) { it }.single()
+            storeInternal(viewer.userId, listOf(validated), fileName) { it }.single()
         } catch (e: ExposedSQLException) {
             if (e.isUniqueViolation()) throw ReactionAlreadyExistsException()
             throw e
+        }
+    }
+
+    private fun validateUploadPermissions(files: List<FileUploadData>, permissions: Set<UserPermission>) {
+        files.forEach { file ->
+            val ext = file.ext?.lowercase()
+            if (ext == "svg" && UserPermission.SVG_UPLOAD !in permissions) {
+                throw SvgUploadNotAllowedException()
+            }
         }
     }
 
@@ -72,7 +83,7 @@ abstract class BaseStorageServiceImpl(protected val properties: ApplicationPrope
     protected fun validateAvatar(file: FileUploadData): FileUploadData {
         val ext = file.ext ?: throw InvalidAvatarExtensionException()
         if (ext !in allowedImageExtensions) throw InvalidAvatarExtensionException()
-        if (file.bytes.size > 1_048_576) throw InvalidAvatarSizeException()
+        if (file.bytes.size > properties.maxAvatarSize) throw InvalidAvatarSizeException()
 
         val image = ImageIO.read(file.bytes.inputStream())
             ?: throw InvalidAvatarExtensionException()
@@ -84,7 +95,7 @@ abstract class BaseStorageServiceImpl(protected val properties: ApplicationPrope
     protected fun validateReaction(file: FileUploadData): FileUploadData {
         val ext = file.ext ?: throw InvalidReactionImageException()
         if (ext !in allowedImageExtensions) throw InvalidReactionImageException()
-        if (file.bytes.size > 512 * 1024) throw InvalidReactionImageException()
+        if (file.bytes.size > properties.maxReactionSize) throw InvalidReactionImageException()
 
         return file.copy(forcedType = FileType.REACTION)
     }

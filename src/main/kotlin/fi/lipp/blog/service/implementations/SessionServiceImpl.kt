@@ -2,14 +2,17 @@ package fi.lipp.blog.service.implementations
 
 import fi.lipp.blog.data.DeviceSessionDto
 import fi.lipp.blog.data.TokenPair
+import fi.lipp.blog.data.UserPermission
 import fi.lipp.blog.domain.UserSessionEntity
 import fi.lipp.blog.model.exceptions.SessionNotFoundException
 import fi.lipp.blog.model.exceptions.WrongUserException
 import fi.lipp.blog.plugins.createAccessToken
+import fi.lipp.blog.repository.UserPermissions
 import fi.lipp.blog.repository.UserSessions
 import fi.lipp.blog.service.SessionService
 import kotlinx.datetime.toKotlinLocalDateTime
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.LocalDateTime
 import java.util.UUID
@@ -17,6 +20,12 @@ import java.util.UUID
 private const val REFRESH_TOKEN_LIFETIME_DAYS = 30L
 
 class SessionServiceImpl : SessionService {
+
+    private fun loadUserPermissionsInTransaction(userId: UUID): Set<UserPermission> {
+        return UserPermissions.select { UserPermissions.user eq userId }
+            .mapNotNull { row -> runCatching { row[UserPermissions.permission] }.getOrNull() }
+            .toSet()
+    }
 
     override fun createSession(userId: UUID, deviceName: String, location: String, isMobile: Boolean): TokenPair {
         val refreshToken = UUID.randomUUID().toString()
@@ -29,7 +38,8 @@ class SessionServiceImpl : SessionService {
                 this.isMobile = isMobile
             }
         }
-        val accessToken = createAccessToken(userId, session.id.value)
+        val permissions = transaction { loadUserPermissionsInTransaction(userId) }
+        val accessToken = createAccessToken(userId, session.id.value, permissions)
         return TokenPair(accessToken = accessToken, refreshToken = refreshToken)
     }
 
@@ -54,7 +64,9 @@ class SessionServiceImpl : SessionService {
             session.refreshTokenExpiresAt = now.plusDays(REFRESH_TOKEN_LIFETIME_DAYS).toKotlinLocalDateTime()
             session.lastSeen = nowKotlin
 
-            val accessToken = createAccessToken(session.user.value, session.id.value)
+            val userId = session.user.value
+            val permissions = loadUserPermissionsInTransaction(userId)
+            val accessToken = createAccessToken(userId, session.id.value, permissions)
             TokenPair(accessToken = accessToken, refreshToken = newRefreshToken)
         }
     }

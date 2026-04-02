@@ -6,10 +6,12 @@ import fi.lipp.blog.data.UserDto
 import fi.lipp.blog.data.toFileUploadDatas
 import fi.lipp.blog.plugins.sessionId
 import fi.lipp.blog.plugins.userId
+import fi.lipp.blog.plugins.viewer
 import io.ktor.server.plugins.*
 import fi.lipp.blog.service.GeoLocationService
 import fi.lipp.blog.service.ReactionService
 import fi.lipp.blog.service.UserService
+import fi.lipp.blog.service.Viewer
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -128,7 +130,8 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService,
             post("/add-avatar") {
                 val multipart = call.receiveMultipart()
                 val files = multipart.toFileUploadDatas()
-                val avatarUrls = userService.addAvatar(userId, files)
+                val registeredViewer = viewer as Viewer.Registered
+                val avatarUrls = userService.addAvatar(registeredViewer, files)
                 call.respond(avatarUrls)
             }
 

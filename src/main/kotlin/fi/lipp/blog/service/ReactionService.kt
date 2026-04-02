@@ -6,7 +6,7 @@ import fi.lipp.blog.data.ReactionPackDto
 import java.util.UUID
 
 interface ReactionService {
-    fun createReaction(userId: UUID, name: String, packName: String, icon: FileUploadData): ReactionDto.View
+    fun createReaction(viewer: Viewer.Registered, name: String, packName: String, icon: FileUploadData): ReactionDto.View
     fun deleteReaction(userId: UUID, name: String)
     fun getReactions(): List<ReactionDto.View>
     fun getBasicReactions(): List<ReactionPackDto>

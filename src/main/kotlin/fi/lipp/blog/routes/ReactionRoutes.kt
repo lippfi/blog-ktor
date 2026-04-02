@@ -4,6 +4,7 @@ import fi.lipp.blog.data.toFileUploadDatas
 import fi.lipp.blog.plugins.userId
 import fi.lipp.blog.plugins.viewer
 import fi.lipp.blog.service.ReactionService
+import fi.lipp.blog.service.Viewer
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.request.*
@@ -50,7 +51,8 @@ fun Route.reactionRoutes(reactionService: ReactionService) {
                 if (files.isEmpty()) {
                     throw IllegalArgumentException("No icon file provided")
                 }
-                val reaction = reactionService.createReaction(userId, name, packName, files.first())
+                val registeredViewer = viewer as Viewer.Registered
+                val reaction = reactionService.createReaction(registeredViewer, name, packName, files.first())
                 call.respond(reaction)
             }
 

@@ -1,8 +1,6 @@
 package fi.lipp.blog.service.implementations
 
-import fi.lipp.blog.data.FileUploadData
-import fi.lipp.blog.data.ReactionDto
-import fi.lipp.blog.data.ReactionPackDto
+import fi.lipp.blog.data.*
 import fi.lipp.blog.domain.*
 import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.repository.*
@@ -65,11 +63,12 @@ class ReactionServiceImpl(
         return cachedBasicReactions
     }
 
-    override fun createReaction(userId: UUID, name: String, packName: String, icon: FileUploadData): ReactionDto.View {
+    override fun createReaction(viewer: Viewer.Registered, name: String, packName: String, icon: FileUploadData): ReactionDto.View {
         ReactionDto.validateName(name)
 
+        val userId = viewer.userId
         val storedFile = try {
-            storageService.storeReaction(userId, name, icon)
+            storageService.storeReaction(viewer, name, icon)
         } catch (_: ReactionAlreadyExistsException) {
             throw ReactionNameIsTakenException()
         }

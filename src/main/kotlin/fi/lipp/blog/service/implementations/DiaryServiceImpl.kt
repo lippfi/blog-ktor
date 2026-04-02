@@ -14,6 +14,7 @@ import fi.lipp.blog.repository.DiaryStyleJunctions
 import fi.lipp.blog.service.DiaryService
 import fi.lipp.blog.service.StorageService
 import fi.lipp.blog.service.UserService
+import fi.lipp.blog.service.Viewer
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.UUID
@@ -157,7 +158,8 @@ class DiaryServiceImpl(
             if (diaryEntity.owner.value != userId) throw WrongUserException()
 
             val styleUploadData = FileUploadData("style.css", style.styleContent.toByteArray())
-            val blogFile = storageService.store(userId, listOf(styleUploadData))[0]
+            val viewer = Viewer.Registered(userId)
+            val blogFile = storageService.store(viewer, listOf(styleUploadData))[0]
 
             val userEntity = UserEntity.findById(userId) ?: throw UserNotFoundException()
             val styleEntity = DiaryStyleEntity.new {
@@ -196,7 +198,8 @@ class DiaryServiceImpl(
             val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
             if (diaryEntity.owner.value != userId) throw WrongUserException()
 
-            val blogFile = storageService.store(userId, listOf(styleFile))[0]
+            val viewer = Viewer.Registered(userId)
+            val blogFile = storageService.store(viewer, listOf(styleFile))[0]
 
             val userEntity = UserEntity.findById(userId) ?: throw UserNotFoundException()
             val styleEntity = DiaryStyleEntity.new {
@@ -249,7 +252,8 @@ class DiaryServiceImpl(
 
             val resultStyleEntity = if (styleChanged) {
                 val styleUploadData = FileUploadData("style.css", update.styleContent.toByteArray())
-                val blogFile = storageService.store(userId, listOf(styleUploadData))[0]
+                val viewer = Viewer.Registered(userId)
+                val blogFile = storageService.store(viewer, listOf(styleUploadData))[0]
 
                 val newStyleEntity = DiaryStyleEntity.new {
                     name = update.name

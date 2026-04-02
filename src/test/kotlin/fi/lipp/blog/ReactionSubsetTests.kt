@@ -2,6 +2,7 @@ package fi.lipp.blog
 
 import fi.lipp.blog.data.FileUploadData
 import fi.lipp.blog.domain.ReactionEntity
+import fi.lipp.blog.service.Viewer
 import fi.lipp.blog.domain.ReactionSubsetEntity
 import fi.lipp.blog.domain.ReactionSubsetReactionEntity
 import fi.lipp.blog.model.exceptions.ReactionNotFoundException
@@ -25,9 +26,9 @@ class ReactionSubsetTests : UnitTestBase() {
 
         // Create some reactions to use
         transaction {
-            reactionService.createReaction(user1Id, "like", "custom", FileUploadData("like.png", avatarFile1.readBytes()))
-            reactionService.createReaction(user1Id, "love", "custom", FileUploadData("love.png", avatarFile1.readBytes()))
-            reactionService.createReaction(user1Id, "haha", "custom", FileUploadData("haha.png", avatarFile1.readBytes()))
+            reactionService.createReaction(Viewer.Registered(user1Id), "like", "custom", FileUploadData("like.png", avatarFile1.readBytes()))
+            reactionService.createReaction(Viewer.Registered(user1Id), "love", "custom", FileUploadData("love.png", avatarFile1.readBytes()))
+            reactionService.createReaction(Viewer.Registered(user1Id), "haha", "custom", FileUploadData("haha.png", avatarFile1.readBytes()))
         }
     }
 

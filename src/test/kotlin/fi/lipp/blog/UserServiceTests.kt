@@ -6,6 +6,7 @@ import fi.lipp.blog.data.Language
 import fi.lipp.blog.data.NSFWPolicy
 import fi.lipp.blog.data.Sex
 import fi.lipp.blog.data.UserDto
+import fi.lipp.blog.service.Viewer
 import fi.lipp.blog.domain.FriendLabelEntity
 import fi.lipp.blog.domain.PasswordResetCodeEntity
 import fi.lipp.blog.domain.PendingRegistrationEntity
@@ -1075,21 +1076,21 @@ class UserServiceTests : UnitTestBase() {
 
             val (userId, _) = signUsersUp()
 
-            userService.addAvatar(userId, listOf(avatarUpload1))
+            userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload1))
             var avatars = userService.getAvatars(userId)
             assertEquals(1, avatars.size)
             val avatar1 = avatars.last()
             assertEquals(userId, avatar1.ownerId)
             assertEquals(avatarUpload1.type, avatar1.type)
 
-            userService.addAvatar(userId, listOf(avatarUpload2))
+            userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload2))
             avatars = userService.getAvatars(userId)
             assertEquals(2, avatars.size)
             val avatar2 = avatars.last()
             assertEquals(userId, avatar2.ownerId)
             assertEquals(avatarUpload2.type, avatar2.type)
 
-            userService.addAvatar(userId, listOf(avatarUpload3))
+            userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload3))
             avatars = userService.getAvatars(userId)
             assertEquals(3, avatars.size)
             val avatar3 = avatars.last()
@@ -1125,7 +1126,7 @@ class UserServiceTests : UnitTestBase() {
             val (userId, _) = signUsersUp()
 
             assertThrows(InvalidAvatarDimensionsException::class.java) {
-                userService.addAvatar(userId, listOf(wrongSizeUpload))
+                userService.addAvatar(Viewer.Registered(userId), listOf(wrongSizeUpload))
             }
             val avatars = userService.getAvatars(userId)
             assertEquals(0, avatars.size)
@@ -1158,7 +1159,7 @@ class UserServiceTests : UnitTestBase() {
             val (userId, _) = signUsersUp()
 
             assertThrows(InvalidAvatarSizeException::class.java) {
-                userService.addAvatar(userId, listOf(largeFileData))
+                userService.addAvatar(Viewer.Registered(userId), listOf(largeFileData))
             }
             val avatars = userService.getAvatars(userId)
             assertEquals(0, avatars.size)
@@ -1175,7 +1176,7 @@ class UserServiceTests : UnitTestBase() {
             val (userId, _) = signUsersUp()
 
             assertThrows(InvalidAvatarExtensionException::class.java) {
-                userService.addAvatar(userId, listOf(avatarUploadTxt))
+                userService.addAvatar(Viewer.Registered(userId), listOf(avatarUploadTxt))
             }
             val avatars = userService.getAvatars(userId)
             assertEquals(0, avatars.size)
@@ -1193,7 +1194,7 @@ class UserServiceTests : UnitTestBase() {
 
             val (userId, _) = signUsersUp()
 
-            userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
+            userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload1, avatarUpload2, avatarUpload3))
             val avatars = userService.getAvatars(userId)
             assertEquals(3, avatars.size)
             val avatar1 = avatars[0]
@@ -1221,7 +1222,7 @@ class UserServiceTests : UnitTestBase() {
 
             val (userId, _) = signUsersUp()
 
-            userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
+            userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload1, avatarUpload2, avatarUpload3))
             val avatars = userService.getAvatarUris(userId).content.values.toList()
             val avatar1 = avatars[0]
             val avatar2 = avatars[1]
@@ -1243,7 +1244,7 @@ class UserServiceTests : UnitTestBase() {
 
             val (userId, _) = signUsersUp()
 
-            userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
+            userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload1, avatarUpload2, avatarUpload3))
             val avatars = userService.getAvatarUris(userId).content.values.toList()
             val avatar1 = avatars[0]
             val avatar2 = avatars[1]
@@ -1265,7 +1266,7 @@ class UserServiceTests : UnitTestBase() {
 
             val (userId, _) = signUsersUp()
 
-            userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
+            userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload1, avatarUpload2, avatarUpload3))
             val avatars = userService.getAvatarUris(userId).content.values.toList()
             val avatar1 = avatars[0]
             val avatar2 = avatars[1]
@@ -1287,7 +1288,7 @@ class UserServiceTests : UnitTestBase() {
 
             val (userId, _) = signUsersUp()
 
-            userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
+            userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload1, avatarUpload2, avatarUpload3))
             val avatars = userService.getAvatars(userId)
             val id1 = avatars[0].id
             val id2 = avatars[1].id
@@ -1309,7 +1310,7 @@ class UserServiceTests : UnitTestBase() {
 
             val (userId, _) = signUsersUp()
 
-            userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
+            userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload1, avatarUpload2, avatarUpload3))
             val avatars = userService.getAvatars(userId)
             val id2 = avatars[1].id
             val id3 = avatars[2].id
@@ -1330,7 +1331,7 @@ class UserServiceTests : UnitTestBase() {
 
             val (userId, _) = signUsersUp()
 
-            userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2, avatarUpload3))
+            userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload1, avatarUpload2, avatarUpload3))
             assertThrows(InvalidAvatarUriException::class.java) {
                 userService.deleteAvatar(userId, "nonexistent uri")
             }
@@ -1349,12 +1350,12 @@ class UserServiceTests : UnitTestBase() {
 
             val (userId1, userId2) = signUsersUp()
 
-            userService.addAvatar(userId1, listOf(avatarUpload1))
+            userService.addAvatar(Viewer.Registered(userId1), listOf(avatarUpload1))
             var avatars1 = userService.getAvatars(userId1)
             assertEquals(1, avatars1.size)
             val avatar1 = avatars1[0]
 
-            userService.addAvatar(userId2, listOf(avatarUpload2))
+            userService.addAvatar(Viewer.Registered(userId2), listOf(avatarUpload2))
             var avatars2 = userService.getAvatars(userId2)
             assertEquals(1, avatars2.size)
             val avatar2 = avatars2[0]
@@ -1380,10 +1381,10 @@ class UserServiceTests : UnitTestBase() {
 
             val (userId1, userId2) = signUsersUp()
 
-            userService.addAvatar(userId1, listOf(avatarUpload1, avatarUpload2))
+            userService.addAvatar(Viewer.Registered(userId1), listOf(avatarUpload1, avatarUpload2))
             val avatars1 = userService.getAvatars(userId1)
 
-            userService.addAvatar(userId2, listOf(avatarUpload3))
+            userService.addAvatar(Viewer.Registered(userId2), listOf(avatarUpload3))
             val avatars2 = userService.getAvatars(userId2)
 
             assertThrows(WrongUserException::class.java) {
@@ -1423,10 +1424,10 @@ class UserServiceTests : UnitTestBase() {
 
             val userId1 = findUserByLogin(testUser.login)!!.id
 
-            userService.addAvatar(userId1, listOf(avatarUpload1, avatarUpload2))
+            userService.addAvatar(Viewer.Registered(userId1), listOf(avatarUpload1, avatarUpload2))
             val avatars = userService.getAvatars(userId1)
 
-            val storedFiles = storageService.store(userId1, listOf(avatarUpload3))
+            val storedFiles = storageService.store(Viewer.Registered(userId1), listOf(avatarUpload3))
             assertEquals(1, storedFiles.size)
             val storedFileUUID = storedFiles[0].id
 
@@ -1445,7 +1446,7 @@ class UserServiceTests : UnitTestBase() {
 
             // Add first avatar
             val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
-            userService.addAvatar(userId, listOf(avatarUpload1))
+            userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload1))
             val avatars1 = userService.getAvatars(userId)
             assertEquals(1, avatars1.size)
 
@@ -1456,7 +1457,7 @@ class UserServiceTests : UnitTestBase() {
 
             // Add second avatar
             val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.readBytes())
-            userService.addAvatar(userId, listOf(avatarUpload2))
+            userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload2))
             val avatars2 = userService.getAvatars(userId)
             assertEquals(2, avatars2.size)
 
@@ -1475,7 +1476,7 @@ class UserServiceTests : UnitTestBase() {
             // Add two avatars
             val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
             val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.readBytes())
-            userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2))
+            userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload1, avatarUpload2))
             val avatars = userService.getAvatars(userId)
             assertEquals(2, avatars.size)
 
@@ -1483,7 +1484,7 @@ class UserServiceTests : UnitTestBase() {
             val user = UserEntity.findById(userId)!!
             val firstPrimaryId = user.primaryAvatar!!.value
             val secondAvatarUrl = storageService.getFileURL(avatars[1])
-            userService.changePrimaryAvatar(userId, secondAvatarUrl)
+            userService.changePrimaryAvatar(Viewer.Registered(userId), secondAvatarUrl)
 
             // Verify primary avatar changed
             assertNotEquals(firstPrimaryId, user.primaryAvatar!!.value)
@@ -1501,7 +1502,7 @@ class UserServiceTests : UnitTestBase() {
 
             // Add avatar to first user
             val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
-            userService.addAvatar(userId1, listOf(avatarUpload))
+            userService.addAvatar(Viewer.Registered(userId1), listOf(avatarUpload))
             val avatars1 = userService.getAvatars(userId1)
             assertEquals(1, avatars1.size)
 
@@ -1525,7 +1526,7 @@ class UserServiceTests : UnitTestBase() {
 
             // Upload a non-avatar file
             val fileUpload = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
-            val files = storageService.store(userId, listOf(fileUpload))
+            val files = storageService.store(Viewer.Registered(userId), listOf(fileUpload))
             assertEquals(1, files.size)
 
             // Try to use it as avatar
@@ -1549,13 +1550,13 @@ class UserServiceTests : UnitTestBase() {
 
             // Add avatar to first user
             val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
-            userService.addAvatar(userId1, listOf(avatarUpload))
+            userService.addAvatar(Viewer.Registered(userId1), listOf(avatarUpload))
             val avatars1 = userService.getAvatars(userId1)
             assertEquals(1, avatars1.size)
 
             // Try to set first user's avatar as primary for second user
             val avatarUrl = storageService.getFileURL(avatars1[0])
-            userService.changePrimaryAvatar(userId2, avatarUrl)
+            userService.changePrimaryAvatar(Viewer.Registered(userId2), avatarUrl)
 
             // Verify that a new copy of the avatar was created
             val avatars2 = userService.getAvatars(userId2)
@@ -1579,7 +1580,7 @@ class UserServiceTests : UnitTestBase() {
             // Add two avatars
             val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
             val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.readBytes())
-            userService.addAvatar(userId, listOf(avatarUpload1, avatarUpload2))
+            userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload1, avatarUpload2))
             val avatars = userService.getAvatars(userId)
             assertEquals(2, avatars.size)
 

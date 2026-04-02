@@ -1,8 +1,9 @@
 package fi.lipp.blog.routes
 
 import fi.lipp.blog.data.toFileUploadDatas
-import fi.lipp.blog.plugins.userId
+import fi.lipp.blog.plugins.viewer
 import fi.lipp.blog.service.StorageService
+import fi.lipp.blog.service.Viewer
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.request.*
@@ -15,9 +16,10 @@ fun Route.storageRoutes(storageService: StorageService) {
             post("/upload") {
                 val multipart = call.receiveMultipart()
                 val files = multipart.toFileUploadDatas()
-                val storedFiles = storageService.store(userId, files).map { storageService.getFileURL(it) }
+                val registeredViewer = viewer as Viewer.Registered
+                val storedFiles = storageService.store(registeredViewer, files).map { storageService.getFileURL(it) }
                 call.respond(storedFiles)
             }
         }
     }
-} 
+}

@@ -6,6 +6,7 @@ import fi.lipp.blog.data.UserDto
 import fi.lipp.blog.domain.PendingRegistrationEntity
 import fi.lipp.blog.model.exceptions.InvalidReactionImageException
 import fi.lipp.blog.repository.PendingRegistrations
+import fi.lipp.blog.service.Viewer
 import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -58,7 +59,8 @@ class StorageServiceTests : UnitTestBase() {
     fun `test store reaction - valid square image`() {
         transaction {
             val file = createTestImage(100, 100)
-            val blogFile = storageService.storeReaction(registeredUser.id, "test.jpg", file)
+            val viewer = Viewer.Registered(registeredUser.id)
+            val blogFile = storageService.storeReaction(viewer, "test.jpg", file)
             assertEquals(FileType.REACTION, blogFile.type)
         }
     }
@@ -90,8 +92,9 @@ class StorageServiceTests : UnitTestBase() {
                 fullName = "test.txt",
                 bytes = ByteArray(10)
             )
+            val viewer = Viewer.Registered(registeredUser.id)
             assertFailsWith<InvalidReactionImageException> {
-                storageService.storeReaction(registeredUser.id, "1.png",file)
+                storageService.storeReaction(viewer, "1.png", file)
             }
         }
     }
@@ -105,8 +108,9 @@ class StorageServiceTests : UnitTestBase() {
                 fullName = "test.png",
                 bytes = largeBytes
             )
+            val viewer = Viewer.Registered(registeredUser.id)
             assertFailsWith<InvalidReactionImageException> {
-                storageService.storeReaction(registeredUser.id, "2.png", largeFile)
+                storageService.storeReaction(viewer, "2.png", largeFile)
             }
         }
     }
@@ -114,9 +118,11 @@ class StorageServiceTests : UnitTestBase() {
     @Test
     fun `test directory creation for different file types`() {
         transaction {
+            val viewer = Viewer.Registered(registeredUser.id)
+
             // Test image storage
             val imageFile = createTestImage(100, 100)
-            val storedImage = storageService.store(registeredUser.id, listOf(imageFile))[0]
+            val storedImage = storageService.store(viewer, listOf(imageFile))[0]
             storageService.openFileStream(storedImage).use { stream ->
                 val bytes = stream.readBytes()
                 assertTrue(bytes.isNotEmpty(), "Image file should have content")
@@ -124,7 +130,7 @@ class StorageServiceTests : UnitTestBase() {
 
             // Test reaction storage
             val reactionFile = createTestImage(50, 50)
-            val storedReaction = storageService.storeReaction(registeredUser.id, "3.png", reactionFile)
+            val storedReaction = storageService.storeReaction(viewer, "3.png", reactionFile)
             storageService.openFileStream(storedReaction).use { stream ->
                 val bytes = stream.readBytes()
                 assertTrue(bytes.isNotEmpty(), "Reaction file should have content")
@@ -135,8 +141,9 @@ class StorageServiceTests : UnitTestBase() {
     @Test
     fun `test nested directory creation`() {
         transaction {
+            val viewer = Viewer.Registered(registeredUser.id)
             val imageFile = createTestImage(100, 100)
-            val storedImage = storageService.store(registeredUser.id, listOf(imageFile))[0]
+            val storedImage = storageService.store(viewer, listOf(imageFile))[0]
 
             // Verify the file is accessible via stream
             storageService.openFileStream(storedImage).use { stream ->

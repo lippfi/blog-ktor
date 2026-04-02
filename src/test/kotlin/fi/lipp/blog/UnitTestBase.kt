@@ -116,6 +116,7 @@ abstract class UnitTestBase {
                     IgnoreList,
                     PostSubscriptions,
                     UserSessions,
+                    UserPermissions,
                 )
             }
             startKoin {
@@ -291,6 +292,7 @@ abstract class UnitTestBase {
             exec("DELETE FROM ${HiddenFromFeed.tableName}")
             exec("DELETE FROM ${IgnoreList.tableName}")
             exec("DELETE FROM ${UserSessions.tableName}")
+            exec("DELETE FROM ${UserPermissions.tableName}")
             exec("DELETE FROM ${Files.tableName}")
             exec("DELETE FROM ${Diaries.tableName}")
             exec("DELETE FROM ${Users.tableName}")

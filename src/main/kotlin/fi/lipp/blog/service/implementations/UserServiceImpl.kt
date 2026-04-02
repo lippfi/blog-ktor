@@ -28,6 +28,29 @@ class UserServiceImpl(
     private val properties: ApplicationProperties,
     private val sessionService: SessionService,
 ) : UserService {
+    override fun getUserPermissions(userId: UUID): Set<UserPermission> {
+        return transaction {
+            UserEntity.findById(userId) ?: throw UserNotFoundException()
+            UserPermissions
+                .select { UserPermissions.user eq userId }
+                .map { it[UserPermissions.permission] }
+                .toSet()
+        }
+    }
+
+    override fun updateUserPermissions(userId: UUID, permissions: Set<UserPermission>) {
+        transaction {
+            UserEntity.findById(userId) ?: throw UserNotFoundException()
+            UserPermissions.deleteWhere { UserPermissions.user eq userId }
+            permissions.forEach { perm ->
+                UserPermissions.insert {
+                    it[user] = userId
+                    it[permission] = perm
+                }
+            }
+        }
+    }
+
     override fun generateInviteCode(userId: UUID): String {
         val inviteCode = transaction {
             InviteCodes.insertAndGetId {
@@ -556,7 +579,8 @@ class UserServiceImpl(
         }
     }
 
-    override fun addAvatar(userId: UUID, files: List<FileUploadData>): SerializableMap {
+    override fun addAvatar(viewer: Viewer.Registered, files: List<FileUploadData>): SerializableMap {
+        val userId = viewer.userId
         val existingMaxOrdinal = transaction {
             UserAvatars.slice(UserAvatars.ordinal.max())
                 .select { UserAvatars.user eq userId }
@@ -565,7 +589,7 @@ class UserServiceImpl(
         }
 
         // TODO FileType.AVATAR where?
-        val newAvatars = storageService.storeAvatars(userId, files)
+        val newAvatars = storageService.storeAvatars(viewer, files)
 
         transaction {
             val user = UserEntity.findById(userId) ?: return@transaction
@@ -891,7 +915,8 @@ class UserServiceImpl(
         }
     }
 
-    override fun changePrimaryAvatar(userId: UUID, avatarUri: String) {
+    override fun changePrimaryAvatar(viewer: Viewer.Registered, avatarUri: String) {
+        val userId = viewer.userId
         transaction {
             val avatarEntity = getFileEntityByUri(avatarUri)
             val avatarId = avatarEntity.id.value
@@ -904,7 +929,7 @@ class UserServiceImpl(
                     primaryAvatar = avatarEntity.id
                 }
             } else {
-                reuploadFileAsUserAvatar(userId, avatarId)
+                reuploadFileAsUserAvatar(viewer, avatarId)
             }
         }
     }
@@ -959,14 +984,15 @@ class UserServiceImpl(
     }
 
     @Suppress("UnusedReceiverParameter")
-    private fun Transaction.reuploadFileAsUserAvatar(userId: UUID, avatarId: UUID) {
+    private fun Transaction.reuploadFileAsUserAvatar(viewer: Viewer.Registered, avatarId: UUID) {
+        val userId = viewer.userId
         val fileEntity = FileEntity.findById(avatarId) ?: return
         val (fileName, fileBytes) = storageService.openFileStream(fileEntity.toBlogFile()).use { input ->
             fileEntity.storageKey.substringAfterLast('/') to input.readBytes()
         }
         val fileUploadData = FileUploadData(fileName, fileBytes)
 
-        val newAvatars = storageService.storeAvatars(userId, listOf(fileUploadData))
+        val newAvatars = storageService.storeAvatars(viewer, listOf(fileUploadData))
         if (newAvatars.isEmpty()) return
 
         val newAvatarId = newAvatars[0].id
