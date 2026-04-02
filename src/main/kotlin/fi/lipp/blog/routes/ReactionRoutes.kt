@@ -49,6 +49,11 @@ fun Route.reactionRoutes(reactionService: ReactionService) {
         }
 
         authenticate {
+            get("/my-packs") {
+                val packs = reactionService.getMyPacks(viewer as Viewer.Registered)
+                call.respond(packs)
+            }
+
             post("/create") {
                 val name = call.request.queryParameters["name"] ?: throw IllegalArgumentException("Missing name parameter")
                 val packName = call.request.queryParameters["pack"] ?: throw IllegalArgumentException("Missing pack parameter")

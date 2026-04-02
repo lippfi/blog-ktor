@@ -342,4 +342,77 @@ class ReactionManagementTests : UnitTestBase() {
             reactionService.updateReactionPack(viewer, "protected-pack", "hacked-name", null)
         }
     }
+
+    // =====================================================================
+    // getMyPacks
+    // =====================================================================
+
+    @Test
+    fun `getMyPacks returns empty list for user with no packs and no permission`() {
+        val packs = reactionService.getMyPacks(Viewer.Registered(user1Id))
+        assertTrue(packs.isEmpty())
+    }
+
+    @Test
+    fun `getMyPacks returns packs created by user`() {
+        reactionService.createReaction(Viewer.Registered(user1Id), "my-r1", "my-pack1", createIcon())
+        reactionService.createReaction(Viewer.Registered(user1Id), "my-r2", "my-pack2", createIcon())
+        val packs = reactionService.getMyPacks(Viewer.Registered(user1Id))
+        assertEquals(2, packs.size)
+        assertTrue(packs.any { it.name == "my-pack1" })
+        assertTrue(packs.any { it.name == "my-pack2" })
+    }
+
+    @Test
+    fun `getMyPacks does not return packs created by other users`() {
+        reactionService.createReaction(Viewer.Registered(user1Id), "u1-r", "u1-pack", createIcon())
+        reactionService.createReaction(Viewer.Registered(user2Id), "u2-r", "u2-pack", createIcon())
+        val packs = reactionService.getMyPacks(Viewer.Registered(user1Id))
+        assertEquals(1, packs.size)
+        assertEquals("u1-pack", packs[0].name)
+    }
+
+    @Test
+    fun `getMyPacks includes basic pack for user with WRITE_BASIC_REACTIONS permission`() {
+        val viewer = Viewer.Registered(user1Id, setOf(UserPermission.WRITE_BASIC_REACTIONS))
+        val packs = reactionService.getMyPacks(viewer)
+        assertTrue(packs.any { it.name == "basic" })
+    }
+
+    @Test
+    fun `getMyPacks does not include basic pack for user without WRITE_BASIC_REACTIONS permission`() {
+        val packs = reactionService.getMyPacks(Viewer.Registered(user1Id))
+        assertFalse(packs.any { it.name == "basic" })
+    }
+
+    @Test
+    fun `getMyPacks includes both own packs and basic pack with permission`() {
+        reactionService.createReaction(Viewer.Registered(user1Id), "own-r", "own-pack", createIcon())
+        val viewer = Viewer.Registered(user1Id, setOf(UserPermission.WRITE_BASIC_REACTIONS))
+        val packs = reactionService.getMyPacks(viewer)
+        assertEquals(2, packs.size)
+        assertTrue(packs.any { it.name == "own-pack" })
+        assertTrue(packs.any { it.name == "basic" })
+    }
+
+    @Test
+    fun `getMyPacks returns reactions within each pack`() {
+        reactionService.createReaction(Viewer.Registered(user1Id), "r1", "multi-pack", createIcon())
+        reactionService.createReaction(Viewer.Registered(user1Id), "r2", "multi-pack", createIcon())
+        val packs = reactionService.getMyPacks(Viewer.Registered(user1Id))
+        assertEquals(1, packs.size)
+        assertEquals(2, packs[0].reactions.size)
+        assertTrue(packs[0].reactions.any { it.name == "r1" })
+        assertTrue(packs[0].reactions.any { it.name == "r2" })
+    }
+
+    @Test
+    fun `getMyPacks does not duplicate basic pack if user is its creator`() {
+        // System user is the creator of "basic" pack
+        val systemUserId = userService.getOrCreateSystemUser()
+        val viewer = Viewer.Registered(systemUserId, setOf(UserPermission.WRITE_BASIC_REACTIONS))
+        val packs = reactionService.getMyPacks(viewer)
+        val basicPacks = packs.filter { it.name == "basic" }
+        assertEquals(1, basicPacks.size)
+    }
 }

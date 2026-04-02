@@ -64,6 +64,32 @@ class ReactionServiceImpl(
         return cachedBasicReactions
     }
 
+    override fun getMyPacks(viewer: Viewer.Registered): List<ReactionPackDto> {
+        return transaction {
+            val userPacks = ReactionPackEntity.find { ReactionPacks.creator eq viewer.userId }.toList()
+
+            val includeBasic = UserPermission.WRITE_BASIC_REACTIONS in viewer.permissions
+                    && userPacks.none { it.name == "basic" }
+
+            val packs = if (includeBasic) {
+                val basicPack = ReactionPackEntity.find { ReactionPacks.name eq "basic" }.firstOrNull()
+                if (basicPack != null) userPacks + basicPack else userPacks
+            } else {
+                userPacks
+            }
+
+            packs.map { pack ->
+                ReactionPackDto(
+                    name = pack.name,
+                    iconUri = pack.icon?.let { storageService.getFileURL(it.toBlogFile()) }
+                        ?: pack.reactions.minByOrNull { it.ordinal }?.let { storageService.getFileURL(it.icon.toBlogFile()) }
+                        ?: "",
+                    reactions = pack.reactions.sortedBy { it.ordinal }.map { toReactionView(it) }
+                )
+            }
+        }
+    }
+
     override fun createReaction(viewer: Viewer.Registered, name: String, packName: String, icon: FileUploadData): ReactionDto.View {
         ReactionDto.validateName(name)
 

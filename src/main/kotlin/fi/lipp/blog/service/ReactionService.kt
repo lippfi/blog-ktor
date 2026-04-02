@@ -29,6 +29,8 @@ interface ReactionService {
     fun removeCommentReaction(viewer: Viewer, commentId: UUID, reactionName: String)
     fun getCommentReactions(viewer: Viewer, commentId: UUID): List<ReactionDto.ReactionInfo>
 
+    fun getMyPacks(viewer: Viewer.Registered): List<ReactionPackDto>
+
     fun search(text: String): List<ReactionDto.View>
 
     fun createReactionSubset(viewer: Viewer.Registered, diaryLogin: String, name: String, reactionNames: List<String>): UUID
