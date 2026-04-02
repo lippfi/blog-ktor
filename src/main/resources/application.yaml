@@ -10,7 +10,7 @@ jwt:
     realm: "ktor sample app"
     secret: "pupa"
 mail:
-    api-key: ""
+    api_key: ""
 geoip:
     database: "/path/to/GeoLite2-City.mmdb"
 database:
