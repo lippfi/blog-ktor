@@ -223,6 +223,7 @@ internal class PostQueryHelper {
                 }
 
                 if (to != null) {
+                    // todo add one day instead of 59, 59. Use user's timezone
                     cond = cond and (Posts.creationTime lessEq to.atTime(LocalTime(23, 59, 59)).toInstant(TimeZone.UTC))
                 }
 
