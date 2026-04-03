@@ -515,7 +515,29 @@ paths:
             text/plain:
               schema:
                 type: string
-  /user/signature:
+  /user/update-nickname:
+    post:
+      tags: [user]
+      summary: Update user nickname
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+          application/json:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/update-signature:
     post:
       tags: [user]
       summary: Update user signature
@@ -530,6 +552,146 @@ paths:
           application/json:
             schema:
               type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/signature:
+    post:
+      tags: [user]
+      summary: Update user signature (alias)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+          application/json:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/update-language:
+    post:
+      tags: [user]
+      summary: Update user language
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Language'
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/update-timezone:
+    post:
+      tags: [user]
+      summary: Update user timezone
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+          application/json:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/update-password:
+    post:
+      tags: [user]
+      summary: Update user password
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePasswordRequest'
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/update-sex:
+    post:
+      tags: [user]
+      summary: Update user sex
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Sex'
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/update-nsfw-policy:
+    post:
+      tags: [user]
+      summary: Update user NSFW policy
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NsfwPolicy'
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/update-birthdate:
+    post:
+      tags: [user]
+      summary: Update user birth date
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: string
+              format: date
       responses:
         '200':
           description: Confirmation text
@@ -646,7 +808,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/UserView'
+                  $ref: '#/components/schemas/IgnoredUserView'
 
 components:
   securitySchemes:
@@ -720,7 +882,7 @@ components:
           nullable: true
     UserSessionInfo:
       type: object
-      required: [login, nickname, language, nsfw]
+      required: [login, nickname, language, nsfw, timezone, permissions]
       properties:
         login:
           type: string
@@ -730,6 +892,12 @@ components:
           $ref: '#/components/schemas/Language'
         nsfw:
           $ref: '#/components/schemas/NsfwPolicy'
+        timezone:
+          type: string
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserPermission'
     UpdateUserRequest:
       type: object
       required: [user, oldPassword]
@@ -807,6 +975,31 @@ components:
         createdAt:
           type: string
           format: date-time
+    UpdatePasswordRequest:
+      type: object
+      required: [newPassword, oldPassword]
+      properties:
+        newPassword:
+          type: string
+        oldPassword:
+          type: string
+    IgnoredUserView:
+      type: object
+      required: [login, nickname]
+      properties:
+        login:
+          type: string
+        nickname:
+          type: string
+        avatarUri:
+          type: string
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+    UserPermission:
+      type: string
+      enum: [SVG_UPLOAD, WRITE_BASIC_REACTIONS, ISSUE_INVITE_CODES]
     Language:
       type: string
       enum: [RU, EN, KK, KK_CYRILLIC]

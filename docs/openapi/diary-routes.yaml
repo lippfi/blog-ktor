@@ -56,6 +56,54 @@ paths:
             text/plain:
               schema:
                 type: string
+  /diary/update-title-subtitle:
+    post:
+      tags: [diary]
+      summary: Update diary title and subtitle
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: login
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTitleSubtitleRequest'
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /diary/update-default-groups:
+    post:
+      tags: [diary]
+      summary: Update diary default access groups
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: login
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDefaultGroupsRequest'
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
   /diary/profile:
     get:
       tags: [diary]
@@ -418,6 +466,27 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UserView'
+    UpdateTitleSubtitleRequest:
+      type: object
+      required: [title, subtitle]
+      properties:
+        title:
+          type: string
+        subtitle:
+          type: string
+    UpdateDefaultGroupsRequest:
+      type: object
+      required: [defaultReadGroup, defaultCommentGroup, defaultReactGroup]
+      properties:
+        defaultReadGroup:
+          type: string
+          format: uuid
+        defaultCommentGroup:
+          type: string
+          format: uuid
+        defaultReactGroup:
+          type: string
+          format: uuid
     UserView:
       type: object
       required: [login, nickname]
