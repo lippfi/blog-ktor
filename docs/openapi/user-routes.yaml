@@ -515,10 +515,57 @@ paths:
             text/plain:
               schema:
                 type: string
+  /user/nickname:
+    get:
+      tags: [user]
+      summary: Get user nickname
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User nickname
+          content:
+            text/plain:
+              schema:
+                type: string
   /user/update-nickname:
     post:
       tags: [user]
       summary: Update user nickname
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+          application/json:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/signature:
+    get:
+      tags: [user]
+      summary: Get user signature
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User signature
+          content:
+            text/plain:
+              schema:
+                type: string
+    post:
+      tags: [user]
+      summary: Update user signature (alias)
       security:
         - bearerAuth: []
       requestBody:
@@ -559,28 +606,19 @@ paths:
             text/plain:
               schema:
                 type: string
-  /user/signature:
-    post:
+  /user/language:
+    get:
       tags: [user]
-      summary: Update user signature (alias)
+      summary: Get user language
       security:
         - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          text/plain:
-            schema:
-              type: string
-          application/json:
-            schema:
-              type: string
       responses:
         '200':
-          description: Confirmation text
+          description: User language
           content:
-            text/plain:
+            application/json:
               schema:
-                type: string
+                $ref: '#/components/schemas/Language'
   /user/update-language:
     post:
       tags: [user]
@@ -596,6 +634,19 @@ paths:
       responses:
         '200':
           description: Confirmation text
+          content:
+            text/plain:
+              schema:
+                type: string
+  /user/timezone:
+    get:
+      tags: [user]
+      summary: Get user timezone
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User timezone
           content:
             text/plain:
               schema:
@@ -641,6 +692,19 @@ paths:
             text/plain:
               schema:
                 type: string
+  /user/sex:
+    get:
+      tags: [user]
+      summary: Get user sex
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User sex
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sex'
   /user/update-sex:
     post:
       tags: [user]
@@ -660,6 +724,19 @@ paths:
             text/plain:
               schema:
                 type: string
+  /user/nsfw-policy:
+    get:
+      tags: [user]
+      summary: Get user NSFW policy
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User NSFW policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NsfwPolicy'
   /user/update-nsfw-policy:
     post:
       tags: [user]
@@ -679,6 +756,20 @@ paths:
             text/plain:
               schema:
                 type: string
+  /user/birthdate:
+    get:
+      tags: [user]
+      summary: Get user birth date
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User birth date
+          content:
+            application/json:
+              schema:
+                type: string
+                format: date
   /user/update-birthdate:
     post:
       tags: [user]

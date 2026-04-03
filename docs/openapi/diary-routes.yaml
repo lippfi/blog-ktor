@@ -56,6 +56,24 @@ paths:
             text/plain:
               schema:
                 type: string
+  /diary/title-subtitle:
+    get:
+      tags: [diary]
+      summary: Get diary title and subtitle
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: login
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Diary title and subtitle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiaryTitleSubtitle'
   /diary/update-title-subtitle:
     post:
       tags: [diary]
@@ -466,6 +484,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UserView'
+    DiaryTitleSubtitle:
+      type: object
+      required: [title, subtitle]
+      properties:
+        title:
+          type: string
+        subtitle:
+          type: string
     UpdateTitleSubtitleRequest:
       type: object
       required: [title, subtitle]
