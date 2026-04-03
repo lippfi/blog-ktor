@@ -28,6 +28,8 @@ interface DiaryService {
 
     fun reorderDiaryStyles(userId: UUID, diaryLogin: String, styleIds: List<UUID>): List<DiaryStyle>
 
+    fun getDiaryTitleSubtitle(userId: UUID, diaryLogin: String): UserDto.DiaryTitleSubtitle
+
     fun updateDiaryName(userId: UUID, diaryLogin: String, name: String)
     fun updateDiarySubtitle(userId: UUID, diaryLogin: String, subtitle: String)
     fun updateDiaryDefaultReadGroup(userId: UUID, diaryLogin: String, groupId: UUID)

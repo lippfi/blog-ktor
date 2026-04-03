@@ -34,6 +34,12 @@ fun Route.diaryRoutes(diaryService: DiaryService) {
                 call.respondText("Profile content updated successfully")
             }
 
+            get("/title-subtitle") {
+                val diaryLogin = call.request.queryParameters["login"] ?: ""
+                val titleSubtitle = diaryService.getDiaryTitleSubtitle(userId, diaryLogin)
+                call.respond(titleSubtitle)
+            }
+
             post("/update-title-subtitle") {
                 val diaryLogin = call.request.queryParameters["login"] ?: ""
                 val request = call.receive<UpdateTitleSubtitleRequest>()

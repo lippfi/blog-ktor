@@ -326,6 +326,18 @@ class DiaryServiceImpl(
         }
     }
 
+    override fun getDiaryTitleSubtitle(userId: UUID, diaryLogin: String): UserDto.DiaryTitleSubtitle {
+        return transaction {
+            val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()
+            if (diaryEntity.owner.value != userId) throw WrongUserException()
+
+            UserDto.DiaryTitleSubtitle(
+                title = diaryEntity.name,
+                subtitle = diaryEntity.subtitle
+            )
+        }
+    }
+
     override fun updateDiaryName(userId: UUID, diaryLogin: String, name: String) {
         transaction {
             val diaryEntity = DiaryEntity.find { Diaries.login eq diaryLogin }.singleOrNull() ?: throw DiaryNotFoundException()

@@ -203,10 +203,20 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService,
                 call.respondText("Friend removed successfully")
             }
 
+            get("/nickname") {
+                val nickname = userService.getUserNickname(userId)
+                call.respondText(nickname ?: "")
+            }
+
             post("/update-nickname") {
                 val nickname = call.receiveText()
                 userService.updateNickname(userId, nickname)
                 call.respondText("Nickname updated successfully")
+            }
+
+            get("/signature") {
+                val signature = userService.getUserSignature(userId)
+                call.respondText(signature ?: "")
             }
 
             post("/update-signature") {
@@ -221,10 +231,20 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService,
                 call.respondText("Signature updated successfully")
             }
 
+            get("/language") {
+                val language = userService.getUserLanguage(userId)
+                if (language != null) call.respond(language) else call.respondText("")
+            }
+
             post("/update-language") {
                 val language = call.receive<Language>()
                 userService.updateLanguage(userId, language)
                 call.respondText("Language updated successfully")
+            }
+
+            get("/timezone") {
+                val timezone = userService.getUserTimezone(userId)
+                call.respondText(timezone ?: "")
             }
 
             post("/update-timezone") {
@@ -239,16 +259,31 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService,
                 call.respondText("Password updated successfully")
             }
 
+            get("/sex") {
+                val sex = userService.getUserSex(userId)
+                if (sex != null) call.respond(sex) else call.respondText("")
+            }
+
             post("/update-sex") {
                 val sex = call.receive<Sex>()
                 userService.updateSex(userId, sex)
                 call.respondText("Sex updated successfully")
             }
 
+            get("/nsfw-policy") {
+                val nsfwPolicy = userService.getUserNSFWPolicy(userId)
+                if (nsfwPolicy != null) call.respond(nsfwPolicy) else call.respondText("")
+            }
+
             post("/update-nsfw-policy") {
                 val nsfwPolicy = call.receive<NSFWPolicy>()
                 userService.updateNSFWPolicy(userId, nsfwPolicy)
                 call.respondText("NSFW policy updated successfully")
+            }
+
+            get("/birthdate") {
+                val birthDate = userService.getUserBirthDate(userId)
+                if (birthDate != null) call.respond(birthDate) else call.respondText("")
             }
 
             post("/update-birthdate") {

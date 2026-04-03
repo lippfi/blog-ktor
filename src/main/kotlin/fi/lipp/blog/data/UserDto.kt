@@ -62,6 +62,12 @@ sealed interface UserDto {
     ): UserDto
 
     @Serializable
+    data class DiaryTitleSubtitle(
+        val title: String,
+        val subtitle: String,
+    ) : UserDto
+
+    @Serializable
     data class DiaryInfo(
         val name: String,
         val subtitle: String,

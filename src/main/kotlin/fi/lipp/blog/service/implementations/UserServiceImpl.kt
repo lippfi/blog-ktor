@@ -1187,6 +1187,42 @@ class UserServiceImpl(
         }
     }
 
+    override fun getUserNickname(userId: UUID): String? {
+        return transaction {
+            UserEntity.findById(userId)?.nickname
+        }
+    }
+
+    override fun getUserSignature(userId: UUID): String? {
+        return transaction {
+            UserEntity.findById(userId)?.signature
+        }
+    }
+
+    override fun getUserTimezone(userId: UUID): String? {
+        return transaction {
+            UserEntity.findById(userId)?.timezone
+        }
+    }
+
+    override fun getUserSex(userId: UUID): Sex? {
+        return transaction {
+            UserEntity.findById(userId)?.sex
+        }
+    }
+
+    override fun getUserNSFWPolicy(userId: UUID): NSFWPolicy? {
+        return transaction {
+            UserEntity.findById(userId)?.nsfw
+        }
+    }
+
+    override fun getUserBirthDate(userId: UUID): LocalDate? {
+        return transaction {
+            UserEntity.findById(userId)?.birthdate
+        }
+    }
+
     override fun doNotShowInFeed(userId: UUID, userLogin: String) {
         return transaction {
             val targetUser = getUserByLogin(userLogin) ?: throw UserNotFoundException()

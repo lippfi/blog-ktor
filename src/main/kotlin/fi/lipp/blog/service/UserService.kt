@@ -182,6 +182,12 @@ interface UserService {
      * @return The user's language preference, or null if the user doesn't exist
      */
     fun getUserLanguage(userId: UUID): Language?
+    fun getUserNickname(userId: UUID): String?
+    fun getUserSignature(userId: UUID): String?
+    fun getUserTimezone(userId: UUID): String?
+    fun getUserSex(userId: UUID): Sex?
+    fun getUserNSFWPolicy(userId: UUID): NSFWPolicy?
+    fun getUserBirthDate(userId: UUID): LocalDate?
 
     fun update(userId: UUID, user: UserDto.Registration, oldPassword: String)
     fun updateAdditionalInfo(userId: UUID, info: UserDto.AdditionalInfo)
