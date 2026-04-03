@@ -1,9 +1,6 @@
 package fi.lipp.blog.routes
 
-import fi.lipp.blog.data.FriendRequestDto
-import fi.lipp.blog.data.NotificationSettings
-import fi.lipp.blog.data.UserDto
-import fi.lipp.blog.data.toFileUploadDatas
+import fi.lipp.blog.data.*
 import fi.lipp.blog.plugins.sessionId
 import fi.lipp.blog.plugins.userId
 import fi.lipp.blog.plugins.viewer
@@ -18,6 +15,7 @@ import io.ktor.server.auth.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.datetime.LocalDate
 import kotlinx.serialization.Serializable
 import java.util.*
 
@@ -205,10 +203,58 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService,
                 call.respondText("Friend removed successfully")
             }
 
+            post("/update-nickname") {
+                val nickname = call.receiveText()
+                userService.updateNickname(userId, nickname)
+                call.respondText("Nickname updated successfully")
+            }
+
+            post("/update-signature") {
+                val signature = call.receiveText().takeIf { it.isNotBlank() }
+                userService.updateSignature(userId, signature)
+                call.respondText("Signature updated successfully")
+            }
+
             post("/signature") {
                 val signature = call.receiveText().takeIf { it.isNotBlank() }
                 userService.updateSignature(userId, signature)
                 call.respondText("Signature updated successfully")
+            }
+
+            post("/update-language") {
+                val language = call.receive<Language>()
+                userService.updateLanguage(userId, language)
+                call.respondText("Language updated successfully")
+            }
+
+            post("/update-timezone") {
+                val timezone = call.receiveText()
+                userService.updateTimezone(userId, timezone)
+                call.respondText("Timezone updated successfully")
+            }
+
+            post("/update-password") {
+                val request = call.receive<UpdatePasswordRequest>()
+                userService.updatePassword(userId, request.newPassword, request.oldPassword)
+                call.respondText("Password updated successfully")
+            }
+
+            post("/update-sex") {
+                val sex = call.receive<Sex>()
+                userService.updateSex(userId, sex)
+                call.respondText("Sex updated successfully")
+            }
+
+            post("/update-nsfw-policy") {
+                val nsfwPolicy = call.receive<NSFWPolicy>()
+                userService.updateNSFWPolicy(userId, nsfwPolicy)
+                call.respondText("NSFW policy updated successfully")
+            }
+
+            post("/update-birthdate") {
+                val birthDate = call.receive<LocalDate>()
+                userService.updateBirthDate(userId, birthDate)
+                call.respondText("Birth date updated successfully")
             }
 
             post("/do-not-show-in-feed") {
@@ -252,5 +298,11 @@ fun Route.userRoutes(userService: UserService, reactionService: ReactionService,
 @Serializable
 private data class UpdateUserRequest(
     val user: UserDto.Registration,
+    val oldPassword: String
+)
+
+@Serializable
+private data class UpdatePasswordRequest(
+    val newPassword: String,
     val oldPassword: String
 )

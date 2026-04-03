@@ -67,12 +67,16 @@ class UserServiceImpl(
         return transaction {
             val userEntity = UserEntity.findById(userId) ?: throw UserNotFoundException()
             val userDiary = DiaryEntity.find { (Diaries.owner eq userId) and (Diaries.type eq DiaryType.PERSONAL) }.singleOrNull() ?: throw DiaryNotFoundException()
+            val permissions = UserPermissions.select { UserPermissions.user eq userId }
+                .map { it[UserPermissions.permission] }
 
             UserDto.SessionInfo(
                 login = userDiary.login,
                 nickname = userEntity.nickname,
                 language = userEntity.language,
-                nsfw = userEntity.nsfw
+                nsfw = userEntity.nsfw,
+                timezone = userEntity.timezone,
+                permissions = permissions
             )
         }
     }
@@ -1257,31 +1261,35 @@ class UserServiceImpl(
         }
     }
 
-    override fun getIgnoredUsers(userId: UUID): List<UserDto.View> {
+    override fun getIgnoredUsers(userId: UUID): List<UserDto.IgnoredUserView> {
         return transaction {
-            val ignoredUsers = IgnoreListEntity.find {
+            val ignoredEntries = IgnoreListEntity.find {
                 IgnoreList.user eq userId
-            }.map { it.ignoredUser.id.value }
+            }.map { it.ignoredUser.id.value to it.reason }
 
-            if (ignoredUsers.isEmpty()) return@transaction emptyList()
+            if (ignoredEntries.isEmpty()) return@transaction emptyList()
+
+            val ignoredUserIds = ignoredEntries.map { it.first }
+            val reasonMap = ignoredEntries.toMap()
 
             (Users innerJoin Diaries)
-                .slice(Users.nickname, Diaries.login, Users.primaryAvatar, Users.signature)
+                .slice(Users.id, Users.nickname, Diaries.login, Users.primaryAvatar)
                 .select {
-                    (Users.id inList ignoredUsers) and
+                    (Users.id inList ignoredUserIds) and
                     (Diaries.owner eq Users.id) and
                     (Diaries.type eq DiaryType.PERSONAL)
                 }
                 .map { row ->
+                    val visibleUserId = row[Users.id].value
                     val primaryAvatarId = row[Users.primaryAvatar]?.value
                     val primaryAvatarUrl = primaryAvatarId?.let { avatarId ->
                         FileEntity.findById(avatarId)?.toBlogFile()?.let { storageService.getFileURL(it) }
                     }
-                    UserDto.View(
+                    UserDto.IgnoredUserView(
                         login = row[Diaries.login],
                         nickname = row[Users.nickname],
                         avatarUri = primaryAvatarUrl,
-                        signature = row[Users.signature]
+                        reason = reasonMap[visibleUserId]
                     )
                 }
         }

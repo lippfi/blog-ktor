@@ -6,6 +6,7 @@ import fi.lipp.blog.data.FileUploadData
 import fi.lipp.blog.data.UserDto
 import fi.lipp.blog.plugins.userId
 import fi.lipp.blog.service.DiaryService
+import fi.lipp.blog.util.UUIDSerializer
 import io.ktor.http.*
 import io.ktor.http.content.*
 import io.ktor.server.application.*
@@ -13,6 +14,7 @@ import io.ktor.server.auth.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.serialization.Serializable
 import java.util.*
 
 fun Route.diaryRoutes(diaryService: DiaryService) {
@@ -30,6 +32,23 @@ fun Route.diaryRoutes(diaryService: DiaryService) {
                 val profileContent = call.receiveText()
                 diaryService.updateProfileContent(userId, diaryLogin, profileContent)
                 call.respondText("Profile content updated successfully")
+            }
+
+            post("/update-title-subtitle") {
+                val diaryLogin = call.request.queryParameters["login"] ?: ""
+                val request = call.receive<UpdateTitleSubtitleRequest>()
+                diaryService.updateDiaryName(userId, diaryLogin, request.title)
+                diaryService.updateDiarySubtitle(userId, diaryLogin, request.subtitle)
+                call.respondText("Diary title and subtitle updated successfully")
+            }
+
+            post("/update-default-groups") {
+                val diaryLogin = call.request.queryParameters["login"] ?: ""
+                val groups = call.receive<UpdateDefaultGroupsRequest>()
+                diaryService.updateDiaryDefaultReadGroup(userId, diaryLogin, groups.defaultReadGroup)
+                diaryService.updateDiaryDefaultCommentGroup(userId, diaryLogin, groups.defaultCommentGroup)
+                diaryService.updateDiaryDefaultReactGroup(userId, diaryLogin, groups.defaultReactGroup)
+                call.respondText("Diary default groups updated successfully")
             }
         }
 
@@ -136,3 +155,19 @@ fun Route.diaryRoutes(diaryService: DiaryService) {
         }
     }
 }
+
+@Serializable
+private data class UpdateTitleSubtitleRequest(
+    val title: String,
+    val subtitle: String,
+)
+
+@Serializable
+private data class UpdateDefaultGroupsRequest(
+    @Serializable(with = UUIDSerializer::class)
+    val defaultReadGroup: UUID,
+    @Serializable(with = UUIDSerializer::class)
+    val defaultCommentGroup: UUID,
+    @Serializable(with = UUIDSerializer::class)
+    val defaultReactGroup: UUID,
+)

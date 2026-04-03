@@ -242,5 +242,5 @@ interface UserService {
     /**
      * Get list of users that the specified user is ignoring
      */
-    fun getIgnoredUsers(userId: UUID): List<UserDto.View>
+    fun getIgnoredUsers(userId: UUID): List<UserDto.IgnoredUserView>
 }

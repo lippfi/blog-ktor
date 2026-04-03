@@ -48,6 +48,8 @@ sealed interface UserDto {
         val nickname: String,
         val language: Language,
         val nsfw: NSFWPolicy,
+        val timezone: String,
+        val permissions: List<UserPermission>,
     ) : UserDto
 
     @Serializable
@@ -77,6 +79,14 @@ sealed interface UserDto {
         val nickname: String,
         val avatarUri: String?,
         val signature: String?,
+    ) : UserDto
+
+    @Serializable
+    data class IgnoredUserView(
+        val login: String,
+        val nickname: String,
+        val avatarUri: String?,
+        val reason: String?,
     ) : UserDto
 }
 
