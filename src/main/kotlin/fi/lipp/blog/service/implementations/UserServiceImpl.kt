@@ -54,6 +54,12 @@ class UserServiceImpl(
 
     override fun generateInviteCode(userId: UUID): String {
         val inviteCode = transaction {
+            val permissions = UserPermissions.select { UserPermissions.user eq userId }
+                .map { it[UserPermissions.permission] }
+                .toSet()
+            if (UserPermission.ISSUE_INVITE_CODES !in permissions) {
+                throw InviteCodeGenerationNotAllowedException()
+            }
             InviteCodes.insertAndGetId {
                 it[creator] = userId
                 it[issuedAt] = Clock.System.now()
@@ -194,6 +200,11 @@ class UserServiceImpl(
                 notifyAboutNewPosts = true
                 notifyAboutFriendRequests = true
                 notifyAboutReposts = true
+            }
+
+            // Mark invite code as used
+            pendingRegistration.inviteCode?.let { inviteCodeId ->
+                InviteCodeEntity.findById(inviteCodeId)?.let { it.usedBy = userId }
             }
 
             // Delete the pending registration
@@ -1157,6 +1168,11 @@ class UserServiceImpl(
                 it[defaultReadGroup] = accessGroupService.everyoneGroupUUID
                 it[defaultCommentGroup] = accessGroupService.registeredGroupUUID
                 it[defaultReactGroup] = accessGroupService.friendsGroupUUID
+            }
+
+            UserPermissions.insert {
+                it[user] = userId
+                it[permission] = UserPermission.ISSUE_INVITE_CODES
             }
 
             userId.value

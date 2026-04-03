@@ -18,9 +18,6 @@ import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.repository.*
 import fi.lipp.blog.service.implementations.LocalStorageServiceImpl
 import fi.lipp.blog.stubs.ApplicationPropertiesStub
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.SchemaUtils
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
@@ -32,7 +29,6 @@ import org.junit.Ignore
 import org.mockito.Mockito.verify
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
-import org.mockito.kotlin.whenever
 import org.mockito.kotlin.any
 import java.io.File
 import java.util.*
@@ -253,6 +249,7 @@ class UserServiceTests : UnitTestBase() {
             val foundUser = findUserByLogin(testUser.login)
             assertNotNull(foundUser)
 
+            userService.updateUserPermissions(foundUser.id, setOf(fi.lipp.blog.data.UserPermission.ISSUE_INVITE_CODES))
             val nextInviteCode = userService.generateInviteCode(foundUser.id)
             assertThrows(LoginIsBusyException::class.java) {
                 userService.signUp(
@@ -291,6 +288,7 @@ class UserServiceTests : UnitTestBase() {
             val foundUser = findUserByLogin(testUser.login)
             assertNotNull(foundUser)
 
+            userService.updateUserPermissions(foundUser.id, setOf(fi.lipp.blog.data.UserPermission.ISSUE_INVITE_CODES))
             val nextInviteCode = userService.generateInviteCode(foundUser.id)
             assertThrows(EmailIsBusyException::class.java) {
                 userService.signUp(
@@ -330,6 +328,7 @@ class UserServiceTests : UnitTestBase() {
             foundUser = findUserByLogin(testUser.login)
             assertNotNull(foundUser)
 
+            userService.updateUserPermissions(foundUser.id, setOf(fi.lipp.blog.data.UserPermission.ISSUE_INVITE_CODES))
             val nextInviteCode = userService.generateInviteCode(foundUser.id)
             assertThrows(NicknameIsBusyException::class.java) {
                 userService.signUp(

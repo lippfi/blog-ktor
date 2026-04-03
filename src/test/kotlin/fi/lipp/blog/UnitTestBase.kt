@@ -346,6 +346,7 @@ abstract class UnitTestBase {
         userService.confirmRegistration(confirmationCode1, "test-device", "127.0.0.1", "test-device")
         val user1 = findUserByLogin(testUser.login)!!
 
+        userService.updateUserPermissions(user1.id, setOf(fi.lipp.blog.data.UserPermission.ISSUE_INVITE_CODES))
         val nextInviteCode = userService.generateInviteCode(user1.id)
 
         // Sign up second user with invite code
@@ -392,6 +393,7 @@ abstract class UnitTestBase {
 
         var i = count - 1
         while (i > 0) {
+            userService.updateUserPermissions(userEntity.id, setOf(fi.lipp.blog.data.UserPermission.ISSUE_INVITE_CODES))
             val nextInviteCode = userService.generateInviteCode(userEntity.id)
             val randomUser = UserDto.Registration(login = UUID.randomUUID().toString(), email = "${UUID.randomUUID()}@mail.com", password = "123", nickname = UUID.randomUUID().toString(), language = Language.KK, timezone = "Asia/Qostanay")
             userService.signUp(randomUser, nextInviteCode)

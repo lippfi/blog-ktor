@@ -1,14 +1,18 @@
 package fi.lipp.blog
 
 import fi.lipp.blog.data.FileUploadData
+import fi.lipp.blog.data.Language
 import fi.lipp.blog.data.UserDto
 import fi.lipp.blog.data.UserPermission
 import fi.lipp.blog.domain.PendingRegistrationEntity
+import fi.lipp.blog.model.exceptions.InviteCodeGenerationNotAllowedException
+import fi.lipp.blog.model.exceptions.InvalidInviteCodeException
 import fi.lipp.blog.model.exceptions.SvgUploadNotAllowedException
 import fi.lipp.blog.repository.PendingRegistrations
 import fi.lipp.blog.service.Viewer
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
+import java.util.UUID
 import javax.imageio.ImageIO
 import kotlin.test.*
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -126,6 +130,59 @@ class PermissionTests : UnitTestBase() {
         transaction {
             val result = storageService.store(viewer, listOf(pngFile, svgFile))
             assertEquals(2, result.size)
+        }
+    }
+
+    @Test
+    fun `test generate invite code blocked without permission`() {
+        assertFailsWith<InviteCodeGenerationNotAllowedException> {
+            userService.generateInviteCode(registeredUser.id)
+        }
+    }
+
+    @Test
+    fun `test generate invite code allowed with permission`() {
+        userService.updateUserPermissions(registeredUser.id, setOf(UserPermission.ISSUE_INVITE_CODES))
+        val code = userService.generateInviteCode(registeredUser.id)
+        assertNotNull(code)
+        assertTrue(code.isNotEmpty())
+    }
+
+    @Test
+    fun `test invite code is one-time-use`() {
+        userService.updateUserPermissions(registeredUser.id, setOf(UserPermission.ISSUE_INVITE_CODES))
+        val inviteCode = userService.generateInviteCode(registeredUser.id)
+
+        // First use should succeed
+        val newUser = UserDto.Registration(
+            login = UUID.randomUUID().toString(),
+            email = "${UUID.randomUUID()}@mail.com",
+            password = "123",
+            nickname = UUID.randomUUID().toString(),
+            language = Language.EN,
+            timezone = "UTC"
+        )
+        userService.signUp(newUser, inviteCode)
+
+        // Confirm registration to mark the code as used
+        val pendingRegistration = transaction {
+            PendingRegistrationEntity.find {
+                (PendingRegistrations.email eq newUser.email)
+            }.first()
+        }
+        userService.confirmRegistration(pendingRegistration.id.value.toString(), "test-device", "127.0.0.1", "test-device")
+
+        // Second use should fail
+        val anotherUser = UserDto.Registration(
+            login = UUID.randomUUID().toString(),
+            email = "${UUID.randomUUID()}@mail.com",
+            password = "123",
+            nickname = UUID.randomUUID().toString(),
+            language = Language.EN,
+            timezone = "UTC"
+        )
+        assertFailsWith<InvalidInviteCodeException> {
+            userService.signUp(anotherUser, inviteCode)
         }
     }
 }

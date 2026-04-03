@@ -12,5 +12,6 @@ class InviteCodeEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     companion object : UUIDEntityClass<InviteCodeEntity>(InviteCodes)
 
     private val issuedAt by InviteCodes.issuedAt
-    val isValid get() = (Clock.System.now() - issuedAt) < 24.hours
+    var usedBy by InviteCodes.usedBy
+    val isValid get() = usedBy == null && (Clock.System.now() - issuedAt) < 24.hours
 }
