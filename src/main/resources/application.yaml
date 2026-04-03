@@ -36,3 +36,5 @@ registration:
     require_invite_code: true
 security:
     bcrypt_cost: 15
+admin:
+    login: ""

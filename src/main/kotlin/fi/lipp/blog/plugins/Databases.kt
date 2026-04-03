@@ -1,7 +1,9 @@
 package fi.lipp.blog.plugins
 
+import fi.lipp.blog.data.UserPermission
 import fi.lipp.blog.domain.Notifications
 import fi.lipp.blog.repository.*
+import fi.lipp.blog.service.ApplicationProperties
 import fi.lipp.blog.service.implementations.DatabaseInitializer
 import io.ktor.server.application.*
 import org.jetbrains.exposed.sql.*
@@ -70,6 +72,30 @@ fun Application.configureDatabases() {
     // Initialize database with seeders
     val databaseInitializer = get().get<DatabaseInitializer>()
     databaseInitializer.initialize()
+
+    // Ensure admin has all permissions
+    val properties = get().get<ApplicationProperties>()
+    val adminLogin = properties.adminLogin
+    if (adminLogin.isNotBlank()) {
+        transaction {
+            val adminDiary = Diaries.select { Diaries.login eq adminLogin }.firstOrNull()
+            if (adminDiary != null) {
+                val adminUserId = adminDiary[Diaries.owner].value
+                val existingPermissions = UserPermissions
+                    .select { UserPermissions.user eq adminUserId }
+                    .map { it[UserPermissions.permission] }
+                    .toSet()
+                val allPermissions = UserPermission.entries.toSet()
+                val missingPermissions = allPermissions - existingPermissions
+                for (permission in missingPermissions) {
+                    UserPermissions.insert {
+                        it[user] = adminUserId
+                        it[UserPermissions.permission] = permission
+                    }
+                }
+            }
+        }
+    }
 //    val userService = UserService(database)
 //    routing {
 //        // Create user

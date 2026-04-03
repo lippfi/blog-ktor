@@ -32,4 +32,5 @@ open class ApplicationPropertiesStub(
     override val maxReactionSize: Int = 512 * 1024
     override val bcryptCost: Int = 4
     override var requireInviteCode: Boolean = true
+    override val adminLogin: String = ""
 }

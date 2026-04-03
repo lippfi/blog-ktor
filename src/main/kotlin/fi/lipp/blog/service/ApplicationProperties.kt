@@ -25,4 +25,5 @@ interface ApplicationProperties {
     val maxReactionSize: Int
     val bcryptCost: Int
     val requireInviteCode: Boolean
+    val adminLogin: String
 }
