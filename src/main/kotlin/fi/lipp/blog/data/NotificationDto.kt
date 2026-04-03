@@ -2,7 +2,7 @@ package fi.lipp.blog.data
 
 import fi.lipp.blog.domain.NotificationType
 import fi.lipp.blog.util.UUIDSerializer
-import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.util.UUID
@@ -12,7 +12,7 @@ sealed interface NotificationDto {
     val id: @Serializable(with = UUIDSerializer::class) UUID
     val type: NotificationType
     val isRead: Boolean
-    val createdAt: LocalDateTime
+    val createdAt: Instant
 
     @Serializable
     @SerialName("NewPost")
@@ -22,7 +22,7 @@ sealed interface NotificationDto {
         val diaryLogin: String,
         val postUri: String,
         override val isRead: Boolean = false,
-        override val createdAt: LocalDateTime,
+        override val createdAt: Instant,
         override val type: NotificationType = NotificationType.NEW_POST,
     ) : NotificationDto
 
@@ -34,7 +34,7 @@ sealed interface NotificationDto {
         val diaryLogin: String,
         val postUri: String,
         override val isRead: Boolean = false,
-        override val createdAt: LocalDateTime,
+        override val createdAt: Instant,
         override val type: NotificationType = NotificationType.COMMENT,
     ) : NotificationDto
 
@@ -46,7 +46,7 @@ sealed interface NotificationDto {
         val diaryLogin: String,
         val postUri: String,
         override val isRead: Boolean = false,
-        override val createdAt: LocalDateTime,
+        override val createdAt: Instant,
         override val type: NotificationType = NotificationType.COMMENT_REPLY,
     ) : NotificationDto
 
@@ -58,7 +58,7 @@ sealed interface NotificationDto {
         val diaryLogin: String,
         val postUri: String,
         override val isRead: Boolean = false,
-        override val createdAt: LocalDateTime,
+        override val createdAt: Instant,
         override val type: NotificationType = NotificationType.POST_REACTION,
     ) : NotificationDto
 
@@ -70,7 +70,7 @@ sealed interface NotificationDto {
         val diaryLogin: String,
         val postUri: String,
         override val isRead: Boolean = false,
-        override val createdAt: LocalDateTime,
+        override val createdAt: Instant,
         override val type: NotificationType = NotificationType.COMMENT_REACTION,
     ) : NotificationDto
 
@@ -82,7 +82,7 @@ sealed interface NotificationDto {
         val diaryLogin: String,
         val postUri: String,
         override val isRead: Boolean = false,
-        override val createdAt: LocalDateTime,
+        override val createdAt: Instant,
         override val type: NotificationType = NotificationType.POST_MENTION,
     ) : NotificationDto
 
@@ -94,7 +94,7 @@ sealed interface NotificationDto {
         val diaryLogin: String,
         val postUri: String,
         override val isRead: Boolean = false,
-        override val createdAt: LocalDateTime,
+        override val createdAt: Instant,
         override val type: NotificationType = NotificationType.COMMENT_MENTION,
     ) : NotificationDto
 
@@ -107,7 +107,7 @@ sealed interface NotificationDto {
         @Serializable(with = UUIDSerializer::class)
         val requestId: UUID,
         override val isRead: Boolean = false,
-        override val createdAt: LocalDateTime,
+        override val createdAt: Instant,
         override val type: NotificationType = NotificationType.FRIEND_REQUEST,
     ) : NotificationDto
 
@@ -120,7 +120,7 @@ sealed interface NotificationDto {
         @Serializable(with = UUIDSerializer::class)
         val dialogId: UUID,
         override val isRead: Boolean = false,
-        override val createdAt: LocalDateTime,
+        override val createdAt: Instant,
         override val type: NotificationType = NotificationType.PRIVATE_MESSAGE,
     ) : NotificationDto
 
@@ -132,7 +132,7 @@ sealed interface NotificationDto {
         val diaryLogin: String,
         val postUri: String,
         override val isRead: Boolean = false,
-        override val createdAt: LocalDateTime,
+        override val createdAt: Instant,
         override val type: NotificationType = NotificationType.REPOST,
     ) : NotificationDto
 
@@ -144,7 +144,7 @@ sealed interface NotificationDto {
         val diaryLogin: String,
         val postUri: String,
         override val isRead: Boolean = false,
-        override val createdAt: LocalDateTime,
+        override val createdAt: Instant,
         override val type: NotificationType = NotificationType.COMMENT_REPOST,
     ) : NotificationDto
 }

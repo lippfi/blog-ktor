@@ -1,13 +1,12 @@
 package fi.lipp.blog.domain
 
 import fi.lipp.blog.repository.PendingEmailChanges
-import kotlinx.datetime.toJavaLocalDateTime
+import kotlinx.datetime.Clock
 import org.jetbrains.exposed.dao.UUIDEntity
 import org.jetbrains.exposed.dao.UUIDEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
-import java.time.Duration
-import java.time.LocalDateTime
 import java.util.UUID
+import kotlin.time.Duration.Companion.hours
 
 class PendingEmailChangeEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     companion object : UUIDEntityClass<PendingEmailChangeEntity>(PendingEmailChanges)
@@ -17,5 +16,5 @@ class PendingEmailChangeEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var issuedAt by PendingEmailChanges.issuedAt
 
     // Email change confirmation is valid for 24 hours
-    val isValid get() = Duration.between(issuedAt.toJavaLocalDateTime(), LocalDateTime.now()).toHours() < 24
+    val isValid get() = (Clock.System.now() - issuedAt) < 24.hours
 }

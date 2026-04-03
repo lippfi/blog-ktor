@@ -1,15 +1,14 @@
 package fi.lipp.blog.repository
 
-import kotlinx.datetime.toKotlinLocalDateTime
+import kotlinx.datetime.Clock
 import org.jetbrains.exposed.dao.id.UUIDTable
 import org.jetbrains.exposed.sql.ReferenceOption
-import org.jetbrains.exposed.sql.kotlin.datetime.datetime
-import java.time.LocalDateTime
+import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object ReactionSubsets : UUIDTable() {
     val diary = reference("diary", Diaries, onDelete = ReferenceOption.CASCADE)
     val name = varchar("name", 100)
-    val createdAt = datetime("created_at").clientDefault { LocalDateTime.now().toKotlinLocalDateTime() }
+    val createdAt = timestamp("created_at").clientDefault { Clock.System.now() }
 
     init {
         index("reaction_subsets_diary_idx", false, diary)

@@ -1,8 +1,8 @@
 package fi.lipp.blog.data
 
 import fi.lipp.blog.util.UUIDSerializer
+import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.Serializable
 import org.jetbrains.annotations.TestOnly
 import java.util.UUID
@@ -13,7 +13,7 @@ sealed interface UserDto {
         val login: String,
         val email: String,
         val nickname: String,
-        val registrationTime: LocalDateTime,
+        val registrationTime: Instant,
     ) : UserDto
 
     @Serializable
@@ -38,7 +38,7 @@ sealed interface UserDto {
         val login: String,
         val email: String,
         val nickname: String,
-        val registrationTime: LocalDateTime,
+        val registrationTime: Instant,
         val password: String,
     ) : UserDto
 

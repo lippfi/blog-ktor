@@ -10,8 +10,6 @@ import fi.lipp.blog.model.Pageable
 import fi.lipp.blog.model.exceptions.*
 import fi.lipp.blog.repository.Messages
 import kotlinx.datetime.Clock
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -235,9 +233,7 @@ class DialogServiceTest : UnitTestBase() {
         // Set message timestamp to more than 30 minutes ago
         transaction {
             val messageEntity = MessageEntity.findById(EntityID(message.id, Messages))!!
-            messageEntity.timestamp = Clock.System.now()
-                .minus(31.minutes)
-                .toLocalDateTime(TimeZone.currentSystemDefault())
+            messageEntity.timestamp = Clock.System.now().minus(31.minutes)
         }
 
         // Try to update old read message

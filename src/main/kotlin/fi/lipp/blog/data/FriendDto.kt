@@ -1,7 +1,7 @@
 package fi.lipp.blog.data
 
 import fi.lipp.blog.util.UUIDSerializer
-import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 import java.util.UUID
 
@@ -12,7 +12,7 @@ data class FriendRequestDto(
     val user: UserDto.View,
     val message: String,
     val label: String?,
-    val createdAt: LocalDateTime
+    val createdAt: Instant
 ) {
     @Serializable
     data class Create(

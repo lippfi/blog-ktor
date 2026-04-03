@@ -3,19 +3,18 @@ package fi.lipp.blog.repository
 import fi.lipp.blog.data.Language
 import fi.lipp.blog.data.NSFWPolicy
 import fi.lipp.blog.data.Sex
-import kotlinx.datetime.toKotlinLocalDateTime
+import kotlinx.datetime.Clock
 import org.jetbrains.exposed.dao.id.UUIDTable
 import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.kotlin.datetime.date
-import org.jetbrains.exposed.sql.kotlin.datetime.datetime
-import java.time.LocalDateTime
+import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object Users : UUIDTable() {
     val email = varchar("email", 50).uniqueIndex("idx_user_email")
     val password = varchar("password", 200)
     val nickname = varchar("nickname", 50).uniqueIndex("idx_user_nickname")
     val signature = varchar("signature", 200).nullable()
-    val registrationTime = datetime("registration_time").clientDefault { LocalDateTime.now().toKotlinLocalDateTime() }
+    val registrationTime = timestamp("registration_time").clientDefault { Clock.System.now() }
     val inviteCode = reference("invite_code", InviteCodes, onDelete = ReferenceOption.CASCADE).nullable()
 
     val sex = enumerationByName("sex", 20, Sex::class)

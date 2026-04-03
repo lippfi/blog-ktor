@@ -8,7 +8,10 @@ import fi.lipp.blog.model.TagPolicy
 import fi.lipp.blog.repository.*
 import fi.lipp.blog.service.Viewer
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalTime
+import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atTime
+import kotlinx.datetime.toInstant
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
@@ -216,11 +219,11 @@ internal class PostQueryHelper {
                 }
 
                 if (from != null) {
-                    cond = cond and (Posts.creationTime greaterEq from.atTime(0, 0))
+                    cond = cond and (Posts.creationTime greaterEq from.atTime(LocalTime(0, 0)).toInstant(TimeZone.UTC))
                 }
 
                 if (to != null) {
-                    cond = cond and (Posts.creationTime lessEq to.atTime(23, 59, 59))
+                    cond = cond and (Posts.creationTime lessEq to.atTime(LocalTime(23, 59, 59)).toInstant(TimeZone.UTC))
                 }
 
                 if (isHidden != null) {

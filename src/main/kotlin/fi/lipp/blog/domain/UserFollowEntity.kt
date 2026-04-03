@@ -1,7 +1,7 @@
 package fi.lipp.blog.domain
 
 import fi.lipp.blog.repository.UserFollows
-import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.Instant
 import org.jetbrains.exposed.dao.UUIDEntity
 import org.jetbrains.exposed.dao.UUIDEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
@@ -12,5 +12,5 @@ class UserFollowEntity(id: EntityID<UUID>) : UUIDEntity(id) {
 
     var follower by UserEntity referencedOn UserFollows.follower
     var following by UserEntity referencedOn UserFollows.following
-    var followedAt: LocalDateTime by UserFollows.followedAt
+    var followedAt: Instant by UserFollows.followedAt
 }

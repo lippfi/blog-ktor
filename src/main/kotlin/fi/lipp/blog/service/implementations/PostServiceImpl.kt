@@ -503,7 +503,7 @@ class PostServiceImpl(
                 val parentComment = CommentEntity.findById(comment.parentCommentId) ?: throw InvalidParentComment()
                 if (parentComment.postId.value != comment.postId) throw InvalidParentComment()
             }
-            val now = java.time.LocalDateTime.now().toKotlinLocalDateTime()
+            val now = Clock.System.now()
             val commentId = Comments.insertAndGetId {
                 it[post] = postEntity.id
                 it[authorType] = CommentAuthorType.LOCAL

@@ -1,10 +1,9 @@
 package fi.lipp.blog.repository
 
-import kotlinx.datetime.toKotlinLocalDateTime
+import kotlinx.datetime.Clock
 import org.jetbrains.exposed.dao.id.UUIDTable
 import org.jetbrains.exposed.sql.ReferenceOption
-import org.jetbrains.exposed.sql.kotlin.datetime.datetime
-import java.time.LocalDateTime
+import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object Diaries : UUIDTable() {
     val name = varchar("name", 40)
@@ -12,7 +11,7 @@ object Diaries : UUIDTable() {
     val profileContent = text("profile_content").nullable()
 
     val login = varchar("login", 50).uniqueIndex("idx_diary_login")
-    val creationTime = datetime("creation_time").clientDefault { LocalDateTime.now().toKotlinLocalDateTime() }
+    val creationTime = timestamp("creation_time").clientDefault { Clock.System.now() }
 
     val owner = reference("owner", Users, onDelete = ReferenceOption.CASCADE)
     // style column removed - now managed through DiaryStyles table

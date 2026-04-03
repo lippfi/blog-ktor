@@ -12,7 +12,6 @@ import fi.lipp.blog.service.AccessGroupService
 import fi.lipp.blog.service.NotificationService
 import fi.lipp.blog.service.PostService
 import fi.lipp.blog.service.UserService
-import kotlinx.datetime.toKotlinLocalDateTime
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.junit.Assert.assertThrows

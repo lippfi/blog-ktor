@@ -1,7 +1,7 @@
 package fi.lipp.blog.data
 
 import fi.lipp.blog.util.UUIDSerializer
-import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 import java.util.UUID
 import fi.lipp.blog.data.ReactionDto
@@ -21,7 +21,7 @@ sealed interface PostDto {
 
         val title : String,
         val text : String,
-        val creationTime : LocalDateTime,
+        val creationTime : Instant,
 
         val isPreface : Boolean,
         val isEncrypted: Boolean,

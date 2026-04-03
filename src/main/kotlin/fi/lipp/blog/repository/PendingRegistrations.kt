@@ -1,9 +1,8 @@
 package fi.lipp.blog.repository
 
-import kotlinx.datetime.toKotlinLocalDateTime
+import kotlinx.datetime.Clock
 import org.jetbrains.exposed.dao.id.UUIDTable
-import org.jetbrains.exposed.sql.kotlin.datetime.datetime
-import java.time.LocalDateTime
+import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object PendingRegistrations : UUIDTable() {
     val email = varchar("email", 50).uniqueIndex("idx_pending_email")
@@ -13,5 +12,5 @@ object PendingRegistrations : UUIDTable() {
     val timezone = varchar("timezone", 40)
     val language = enumerationByName("language", 20, fi.lipp.blog.data.Language::class)
     val inviteCode = reference("invite_code", InviteCodes, onDelete = org.jetbrains.exposed.sql.ReferenceOption.CASCADE).nullable()
-    val issuedAt = datetime("issued_time").clientDefault { LocalDateTime.now().toKotlinLocalDateTime() }
+    val issuedAt = timestamp("issued_time").clientDefault { Clock.System.now() }
 }

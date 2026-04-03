@@ -26,15 +26,11 @@ import fi.lipp.blog.service.NotificationService
 import fi.lipp.blog.service.UserService
 import fi.lipp.blog.service.implementations.UserServiceImpl
 import fi.lipp.blog.model.exceptions.UserNotFoundException
-import kotlinx.datetime.toKotlinLocalDateTime
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
 import kotlinx.datetime.Clock
-import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Duration.Companion.minutes
 import java.util.*
 
@@ -145,12 +141,12 @@ class DialogServiceImpl(
             val dialog = existingDialog ?: DialogEntity.new {
                 user1 = UserEntity[EntityID(userId, Users)]
                 user2 = receiver
-                createdAt = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-                updatedAt = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+                createdAt = Clock.System.now()
+                updatedAt = Clock.System.now()
             }
 
             // Update dialog's updatedAt timestamp
-            dialog.updatedAt = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+            dialog.updatedAt = Clock.System.now()
 
             val hasUnreadMessagesFromSender = MessageEntity.find {
                 (Messages.dialog eq dialog.id) and
@@ -163,7 +159,7 @@ class DialogServiceImpl(
                 sender = UserEntity[EntityID(userId, Users)]
                 content = message.content
                 avatarUri = message.avatarUri
-                timestamp = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+                timestamp = Clock.System.now()
                 isRead = false
             }
 
@@ -220,8 +216,7 @@ class DialogServiceImpl(
                 throw NotMessageSenderException()
             }
 
-            val thirtyMinutesAgo = (Clock.System.now() - 30.minutes)
-                .toLocalDateTime(TimeZone.currentSystemDefault())
+            val thirtyMinutesAgo = Clock.System.now() - 30.minutes
 
             if (message.isRead && message.timestamp < thirtyMinutesAgo) {
                 throw MessageUpdateException()

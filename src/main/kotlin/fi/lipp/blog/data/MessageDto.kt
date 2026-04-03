@@ -1,6 +1,6 @@
 package fi.lipp.blog.data
 
-import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.Instant
 import java.util.UUID
 
 sealed class MessageDto {
@@ -9,7 +9,7 @@ sealed class MessageDto {
         val dialogId: UUID,
         val sender: UserDto.View,
         val content: String,
-        val timestamp: LocalDateTime,
+        val timestamp: Instant,
         val isRead: Boolean,
     )
 

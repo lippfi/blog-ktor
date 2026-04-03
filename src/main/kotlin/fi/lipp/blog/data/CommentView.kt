@@ -1,7 +1,7 @@
 package fi.lipp.blog.data
 
 import fi.lipp.blog.util.UUIDSerializer
-import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 import java.util.UUID
 
@@ -19,7 +19,7 @@ sealed interface CommentDto {
         val postUri: String,
 
         val text: String,
-        val creationTime : LocalDateTime,
+        val creationTime : Instant,
 
         val isReactable: Boolean,
         val reactions: List<ReactionDto.ReactionInfo>,

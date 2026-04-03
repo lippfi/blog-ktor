@@ -12,8 +12,6 @@ import io.ktor.http.*
 import io.ktor.server.config.*
 import io.ktor.server.testing.*
 import kotlinx.datetime.Clock
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.contextual
@@ -112,7 +110,7 @@ class PostRoutesTests {
                     authorSignature = null,
                     title = "Hidden Post",
                     text = "Secret content",
-                    creationTime = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()),
+                    creationTime = Clock.System.now(),
                     isPreface = false,
                     isEncrypted = false,
                     isHidden = true,
@@ -172,7 +170,7 @@ class PostRoutesTests {
                     authorSignature = null,
                     title = "Friends Post",
                     text = "Friend content",
-                    creationTime = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()),
+                    creationTime = Clock.System.now(),
                     isPreface = false,
                     isEncrypted = false,
                     isHidden = false,

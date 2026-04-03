@@ -1,7 +1,7 @@
 package fi.lipp.blog.domain
 
 import fi.lipp.blog.repository.Dialogs
-import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.Instant
 import org.jetbrains.exposed.dao.UUIDEntity
 import org.jetbrains.exposed.dao.UUIDEntityClass
 import org.jetbrains.exposed.dao.id.EntityID

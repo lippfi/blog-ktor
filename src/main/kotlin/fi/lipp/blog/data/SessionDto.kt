@@ -1,7 +1,7 @@
 package fi.lipp.blog.data
 
 import fi.lipp.blog.util.UUIDSerializer
-import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 import java.util.UUID
 
@@ -17,8 +17,8 @@ data class DeviceSessionDto(
     val id: UUID,
     val deviceName: String,
     val location: String,
-    val firstSeen: LocalDateTime,
-    val lastSeen: LocalDateTime,
+    val firstSeen: Instant,
+    val lastSeen: Instant,
     val isMobile: Boolean,
     val isCurrent: Boolean,
 )

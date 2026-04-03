@@ -9,14 +9,13 @@ import fi.lipp.blog.util.MessageLocalizer
 import java.util.UUID
 import fi.lipp.blog.service.*
 import fi.lipp.blog.util.SerializableMap
+import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.toKotlinLocalDateTime
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.transactions.transaction
-import java.time.LocalDateTime
 import kotlin.jvm.Throws
 
 class UserServiceImpl(
@@ -57,7 +56,7 @@ class UserServiceImpl(
         val inviteCode = transaction {
             InviteCodes.insertAndGetId {
                 it[creator] = userId
-                it[issuedAt] = LocalDateTime.now().toKotlinLocalDateTime()
+                it[issuedAt] = Clock.System.now()
             }
         }
         return inviteCode.value.toString()
@@ -451,7 +450,7 @@ class UserServiceImpl(
         val resetCode = transaction {
             PasswordResets.insertAndGetId {
                 it[user] = userEntity.id
-                it[issuedAt] = LocalDateTime.now().toKotlinLocalDateTime()
+                it[issuedAt] = Clock.System.now()
             }
         }
 
@@ -781,7 +780,7 @@ class UserServiceImpl(
                     this.toUser = toUser
                     this.message = request.message
                     this.label = request.label
-                    this.createdAt = LocalDateTime.now().toKotlinLocalDateTime()
+                    this.createdAt = Clock.System.now()
                 }
 
                 val senderDiary = DiaryEntity.find { Diaries.owner eq userId }.single()
@@ -800,21 +799,21 @@ class UserServiceImpl(
             FriendshipEntity.new {
                 user1 = request.fromUser
                 user2 = request.toUser
-                createdAt = LocalDateTime.now().toKotlinLocalDateTime()
+                createdAt = Clock.System.now()
             }
 
             FriendLabelEntity.new {
                 user = request.toUser
                 friend = request.fromUser
                 this.label = label
-                createdAt = LocalDateTime.now().toKotlinLocalDateTime()
+                createdAt = Clock.System.now()
             }
 
             FriendLabelEntity.new {
                 user = request.fromUser
                 friend = request.toUser
                 this.label = request.label
-                createdAt = LocalDateTime.now().toKotlinLocalDateTime()
+                createdAt = Clock.System.now()
             }
 
             notificationService.markFriendRequestNotificationAsRead(userId, requestId)
@@ -944,7 +943,7 @@ class UserServiceImpl(
                     this.user = EntityID(userId, Users)
                     this.friend = friend.id
                     this.label = label
-                    this.createdAt = LocalDateTime.now().toKotlinLocalDateTime()
+                    this.createdAt = Clock.System.now()
                 }
             }
         }

@@ -10,14 +10,14 @@ import fi.lipp.blog.plugins.createAccessToken
 import fi.lipp.blog.repository.UserPermissions
 import fi.lipp.blog.repository.UserSessions
 import fi.lipp.blog.service.SessionService
-import kotlinx.datetime.toKotlinLocalDateTime
+import kotlinx.datetime.Clock
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
-import java.time.LocalDateTime
 import java.util.UUID
+import kotlin.time.Duration.Companion.days
 
-private const val REFRESH_TOKEN_LIFETIME_DAYS = 30L
+private const val REFRESH_TOKEN_LIFETIME_DAYS = 30
 
 private val MOBILE_USER_AGENT_REGEX = Regex("Mobile|Android|iPhone|iPad|iPod|webOS|BlackBerry|Opera Mini|IEMobile", RegexOption.IGNORE_CASE)
 
@@ -55,11 +55,10 @@ class SessionServiceImpl : SessionService {
                 (UserSessions.refreshToken eq refreshToken) and (UserSessions.isRevoked eq false)
             }.firstOrNull() ?: throw SessionNotFoundException()
 
-            val now = LocalDateTime.now()
-            val nowKotlin = now.toKotlinLocalDateTime()
+            val now = Clock.System.now()
 
             // Check if refresh token has expired
-            if (session.refreshTokenExpiresAt < nowKotlin) {
+            if (session.refreshTokenExpiresAt < now) {
                 session.isRevoked = true
                 throw SessionNotFoundException()
             }
@@ -67,8 +66,8 @@ class SessionServiceImpl : SessionService {
             // Rotate refresh token
             val newRefreshToken = UUID.randomUUID().toString()
             session.refreshToken = newRefreshToken
-            session.refreshTokenExpiresAt = now.plusDays(REFRESH_TOKEN_LIFETIME_DAYS).toKotlinLocalDateTime()
-            session.lastSeen = nowKotlin
+            session.refreshTokenExpiresAt = now.plus(REFRESH_TOKEN_LIFETIME_DAYS.days)
+            session.lastSeen = now
 
             val userId = session.user.value
             val permissions = loadUserPermissionsInTransaction(userId)

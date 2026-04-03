@@ -12,12 +12,11 @@ import fi.lipp.blog.repository.*
 import fi.lipp.blog.service.Viewer
 import io.ktor.websocket.*
 import kotlinx.coroutines.runBlocking
-import kotlinx.datetime.toKotlinLocalDateTime
+import kotlinx.datetime.Clock
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.junit.Test
 import org.mockito.kotlin.*
-import java.time.LocalDateTime
 import java.util.*
 import kotlin.test.assertTrue
 
@@ -30,7 +29,7 @@ class CommentWebSocketRaceConditionTest : UnitTestBase() {
                 it[email] = "race@test.com"
                 it[nickname] = "race"
                 it[password] = "pass"
-                it[registrationTime] = LocalDateTime.now().toKotlinLocalDateTime()
+                it[registrationTime] = Clock.System.now()
                 it[sex] = Sex.UNDEFINED
                 it[nsfw] = NSFWPolicy.HIDE
                 it[timezone] = "UTC"
@@ -59,7 +58,7 @@ class CommentWebSocketRaceConditionTest : UnitTestBase() {
                 it[title] = "Test Post"
                 it[uri] = "race-post"
                 it[text] = "Hello"
-                it[creationTime] = LocalDateTime.now().toKotlinLocalDateTime()
+                it[creationTime] = Clock.System.now()
                 it[readGroup] = groupService.everyoneGroupUUID
                 it[commentGroup] = groupService.everyoneGroupUUID
                 it[reactionGroup] = groupService.privateGroupUUID
@@ -84,7 +83,7 @@ class CommentWebSocketRaceConditionTest : UnitTestBase() {
                 it[localAuthor] = ownerId
                 it[avatar] = "avatar"
                 it[text] = "Race comment"
-                it[creationTime] = LocalDateTime.now().toKotlinLocalDateTime()
+                it[creationTime] = Clock.System.now()
             }
             val commentEntity = CommentEntity.findById(id)!!
             

@@ -26,8 +26,9 @@ import fi.lipp.blog.stubs.PasswordEncoderStub
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
 import org.koin.dsl.module
-import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.toJavaLocalDateTime
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+import kotlin.time.Duration.Companion.seconds
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -256,10 +257,10 @@ abstract class UnitTestBase {
         }
     }
 
-    protected fun assertNow(dateTime: LocalDateTime) {
-        val javaDateTime = dateTime.toJavaLocalDateTime()
-        assertTrue(javaDateTime.isAfter(java.time.LocalDateTime.now().minusSeconds(20)))
-        assertTrue(javaDateTime.isBefore(java.time.LocalDateTime.now()))
+    protected fun assertNow(instant: Instant) {
+        val now = Clock.System.now()
+        assertTrue((now - instant) < 20.seconds)
+        assertTrue(instant <= now)
     }
 
     @Before

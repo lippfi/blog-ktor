@@ -3,14 +3,13 @@ package fi.lipp.blog.domain
 import fi.lipp.blog.repository.*
 import fi.lipp.blog.repository.Messages
 import fi.lipp.blog.domain.MessageEntity
-import kotlinx.datetime.toKotlinLocalDateTime
+import kotlinx.datetime.Clock
 import org.jetbrains.exposed.dao.UUIDEntity
 import org.jetbrains.exposed.dao.UUIDEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.dao.id.UUIDTable
 import org.jetbrains.exposed.sql.Column
-import org.jetbrains.exposed.sql.kotlin.datetime.datetime
-import java.time.LocalDateTime
+import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 import java.util.UUID
 
 object Notifications : UUIDTable() {
@@ -23,7 +22,7 @@ object Notifications : UUIDTable() {
     val relatedRequest = reference("related_request", FriendRequests).nullable()
     val relatedDialog = reference("related_dialog", Dialogs).nullable()
     val isRead = bool("is_read").default(false)
-    val createdAt = datetime("created_at").clientDefault { LocalDateTime.now().toKotlinLocalDateTime() }
+    val createdAt = timestamp("created_at").clientDefault { Clock.System.now() }
 }
 
 class NotificationEntity(id: EntityID<UUID>) : UUIDEntity(id) {
