@@ -4,6 +4,7 @@ import java.nio.file.Path
 
 interface ApplicationProperties {
     val resendAPIKey: String
+    val senderEmail: String
     val databaseUrl: String
     val databaseUser: String
     val databasePassword: String

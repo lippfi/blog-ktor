@@ -11,6 +11,7 @@ open class ApplicationPropertiesStub(
     val baseUrl = filesBaseUrl
 
     override val resendAPIKey: String = ""
+    override val senderEmail: String = ""
     override val databaseUrl: String = "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1"
     override val databaseUser: String = "sa"
     override val databasePassword: String = ""

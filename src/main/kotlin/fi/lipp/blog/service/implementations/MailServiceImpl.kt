@@ -7,10 +7,11 @@ import fi.lipp.blog.service.MailService
 
 class MailServiceImpl(properties: ApplicationProperties) : MailService {
     val resend = Resend(properties.resendAPIKey)
+    val senderEmail = properties.senderEmail
 
     override fun sendEmail(subject: String, text: String, recipient: String) {
         val sendEmailRequest = CreateEmailOptions.builder()
-            .from("lippfi@resend.dev")
+            .from(senderEmail)
             .to(recipient)
             .subject(subject)
             .html(text)

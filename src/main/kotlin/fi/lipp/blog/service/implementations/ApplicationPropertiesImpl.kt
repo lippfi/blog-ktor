@@ -7,6 +7,7 @@ import kotlin.io.path.Path
 
 class ApplicationPropertiesImpl(private val environment: ApplicationEnvironment) : ApplicationProperties {
     override val resendAPIKey = environment.config.property("mail.api_key").getString()
+    override val senderEmail = environment.config.property("mail.sender_email").getString()
     override val databaseUrl = environment.config.propertyOrNull("database.url")?.getString() ?: "jdbc:h2:file:./data/blog;DB_CLOSE_DELAY=-1"
     override val databaseUser = environment.config.propertyOrNull("database.user")?.getString() ?: "root"
     override val databasePassword = environment.config.propertyOrNull("database.password")?.getString() ?: ""

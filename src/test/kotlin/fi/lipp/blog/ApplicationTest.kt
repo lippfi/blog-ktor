@@ -19,6 +19,7 @@ class ApplicationTest {
                 "database.user" to "root",
                 "database.password" to "",
                 "mail.api_key" to "test-key",
+                "mail.sender_email" to "test@resend.dev",
                 "storage.base_dir" to "/tmp",
                 "storage.base_url" to "http://localhost:8000",
                 "jwt.secret" to "test-secret",
