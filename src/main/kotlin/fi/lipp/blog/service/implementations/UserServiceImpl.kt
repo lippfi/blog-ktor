@@ -633,30 +633,38 @@ class UserServiceImpl(
 
     override fun addAvatar(userId: UUID, avatarUri: String) {
         transaction {
+            val user = UserEntity.findById(userId) ?: return@transaction
             val avatarEntity = getFileEntityByUri(avatarUri)
-            val avatarId = avatarEntity.id.value
 
             if (avatarEntity.fileType != FileType.AVATAR) throw AvatarNotFoundException()
 
-            val avatarInUserCollection = UserAvatars.select {
-                (UserAvatars.user eq userId) and (UserAvatars.avatar eq avatarId)
-            }.count() > 0
+            ensureAvatarInCollection(userId, avatarEntity.id)
 
-            if (avatarInUserCollection) {
-                return@transaction
-            }
-
-            val maxOrdinal = UserAvatars.slice(UserAvatars.ordinal.max())
-                .select { UserAvatars.user eq userId }
-                .firstOrNull()
-                ?.get(UserAvatars.ordinal.max()) ?: 0
-
-            UserAvatars.insert {
-                it[user] = userId
-                it[avatar] = avatarEntity.id
-                it[ordinal] = maxOrdinal + 1
+            if (user.primaryAvatar == null) {
+                user.primaryAvatar = avatarEntity.id
             }
         }
+    }
+
+    @Suppress("UnusedReceiverParameter")
+    private fun Transaction.ensureAvatarInCollection(userId: UUID, avatarId: EntityID<UUID>): Boolean {
+        val alreadyInCollection = UserAvatars.select {
+            (UserAvatars.user eq userId) and (UserAvatars.avatar eq avatarId)
+        }.count() > 0
+
+        if (alreadyInCollection) return false
+
+        val maxOrdinal = UserAvatars.slice(UserAvatars.ordinal.max())
+            .select { UserAvatars.user eq userId }
+            .firstOrNull()
+            ?.get(UserAvatars.ordinal.max()) ?: 0
+
+        UserAvatars.insert {
+            it[user] = EntityID(userId, Users)
+            it[avatar] = avatarId
+            it[ordinal] = maxOrdinal + 1
+        }
+        return true
     }
 
     override fun deleteAvatar(userId: UUID, avatarUri: String) {
@@ -971,26 +979,7 @@ class UserServiceImpl(
                 throw AvatarNotFoundException()
             }
 
-            val avatarId = avatarEntity.id.value
-
-            val avatarInUserCollection = UserAvatars.select {
-                (UserAvatars.user eq userId) and (UserAvatars.avatar eq avatarId)
-            }.count() > 0
-
-            if (!avatarInUserCollection) {
-                val maxOrdinal = UserAvatars
-                    .slice(UserAvatars.ordinal.max())
-                    .select { UserAvatars.user eq userId }
-                    .firstOrNull()
-                    ?.get(UserAvatars.ordinal.max()) ?: 0
-
-                UserAvatars.insert {
-                    it[UserAvatars.user] = EntityID(userId, Users)
-                    it[avatar] = avatarEntity.id
-                    it[ordinal] = maxOrdinal + 1
-                }
-            }
-
+            ensureAvatarInCollection(userId, avatarEntity.id)
             user.primaryAvatar = avatarEntity.id
         }
     }
@@ -1017,21 +1006,13 @@ class UserServiceImpl(
         if (newAvatars.isEmpty()) return
 
         val newAvatarId = newAvatars[0].id
+        val newAvatarEntityId = EntityID(newAvatarId, Files)
 
-        val maxOrdinal = UserAvatars.slice(UserAvatars.ordinal.max())
-            .select { UserAvatars.user eq userId }
-            .firstOrNull()
-            ?.get(UserAvatars.ordinal.max()) ?: 0
-
-        UserAvatars.insert {
-            it[user] = EntityID(userId, Users)
-            it[avatar] = EntityID(newAvatarId, Files)
-            it[ordinal] = maxOrdinal + 1
-        }
+        ensureAvatarInCollection(userId, newAvatarEntityId)
 
         val user = UserEntity.findById(userId)
         if (user?.primaryAvatar == null) {
-            user?.primaryAvatar = EntityID(newAvatarId, Files)
+            user?.primaryAvatar = newAvatarEntityId
         }
     }
 

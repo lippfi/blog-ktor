@@ -1610,6 +1610,116 @@ class UserServiceTests : UnitTestBase() {
     // ── addAvatar(userId, avatarUri) ────────────────────────────────────
 
     @Test
+    fun `addAvatar by URI - sets primary avatar when user has none`() {
+        transaction {
+            val (userId1, userId2) = signUsersUp()
+
+            // Upload avatar for user1
+            val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            userService.addAvatar(Viewer.Registered(userId1), listOf(avatarUpload))
+            val avatars1 = userService.getAvatars(userId1)
+            assertEquals(1, avatars1.size)
+
+            // user2 has no avatars and no primary
+            val user2 = UserEntity.findById(userId2)!!
+            assertNull(user2.primaryAvatar)
+
+            // Add avatar by URI to user2
+            val avatarUrl = storageService.getFileURL(avatars1[0])
+            userService.addAvatar(userId2, avatarUrl)
+
+            // Verify primary was set
+            assertNotNull(user2.primaryAvatar)
+            assertEquals(avatars1[0].id, user2.primaryAvatar!!.value)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `addAvatar by URI - does not change primary when user already has one`() {
+        transaction {
+            val (userId1, userId2) = signUsersUp()
+
+            // Upload two avatars for user1
+            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.readBytes())
+            userService.addAvatar(Viewer.Registered(userId1), listOf(avatarUpload1, avatarUpload2))
+            val avatars1 = userService.getAvatars(userId1)
+            assertEquals(2, avatars1.size)
+
+            // Give user2 their own avatar first
+            val avatarUrl1 = storageService.getFileURL(avatars1[0])
+            userService.addAvatar(userId2, avatarUrl1)
+
+            val user2 = UserEntity.findById(userId2)!!
+            val originalPrimary = user2.primaryAvatar!!.value
+
+            // Add a second avatar by URI
+            val avatarUrl2 = storageService.getFileURL(avatars1[1])
+            userService.addAvatar(userId2, avatarUrl2)
+
+            // Verify primary didn't change
+            assertEquals(originalPrimary, user2.primaryAvatar!!.value)
+            assertEquals(2, userService.getAvatars(userId2).size)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `addAvatar by URI - idempotent call preserves primary avatar`() {
+        transaction {
+            val (userId1, userId2) = signUsersUp()
+
+            val avatarUpload = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            userService.addAvatar(Viewer.Registered(userId1), listOf(avatarUpload))
+            val avatars1 = userService.getAvatars(userId1)
+
+            val avatarUrl = storageService.getFileURL(avatars1[0])
+            userService.addAvatar(userId2, avatarUrl)
+
+            val user2 = UserEntity.findById(userId2)!!
+            val primaryBefore = user2.primaryAvatar!!.value
+
+            // Call again with the same avatar
+            userService.addAvatar(userId2, avatarUrl)
+
+            // Primary and collection unchanged
+            assertEquals(primaryBefore, user2.primaryAvatar!!.value)
+            assertEquals(1, userService.getAvatars(userId2).size)
+
+            rollback()
+        }
+    }
+
+    @Test
+    fun `deleteAvatar by URI - preserves primary when non-primary is deleted`() {
+        transaction {
+            val (userId, _) = signUsersUp()
+
+            val avatarUpload1 = FileUploadData(avatarFile1.name, avatarFile1.readBytes())
+            val avatarUpload2 = FileUploadData(avatarFile2.name, avatarFile2.readBytes())
+            userService.addAvatar(Viewer.Registered(userId), listOf(avatarUpload1, avatarUpload2))
+            val avatars = userService.getAvatars(userId)
+            assertEquals(2, avatars.size)
+
+            val user = UserEntity.findById(userId)!!
+            assertEquals(avatars[0].id, user.primaryAvatar!!.value)
+
+            // Delete the second (non-primary) avatar
+            val secondAvatarUrl = storageService.getFileURL(avatars[1])
+            userService.deleteAvatar(userId, secondAvatarUrl)
+
+            // Primary should remain unchanged
+            assertEquals(avatars[0].id, user.primaryAvatar!!.value)
+            assertEquals(1, userService.getAvatars(userId).size)
+
+            rollback()
+        }
+    }
+
+    @Test
     fun `addAvatar - adds avatar from local storage URL`() {
         transaction {
             val (userId1, userId2) = signUsersUp()
