@@ -32,6 +32,33 @@ paths:
                 items:
                   type: string
 
+  /storage/upload-avatars:
+    post:
+      tags: [storage]
+      summary: Upload avatar files to storage
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Uploaded avatar file URLs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
 components:
   securitySchemes:
     bearerAuth:
